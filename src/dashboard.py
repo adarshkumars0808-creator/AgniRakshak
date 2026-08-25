@@ -109,10 +109,23 @@ st.markdown(
 
 try:
 
-    risk_df = pd.read_csv(
-        "data/delhi_risk_predictions.csv"
+    # Risk data comes from FastAPI backend
+    import requests
+
+    API_URL = "http://127.0.0.1:8000/api/risk"
+
+    response = requests.get(
+        API_URL,
+        timeout=10
     )
 
+    response.raise_for_status()
+
+    risk_df = pd.DataFrame(
+        response.json()
+    )
+
+    # FIRMS detection data remains local for now
     firms_df = pd.read_csv(
         "data/delhi_firms.csv"
     )
@@ -144,6 +157,7 @@ def find_column(df, names):
 risk_column = find_column(
     risk_df,
     [
+        "risk_category",
         "predicted_risk",
         "risk",
         "activity_category"
@@ -175,6 +189,7 @@ firms_lon = find_column(
 risk_lat = find_column(
     risk_df,
     [
+        "grid_lat",
         "latitude",
         "lat",
         "Latitude"
@@ -184,6 +199,7 @@ risk_lat = find_column(
 risk_lon = find_column(
     risk_df,
     [
+        "grid_lon",
         "longitude",
         "lon",
         "Longitude"
@@ -734,7 +750,7 @@ with right:
         "avg_frp",
         "max_frp",
         "activity_score",
-        "predicted_risk"
+        "risk_category"
     ]:
 
         if column in filtered_risk.columns:
