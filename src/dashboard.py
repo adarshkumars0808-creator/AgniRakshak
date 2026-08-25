@@ -612,7 +612,9 @@ if (
 <h4>🔥 THERMOSCOPE RISK CELL</h4>
 
 <b>Risk Level:</b> {risk_value}<br>
-<b>Grid:</b> {row.get("grid_id", "N/A")}<br><br>
+<b>Grid:</b> {row.get("grid_id", "N/A")}<br>
+<b>Latitude:</b> {lat:.5f}<br>
+<b>Longitude:</b> {lon:.5f}<br><br>
 
 <b>Risk Score:</b> {row.get("risk_score", "N/A")}<br>
 <b>Risk Percentage:</b> {row.get("risk_percentage", "N/A")}%<br><br>
