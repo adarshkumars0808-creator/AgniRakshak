@@ -127,8 +127,8 @@ try:
 
     # FIRMS detection data remains local for now
     firms_df = pd.read_csv(
-        "data/delhi_firms.csv"
-    )
+    "data/delhi_firms_sih.csv"
+)
 
 except Exception as e:
 
