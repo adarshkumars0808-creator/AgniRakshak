@@ -607,12 +607,28 @@ if (
         )
 
         popup_text = f"""
-        <b>Risk Level:</b> {risk_value}<br>
-        <b>Grid:</b> {row.get("grid_id", "N/A")}<br>
-        <b>Detections:</b> {row.get("detection_count", "N/A")}<br>
-        <b>Avg FRP:</b> {row.get("avg_frp", "N/A")}<br>
-        <b>Max FRP:</b> {row.get("max_frp", "N/A")}
-        """
+<div style="width:280px">
+
+<h4>🔥 THERMOSCOPE RISK CELL</h4>
+
+<b>Risk Level:</b> {risk_value}<br>
+<b>Grid:</b> {row.get("grid_id", "N/A")}<br><br>
+
+<b>Risk Score:</b> {row.get("risk_score", "N/A")}<br>
+<b>Risk Percentage:</b> {row.get("risk_percentage", "N/A")}%<br><br>
+
+<b>Detection Count:</b> {row.get("detection_count", "N/A")}<br>
+<b>Active Days:</b> {row.get("active_days", "N/A")}<br>
+<b>Average FRP:</b> {row.get("avg_frp", "N/A")}<br>
+<b>Maximum FRP:</b> {row.get("max_frp", "N/A")}<br><br>
+
+<b>Recurrence Score:</b> {row.get("recurrence_score", "N/A")}<br>
+<b>Satellite Score:</b> {row.get("satellite_score", "N/A")}<br>
+<b>FRP Intensity:</b> {row.get("frp_intensity", "N/A")}<br>
+<b>Activity Score:</b> {row.get("activity_score", "N/A")}
+
+</div>
+"""
 
         folium.CircleMarker(
             location=[lat, lon],
