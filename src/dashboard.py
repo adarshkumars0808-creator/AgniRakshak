@@ -109,23 +109,10 @@ st.markdown(
 
 try:
 
-    # Risk data comes from FastAPI backend
-    import requests
-
-    API_URL = "http://127.0.0.1:8000/api/risk"
-
-    response = requests.get(
-        API_URL,
-        timeout=10
+    risk_df = pd.read_csv(
+        "data/delhi_risk_predictions.csv"
     )
 
-    response.raise_for_status()
-
-    risk_df = pd.DataFrame(
-        response.json()
-    )
-
-    # FIRMS detection data remains local for now
     firms_df = pd.read_csv(
     "data/delhi_firms_sih.csv"
 )
@@ -744,14 +731,14 @@ with right:
     display_columns = []
 
     for column in [
-        "grid_id",
-        "detection_count",
-        "active_days",
-        "avg_frp",
-        "max_frp",
-        "activity_score",
-        "risk_category"
-    ]:
+    "grid_id",
+    "detection_count",
+    "active_days",
+    "avg_frp",
+    "max_frp",
+    "activity_score",
+    "risk_category"
+]:
 
         if column in filtered_risk.columns:
 
