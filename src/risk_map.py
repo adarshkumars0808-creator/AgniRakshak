@@ -8,40 +8,29 @@ print("=" * 60)
 # Load prediction data
 pred = pd.read_csv("data/delhi_risk_predictions.csv")
 
-# Load original FIRMS data
-firms = pd.read_csv("data/delhi_master.csv")
-
 print("\nLoaded prediction cells:", len(pred))
-print("Loaded FIRMS observations:", len(firms))
 
 # --------------------------------------------------
-# Get coordinates for each grid cell
+# Use grid coordinates directly from predictions
 # --------------------------------------------------
 
-firms["grid_id"] = (
-    firms["latitude"].round(2).astype(str)
-    + "_"
-    + firms["longitude"].round(2).astype(str)
+df = pred.copy()
+
+df["latitude"] = pd.to_numeric(
+    df["grid_lat"],
+    errors="coerce"
 )
 
-# Average coordinates for each grid
-coordinates = (
-    firms.groupby("grid_id")
-    .agg(
-        latitude=("latitude", "mean"),
-        longitude=("longitude", "mean")
-    )
-    .reset_index()
+df["longitude"] = pd.to_numeric(
+    df["grid_lon"],
+    errors="coerce"
 )
 
-# --------------------------------------------------
-# Merge coordinates with predictions
-# --------------------------------------------------
-
-df = pred.merge(
-    coordinates,
-    on="grid_id",
-    how="left"
+print(
+    "\nCoordinates matched:",
+    df["latitude"].notna().sum(),
+    "/",
+    len(df)
 )
 
 print("\nCoordinates matched:",
@@ -57,7 +46,7 @@ plt.figure(figsize=(10, 8))
 
 for risk in ["LOW", "MEDIUM", "HIGH"]:
 
-    subset = df[df["predicted_risk"] == risk]
+    subset = df[df["risk_category"] == risk]
 
     if len(subset) == 0:
         continue
@@ -106,14 +95,14 @@ plt.savefig(
     bbox_inches="tight"
 )
 
-plt.show()
+
 
 # --------------------------------------------------
 # Summary
 # --------------------------------------------------
 
 print("\nRisk distribution:")
-print(df["predicted_risk"].value_counts())
+print(df["risk_category"].value_counts())
 
 print("\nMap saved to:")
 print(output)
