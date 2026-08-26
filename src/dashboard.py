@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -25,164 +26,186 @@ st.set_page_config(
 
 st.markdown(
     """
-<style>
-.stApp {
-    background:
-        radial-gradient(circle at 85% 5%, rgba(255, 90, 30, 0.08), transparent 25%),
-        #0b0f15;
-    color: #f5f7fa;
-}
+    <style>
+    .stApp {
+        background:
+            radial-gradient(circle at 85% 5%, rgba(255, 90, 30, 0.08), transparent 25%),
+            #0b0f15;
+        color: #f5f7fa;
+    }
 
-.block-container {
-    max-width: 1500px;
-    padding-top: 2rem;
-    padding-bottom: 3rem;
-}
+    .block-container {
+        max-width: 1500px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
 
-[data-testid="stSidebar"] {
-    background: #0d121a;
-    border-right: 1px solid #252c36;
-}
+    [data-testid="stSidebar"] {
+        background: #0d121a;
+        border-right: 1px solid #252c36;
+    }
 
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    color: #f5f7fa;
-}
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #f5f7fa;
+    }
 
-.hero {
-    background: linear-gradient(145deg, #151b24, #10151d);
-    border: 1px solid #29313d;
-    border-radius: 18px;
-    padding: 24px 28px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-}
+    .hero {
+        background: linear-gradient(145deg, #151b24, #10151d);
+        border: 1px solid #29313d;
+        border-radius: 18px;
+        padding: 24px 28px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    }
 
-.hero-title {
-    font-size: 48px;
-    font-weight: 850;
-    letter-spacing: -1px;
-    margin-bottom: 6px;
-    color: #f5f7fa;
-}
+    .hero-title {
+        font-size: 48px;
+        font-weight: 850;
+        letter-spacing: -1px;
+        margin-bottom: 6px;
+        color: #f5f7fa;
+    }
 
-.hero-subtitle {
-    color: #9aa4b2;
-    font-size: 17px;
-    line-height: 1.5;
-    margin-top: 4px;
-}
+    .hero-subtitle {
+        color: #9aa4b2;
+        font-size: 17px;
+        line-height: 1.5;
+        margin-top: 4px;
+    }
 
-.live-badge {
-    display: inline-block;
-    padding: 7px 15px;
-    border-radius: 30px;
-    border: 1px solid rgba(0, 220, 120, 0.30);
-    background: rgba(0, 180, 100, 0.08);
-    color: #35e68a;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
+    .live-badge {
+        display: inline-block;
+        padding: 7px 15px;
+        border-radius: 30px;
+        border: 1px solid rgba(0, 220, 120, 0.30);
+        background: rgba(0, 180, 100, 0.08);
+        color: #35e68a;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
 
-.section-label {
-    color: #737f8e;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
+    .dataset-badge {
+        display: inline-block;
+        padding: 7px 15px;
+        border-radius: 30px;
+        border: 1px solid rgba(70, 160, 255, 0.30);
+        background: rgba(70, 160, 255, 0.08);
+        color: #72b7ff;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
 
-.section-title {
-    font-size: 28px;
-    font-weight: 800;
-    margin-bottom: 4px;
-}
+    .section-label {
+        color: #737f8e;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
 
-.section-subtitle {
-    color: #8d98a7;
-    font-size: 14px;
-    margin-bottom: 18px;
-}
+    .section-title {
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
 
-div[data-testid="stMetric"] {
-    background: linear-gradient(145deg, #151b24, #10151d);
-    border: 1px solid #29313d;
-    border-radius: 15px;
-    padding: 18px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
-}
+    .section-subtitle {
+        color: #8d98a7;
+        font-size: 14px;
+        margin-bottom: 18px;
+    }
 
-div[data-testid="stMetricLabel"] {
-    color: #8f9aaa !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    text-transform: uppercase;
-}
+    div[data-testid="stMetric"] {
+        background: linear-gradient(145deg, #151b24, #10151d);
+        border: 1px solid #29313d;
+        border-radius: 15px;
+        padding: 18px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
+    }
 
-div[data-testid="stMetricValue"] {
-    color: #f4f7fb !important;
-    font-weight: 800 !important;
-}
+    div[data-testid="stMetricLabel"] {
+        color: #8f9aaa !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+    }
 
-.info-card {
-    background: #111720;
-    border: 1px solid #29313d;
-    border-radius: 15px;
-    padding: 20px;
-    height: 100%;
-}
+    div[data-testid="stMetricValue"] {
+        color: #f4f7fb !important;
+        font-weight: 800 !important;
+    }
 
-.info-card-title {
-    color: #8d98a7;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-}
+    .info-card {
+        background: #111720;
+        border: 1px solid #29313d;
+        border-radius: 15px;
+        padding: 20px;
+        height: 100%;
+    }
 
-.info-card-value {
-    color: #f4f7fb;
-    font-size: 22px;
-    font-weight: 750;
-}
+    .info-card-title {
+        color: #8d98a7;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
 
-.info-card-text {
-    color: #8d98a7;
-    font-size: 13px;
-    margin-top: 6px;
-    line-height: 1.5;
-}
+    .info-card-value {
+        color: #f4f7fb;
+        font-size: 22px;
+        font-weight: 750;
+    }
 
-hr {
-    border-color: #252c36 !important;
-    margin-top: 30px !important;
-    margin-bottom: 30px !important;
-}
+    .info-card-text {
+        color: #8d98a7;
+        font-size: 13px;
+        margin-top: 6px;
+        line-height: 1.5;
+    }
 
-[data-testid="stDataFrame"] {
-    border: 1px solid #29313d;
-    border-radius: 12px;
-    overflow: hidden;
-}
+    .status-card {
+        background: #111720;
+        border: 1px solid #29313d;
+        border-radius: 12px;
+        padding: 12px 15px;
+        color: #aeb8c5;
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
 
-.map-caption {
-    color: #7f8997;
-    font-size: 12px;
-    margin-top: 7px;
-}
+    hr {
+        border-color: #252c36 !important;
+        margin-top: 30px !important;
+        margin-bottom: 30px !important;
+    }
 
-.footer {
-    text-align: center;
-    color: #687382;
-    font-size: 12px;
-    padding: 25px 0 5px 0;
-}
-</style>
-""",
+    [data-testid="stDataFrame"] {
+        border: 1px solid #29313d;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .map-caption {
+        color: #7f8997;
+        font-size: 12px;
+        margin-top: 7px;
+    }
+
+    .footer {
+        text-align: center;
+        color: #687382;
+        font-size: 12px;
+        padding: 25px 0 5px 0;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -223,22 +246,107 @@ def render_info_card(title, value, text):
     )
 
 
+def get_data_files(use_live=False):
+    if use_live:
+        return (
+            "data/delhi_risk_predictions_live.csv",
+            "data/delhi_firms_live.csv",
+        )
+    return (
+        "data/delhi_risk_predictions.csv",
+        "data/delhi_firms_sih.csv",
+    )
+
+
+@st.cache_data
+def load_data(use_live=False):
+    risk_file, firms_file = get_data_files(use_live)
+
+    if not os.path.exists(risk_file):
+        raise FileNotFoundError(f"Risk file not found: {risk_file}")
+
+    if not os.path.exists(firms_file):
+        raise FileNotFoundError(f"FIRMS file not found: {firms_file}")
+
+    risk_df = pd.read_csv(risk_file)
+    firms_df = pd.read_csv(firms_file)
+
+    return risk_df, firms_df
+
+
+# ============================================================
+# SIDEBAR — DATA MODE + CONTROLS
+# ============================================================
+
+with st.sidebar:
+    st.markdown("## ⚙️ Controls")
+    st.divider()
+
+    st.markdown("### 📡 Data Mode")
+
+    live_risk_file, live_firms_file = get_data_files(use_live=True)
+    live_available = (
+        os.path.exists(live_risk_file)
+        and os.path.exists(live_firms_file)
+    )
+
+    data_mode = st.radio(
+        "Select data mode",
+        ["SIH Dataset", "Live Processed Data"],
+        index=0,
+        label_visibility="collapsed",
+    )
+
+    if data_mode == "Live Processed Data" and not live_available:
+        st.warning(
+            "Live processed files are not available. "
+            "Switching to the SIH dataset."
+        )
+        data_mode = "SIH Dataset"
+
+    use_live = data_mode == "Live Processed Data"
+
+    if use_live:
+        st.markdown(
+            '<div class="status-card">🟢 Live processed CSV files detected.</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="status-card">🔵 Using the SIH-provided NASA FIRMS dataset.</div>',
+            unsafe_allow_html=True,
+        )
+
+    if st.button("🔄 Refresh Data", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.divider()
+
+
 # ============================================================
 # LOAD DATA
 # ============================================================
 
-@st.cache_data
-def load_data():
-    risk_df = pd.read_csv("data/delhi_risk_predictions.csv")
-    firms_df = pd.read_csv("data/delhi_firms_sih.csv")
-    return risk_df, firms_df
-
-
 try:
-    risk_df, firms_df = load_data()
+    risk_df, firms_df = load_data(use_live=use_live)
 except Exception as e:
-    st.error(f"Unable to load Thermoscope data: {e}")
-    st.stop()
+    # If live mode fails for any unexpected reason, safely fall back
+    # to the SIH-provided dataset.
+    if use_live:
+        try:
+            use_live = False
+            data_mode = "SIH Dataset"
+            risk_df, firms_df = load_data(use_live=False)
+            st.sidebar.warning(
+                "Live data could not be loaded. SIH dataset is being used."
+            )
+        except Exception as fallback_error:
+            st.error(f"Unable to load Thermoscope data: {fallback_error}")
+            st.stop()
+    else:
+        st.error(f"Unable to load Thermoscope data: {e}")
+        st.stop()
 
 
 # ============================================================
@@ -297,7 +405,6 @@ if risk_column is None:
             bins=[-float("inf"), 0.33, 0.66, float("inf")],
             labels=["LOW", "MEDIUM", "HIGH"],
         )
-
     elif avg_frp_column is not None:
         frp = pd.to_numeric(
             risk_df[avg_frp_column],
@@ -308,7 +415,6 @@ if risk_column is None:
             bins=[-float("inf"), 2, 4, float("inf")],
             labels=["LOW", "MEDIUM", "HIGH"],
         )
-
     elif detection_column is not None:
         detections = pd.to_numeric(
             risk_df[detection_column],
@@ -319,7 +425,6 @@ if risk_column is None:
             bins=[-float("inf"), 1, 2, float("inf")],
             labels=["LOW", "MEDIUM", "HIGH"],
         )
-
     else:
         risk_df["risk_category"] = "LOW"
 
@@ -335,20 +440,18 @@ risk_df[risk_column] = (
 
 
 # ============================================================
-# SIDEBAR
+# SIDEBAR — COMPLETE RISK FILTER
 # ============================================================
 
 with st.sidebar:
-    st.markdown("## ⚙️ Controls")
-    st.divider()
-
-    st.markdown("### 🎯 Risk Filter")
-
     available_risks = [
         x
         for x in ["HIGH", "MEDIUM", "LOW"]
-        if x in risk_df[risk_column].unique()
+        if x in set(risk_df[risk_column].dropna().unique())
     ]
+
+    if not available_risks:
+        available_risks = ["HIGH", "MEDIUM", "LOW"]
 
     selected_risks = st.multiselect(
         "Select risk levels",
@@ -362,10 +465,10 @@ with st.sidebar:
     st.markdown("### 🛰️ Data Source")
     st.markdown(
         """
-**NASA FIRMS**
+        **NASA FIRMS**
 
-VIIRS satellite observations
-"""
+        VIIRS satellite observations
+        """
     )
 
     st.divider()
@@ -373,10 +476,10 @@ VIIRS satellite observations
     st.markdown("### 📍 Monitoring Region")
     st.markdown(
         """
-**Delhi NCR**
+        **Delhi NCR**
 
-Approx. Delhi NCR monitoring extent
-"""
+        Approx. Delhi NCR monitoring extent
+        """
     )
 
     st.divider()
@@ -397,7 +500,7 @@ if selected_risks:
         risk_df[risk_column].isin(selected_risks)
     ].copy()
 else:
-    filtered_risk = risk_df.copy()
+    filtered_risk = risk_df.iloc[0:0].copy()
 
 
 # ============================================================
@@ -421,6 +524,13 @@ with header_left:
     )
 
 with header_right:
+    badge_class = "live-badge" if use_live else "dataset-badge"
+    badge_text = (
+        "🟢 LIVE PROCESSED DATA"
+        if use_live
+        else "🛰️ NASA FIRMS • VIIRS DATA"
+    )
+
     st.markdown(
         '<div style="'
         'display:flex;'
@@ -429,8 +539,8 @@ with header_right:
         'height:100%;'
         'padding-top:12px;'
         '">'
-        '<div class="live-badge">'
-        '🛰️ SATELLITE MONITORING'
+        f'<div class="{badge_class}">'
+        f'{badge_text}'
         '</div>'
         '</div>',
         unsafe_allow_html=True,
@@ -525,11 +635,6 @@ fire_map = folium.Map(
     control_scale=True,
 )
 
-
-# ============================================================
-# BASE MAP — SATELLITE IMAGERY
-# ============================================================
-
 folium.TileLayer(
     tiles=(
         "https://server.arcgisonline.com/ArcGIS/rest/services/"
@@ -542,11 +647,6 @@ folium.TileLayer(
     show=True,
 ).add_to(fire_map)
 
-
-# ============================================================
-# BASE MAP — STREET
-# ============================================================
-
 folium.TileLayer(
     tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attr="© OpenStreetMap contributors",
@@ -555,7 +655,6 @@ folium.TileLayer(
     control=True,
     show=False,
 ).add_to(fire_map)
-
 
 risk_colors = {
     "HIGH": "#ff3030",
@@ -737,11 +836,8 @@ detection_group = folium.FeatureGroup(
 )
 
 for point in thermal_data:
-    fire_lat = point[0]
-    fire_lon = point[1]
-
     folium.CircleMarker(
-        location=[fire_lat, fire_lon],
+        location=[point[0], point[1]],
         radius=3,
         color="#ffd166",
         fill=True,
@@ -773,17 +869,13 @@ if (
     and not filtered_risk.empty
 ):
     for _, row in filtered_risk.iterrows():
-
         try:
             lat = float(row[lat_column])
             lon = float(row[lon_column])
         except (TypeError, ValueError):
             continue
 
-        if not (
-            np.isfinite(lat)
-            and np.isfinite(lon)
-        ):
+        if not (np.isfinite(lat) and np.isfinite(lon)):
             continue
 
         map_bounds.append([lat, lon])
@@ -797,54 +889,16 @@ if (
             "#38bdf8",
         )
 
-        # ----------------------------------------------------
-        # POPUP VALUES
-        # IMPORTANT: these remain INSIDE the row loop
-        # ----------------------------------------------------
-
-        risk_score_value = popup_value(
-            row, "risk_score"
-        )
-
-        risk_percentage_value = popup_value(
-            row, "risk_percentage"
-        )
-
-        detection_count_value = popup_value(
-            row, "detection_count"
-        )
-
-        active_days_value = popup_value(
-            row, "active_days"
-        )
-
-        avg_frp_value = popup_value(
-            row, "avg_frp"
-        )
-
-        max_frp_value = popup_value(
-            row, "max_frp"
-        )
-
-        recurrence_value = popup_value(
-            row, "recurrence_score"
-        )
-
-        satellite_value = popup_value(
-            row, "satellite_score"
-        )
-
-        frp_intensity_value = popup_value(
-            row, "frp_intensity"
-        )
-
-        activity_score_value = popup_value(
-            row, "activity_score"
-        )
-
-        # ----------------------------------------------------
-        # RISK EXPLANATION
-        # ----------------------------------------------------
+        risk_score_value = popup_value(row, "risk_score")
+        risk_percentage_value = popup_value(row, "risk_percentage")
+        detection_count_value = popup_value(row, "detection_count")
+        active_days_value = popup_value(row, "active_days")
+        avg_frp_value = popup_value(row, "avg_frp")
+        max_frp_value = popup_value(row, "max_frp")
+        recurrence_value = popup_value(row, "recurrence_score")
+        satellite_value = popup_value(row, "satellite_score")
+        frp_intensity_value = popup_value(row, "frp_intensity")
+        activity_score_value = popup_value(row, "activity_score")
 
         risk_explanation = {
             "HIGH": (
@@ -866,17 +920,12 @@ if (
             "Risk classification based on available Thermoscope indicators.",
         )
 
-        # ----------------------------------------------------
-        # POPUP HTML
-        # ----------------------------------------------------
-
         popup_text = f"""
         <div style="
             width:330px;
             font-family:Arial,sans-serif;
             color:#222;
         ">
-
             <div style="
                 background:#111720;
                 color:#ffffff;
@@ -884,14 +933,12 @@ if (
                 border-radius:10px 10px 0 0;
                 margin:-10px -10px 12px -10px;
             ">
-
                 <div style="
                     font-size:18px;
                     font-weight:800;
                 ">
                     🔥 THERMOSCOPE RISK CELL
                 </div>
-
                 <div style="
                     margin-top:5px;
                     color:{risk_color};
@@ -900,27 +947,12 @@ if (
                 ">
                     🎯 {risk_value} RISK
                 </div>
-
             </div>
 
-            <div style="
-                font-size:13px;
-                margin-bottom:12px;
-            ">
-
-                <b>Grid:</b>
-                {popup_value(row, "grid_id")}
-
-                <br>
-
-                <b>Latitude:</b>
-                {lat:.5f}
-
-                <br>
-
-                <b>Longitude:</b>
-                {lon:.5f}
-
+            <div style="font-size:13px;margin-bottom:12px;">
+                <b>Grid:</b> {popup_value(row, "grid_id")}<br>
+                <b>Latitude:</b> {lat:.5f}<br>
+                <b>Longitude:</b> {lon:.5f}
             </div>
 
             <hr>
@@ -931,7 +963,6 @@ if (
                 background:#f4f5f7;
                 border-radius:8px;
             ">
-
                 <div style="
                     font-size:12px;
                     color:#666;
@@ -940,7 +971,6 @@ if (
                 ">
                     Risk Assessment
                 </div>
-
                 <div style="
                     font-size:20px;
                     font-weight:800;
@@ -949,7 +979,6 @@ if (
                 ">
                     {risk_score_value}
                 </div>
-
                 <div style="
                     font-size:12px;
                     color:#555;
@@ -958,7 +987,6 @@ if (
                     Risk Percentage:
                     <b>{risk_percentage_value}%</b>
                 </div>
-
             </div>
 
             <div style="
@@ -995,51 +1023,30 @@ if (
                 border-collapse:collapse;
                 font-size:12px;
             ">
-
                 <tr>
                     <td style="padding:5px 0;">FIRMS Detections</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {detection_count_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">Active Days</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {active_days_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">Average FRP</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {avg_frp_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">Maximum FRP</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {max_frp_value}
                     </td>
                 </tr>
-
             </table>
 
             <div style="
@@ -1056,51 +1063,30 @@ if (
                 border-collapse:collapse;
                 font-size:12px;
             ">
-
                 <tr>
                     <td style="padding:5px 0;">↻ Recurrence Score</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {recurrence_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">🛰️ Satellite Score</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {satellite_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">🌡️ FRP Intensity</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {frp_intensity_value}
                     </td>
                 </tr>
-
                 <tr>
                     <td style="padding:5px 0;">📊 Activity Score</td>
-                    <td style="
-                        padding:5px 0;
-                        text-align:right;
-                        font-weight:700;
-                    ">
+                    <td style="padding:5px 0;text-align:right;font-weight:700;">
                         {activity_score_value}
                     </td>
                 </tr>
-
             </table>
 
             <hr>
@@ -1113,7 +1099,6 @@ if (
                 border-radius:8px;
                 margin-top:10px;
             ">
-
                 <div style="
                     font-size:11px;
                     color:#aab4c1;
@@ -1122,7 +1107,6 @@ if (
                 ">
                     Thermoscope Assessment
                 </div>
-
                 <div style="
                     font-size:16px;
                     font-weight:800;
@@ -1131,29 +1115,17 @@ if (
                 ">
                     {risk_value} FIRE RISK
                 </div>
-
             </div>
-
         </div>
         """
 
-        # ----------------------------------------------------
-        # RISK GRID CELL
-        # ----------------------------------------------------
-
-        GRID_SIZE = 0.01
-        half_grid = GRID_SIZE / 2
+        grid_size = 0.01
+        half_grid = grid_size / 2
 
         folium.Rectangle(
             bounds=[
-                [
-                    lat - half_grid,
-                    lon - half_grid,
-                ],
-                [
-                    lat + half_grid,
-                    lon + half_grid,
-                ],
+                [lat - half_grid, lon - half_grid],
+                [lat + half_grid, lon + half_grid],
             ],
             color=risk_color,
             fill=True,
@@ -1165,15 +1137,8 @@ if (
                 popup_text,
                 max_width=380,
             ),
-            tooltip=(
-                f"🎯 {risk_value} RISK"
-                "<br>Click for details"
-            ),
+            tooltip=f"🎯 {risk_value} RISK — Click for details",
         ).add_to(risk_layer)
-
-        # ----------------------------------------------------
-        # RISK MARKER
-        # ----------------------------------------------------
 
         folium.CircleMarker(
             location=[lat, lon],
@@ -1189,7 +1154,6 @@ if (
             ),
             tooltip=f"{risk_value} RISK",
         ).add_to(risk_layer)
-
 
 risk_layer.add_to(fire_map)
 
@@ -1244,7 +1208,6 @@ legend_html = """
     font-family:Arial,sans-serif;
     box-shadow:0 6px 25px rgba(0,0,0,0.45);
 ">
-
 <div style="font-size:17px;font-weight:800;margin-bottom:12px;">
 🔥 THERMAL INTENSITY
 </div>
@@ -1333,7 +1296,6 @@ Fire Radiative Power (FRP).
 Green → Yellow → Orange → Red represents
 increasing observed thermal activity.
 </div>
-
 </div>
 """
 
@@ -1382,7 +1344,6 @@ st_folium(
     height=650,
     returned_objects=[],
 )
-
 
 st.markdown(
     """
@@ -1508,13 +1469,18 @@ st.markdown(
 
 temporal_df = firms_df.copy()
 
-if "acq_date" in temporal_df.columns:
-    temporal_df["acq_date"] = pd.to_datetime(
-        temporal_df["acq_date"],
+date_source = find_column(
+    temporal_df,
+    ["acq_date", "date"],
+)
+
+if date_source is not None:
+    temporal_df["_thermoscope_date"] = pd.to_datetime(
+        temporal_df[date_source],
         errors="coerce",
     )
     temporal_df = temporal_df[
-        temporal_df["acq_date"].notna()
+        temporal_df["_thermoscope_date"].notna()
     ].copy()
 else:
     temporal_df = pd.DataFrame()
@@ -1522,7 +1488,7 @@ else:
 if not temporal_df.empty:
     daily_activity = (
         temporal_df
-        .groupby("acq_date")
+        .groupby("_thermoscope_date")
         .size()
         .rename("detections")
     )
@@ -1604,7 +1570,7 @@ with analytics_right:
     elif detection_column is not None:
         sort_column = detection_column
 
-    if sort_column is not None:
+    if sort_column is not None and not activity_df.empty:
         activity_df[sort_column] = pd.to_numeric(
             activity_df[sort_column],
             errors="coerce",
@@ -1746,11 +1712,11 @@ st.dataframe(
 
 st.markdown(
     """
-<div class="footer">
-    THERMOSCOPE • Satellite-Based Fire Risk Intelligence • Delhi NCR
-    <br>
-    Powered by NASA FIRMS / VIIRS satellite observations
-</div>
-""",
+    <div class="footer">
+        THERMOSCOPE • Satellite-Based Fire Risk Intelligence • Delhi NCR
+        <br>
+        Powered by NASA FIRMS / VIIRS satellite observations
+    </div>
+    """,
     unsafe_allow_html=True,
 )
