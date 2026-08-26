@@ -7,8 +7,8 @@ import numpy as np
 # SIH PROVIDED DATASET
 # ============================================================
 
-INPUT_FILE = "data/delhi_firms_sih.csv"
-OUTPUT_FILE = "data/delhi_grid.csv"
+INPUT_FILE = "data/delhi_firms_live.csv"
+OUTPUT_FILE = "data/delhi_grid_live.csv"
 
 # 0.01 degree latitude ≈ 1.1 km
 GRID_SIZE = 0.01
