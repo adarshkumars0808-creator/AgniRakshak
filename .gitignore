@@ -185,3 +185,7 @@ src/*_live.py
 src/*_backup.py
 .env
 data/delhi_risk_interactive.html
+
+# Thermoscope local database / backups
+data/thermoscope.db
+src/dashboard_backup_before_api.py
