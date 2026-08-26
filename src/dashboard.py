@@ -27,6 +27,26 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    /* ===== DASHBOARD CARD TEXT FIX ===== */
+
+    [data-testid="stMetricLabel"] {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        font-size: 0.85rem !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+    }
+
+    /* Prevent dashboard metric cards from squeezing text */
+    [data-testid="stMetric"] {
+        min-width: 0 !important;
+        overflow: visible !important;
+    }
     .stApp {
         background:
             radial-gradient(circle at 85% 5%, rgba(255, 90, 30, 0.08), transparent 25%),
@@ -203,6 +223,17 @@ st.markdown(
         color: #687382;
         font-size: 12px;
         padding: 25px 0 5px 0;
+    }
+    [data-testid="stMetricLabel"] {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
     }
     </style>
     """,
