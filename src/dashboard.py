@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import folium
 
-from PIL import Image
 from folium import plugins
 from streamlit_folium import st_folium
 
@@ -549,6 +548,7 @@ else:
 
     filtered_risk = risk_df.copy()
 
+
 # ============================================================
 # HEADER
 # ============================================================
@@ -588,6 +588,7 @@ with header_right:
         '</div>',
         unsafe_allow_html=True,
     )
+
 
 # ============================================================
 # SYSTEM OVERVIEW
@@ -730,12 +731,14 @@ with m6:
     )
 
 
-
 # ============================================================
 # THERMOSCOPE THERMAL FIRE RISK MAP
 # ============================================================
 
-st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown(
+    "<hr>",
+    unsafe_allow_html=True,
+)
 
 st.markdown(
     """
@@ -766,25 +769,18 @@ map_center = [28.6139, 77.2090]
 
 # ============================================================
 # CREATE MAP
-# IMPORTANT:
-# NO ImageOverlay is used here.
-# ============================================================
-
-# ============================================================
-# CREATE MAP
-# API-KEY-FREE BASE MAP
 # ============================================================
 
 fire_map = folium.Map(
     location=map_center,
-    zoom_start=10,
-    tiles="OpenStreetMap",
+    zoom_start=9,
+    tiles=None,
     control_scale=True,
 )
 
 
 # ============================================================
-# OPTIONAL SATELLITE BASE MAP
+# BASE MAP 1 — SATELLITE
 # ============================================================
 
 folium.TileLayer(
@@ -793,11 +789,29 @@ folium.TileLayer(
         "World_Imagery/MapServer/tile/{z}/{y}/{x}"
     ),
     attr="Esri World Imagery",
-    name="Satellite Base",
+    name="🛰️ Satellite Base",
+    overlay=False,
+    control=True,
+    show=True,
+).add_to(
+    fire_map
+)
+
+
+# ============================================================
+# BASE MAP 2 — STREET
+# ============================================================
+
+folium.TileLayer(
+    tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr="© OpenStreetMap contributors",
+    name="🗺️ Street Map",
     overlay=False,
     control=True,
     show=False,
-).add_to(fire_map)
+).add_to(
+    fire_map
+)
 
 
 # ============================================================
@@ -862,6 +876,11 @@ if (
 
     thermal_df = firms_df.copy()
 
+
+    # --------------------------------------------------------
+    # VALIDATE COORDINATES
+    # --------------------------------------------------------
+
     thermal_df[firms_lat_column] = pd.to_numeric(
         thermal_df[firms_lat_column],
         errors="coerce",
@@ -897,7 +916,7 @@ if (
 
 
     # --------------------------------------------------------
-    # DELHI NCR BOUNDING REGION
+    # DELHI NCR / SURROUNDING MONITORING EXTENT
     # --------------------------------------------------------
 
     thermal_df = thermal_df[
@@ -932,6 +951,7 @@ if (
 
         max_frp = thermal_df["_thermal_frp"].max()
 
+
         if max_frp > 0:
 
             thermal_df["_thermal_weight"] = (
@@ -944,7 +964,6 @@ if (
             thermal_df["_thermal_weight"] = 0.5
 
 
-        # Keep weak detections visible
         thermal_df["_thermal_weight"] = (
             thermal_df["_thermal_weight"]
             .clip(
@@ -955,22 +974,22 @@ if (
 
 
         # ----------------------------------------------------
-        # HEATMAP DATA
+        # BUILD HEATMAP DATA
         # ----------------------------------------------------
 
         for _, row in thermal_df.iterrows():
 
             try:
 
-                lat = float(
+                fire_lat = float(
                     row[firms_lat_column]
                 )
 
-                lon = float(
+                fire_lon = float(
                     row[firms_lon_column]
                 )
 
-                weight = float(
+                fire_weight = float(
                     row["_thermal_weight"]
                 )
 
@@ -982,50 +1001,50 @@ if (
                 continue
 
 
+            if not (
+                np.isfinite(fire_lat)
+                and np.isfinite(fire_lon)
+                and np.isfinite(fire_weight)
+            ):
+
+                continue
+
+
             thermal_data.append(
                 [
-                    lat,
-                    lon,
-                    weight,
+                    fire_lat,
+                    fire_lon,
+                    fire_weight,
                 ]
             )
 
 
 # ============================================================
-# THERMAL INTENSITY LAYER
+# THERMAL ACTIVITY OVERLAY
+#
+# This is an overlay above the selected base map.
 # ============================================================
 
 thermal_layer = folium.FeatureGroup(
     name="🔥 FIRMS Thermal Activity",
+    overlay=True,
+    control=True,
     show=True,
 )
 
 
 # ============================================================
 # BROAD THERMAL FIELD
-#
-# This creates the wide green/yellow/orange transition
-# around the observed FIRMS activity.
-#
-# It is a visualization of spatial thermal activity,
-# NOT a fabricated temperature measurement.
 # ============================================================
 
 if thermal_data:
 
     broad_thermal = plugins.HeatMap(
         thermal_data,
-
-        name="Broad Thermal Field",
-
         radius=70,
-
         blur=55,
-
         min_opacity=0.10,
-
         max_zoom=12,
-
         gradient={
             0.00: "#063b1d",
             0.10: "#0b6b32",
@@ -1053,17 +1072,10 @@ if thermal_data:
 
     core_thermal = plugins.HeatMap(
         thermal_data,
-
-        name="Thermal Hotspots",
-
         radius=32,
-
         blur=24,
-
         min_opacity=0.25,
-
         max_zoom=15,
-
         gradient={
             0.00: "#16803a",
             0.20: "#39b54a",
@@ -1082,13 +1094,12 @@ if thermal_data:
 
 # ============================================================
 # FIRMS DETECTION POINTS
-#
-# Separate layer so it does NOT visually merge with
-# the thermal layer controls.
 # ============================================================
 
-detection_layer = folium.FeatureGroup(
+detection_group = folium.FeatureGroup(
     name="🔥 FIRMS Detection Points",
+    overlay=True,
+    control=True,
     show=True,
 )
 
@@ -1099,8 +1110,6 @@ if thermal_data:
 
         fire_lat = point[0]
         fire_lon = point[1]
-        fire_weight = point[2]
-
 
         folium.CircleMarker(
             location=[
@@ -1116,24 +1125,15 @@ if thermal_data:
 
             fill_color="#ff5a00",
 
-            fill_opacity=0.85,
+            fill_opacity=0.90,
 
             weight=1,
 
             tooltip="NASA FIRMS thermal detection",
 
         ).add_to(
-            detection_layer
+            detection_group
         )
-
-
-# ============================================================
-# ADD DETECTION LAYER
-# ============================================================
-
-detection_layer.add_to(
-    fire_map
-)
 
 
 # ============================================================
@@ -1146,11 +1146,22 @@ thermal_layer.add_to(
 
 
 # ============================================================
+# ADD FIRMS DETECTION LAYER
+# ============================================================
+
+detection_group.add_to(
+    fire_map
+)
+
+
+# ============================================================
 # RISK CLASSIFICATION LAYER
 # ============================================================
 
 risk_layer = folium.FeatureGroup(
     name="🎯 Risk Classification",
+    overlay=True,
+    control=True,
     show=True,
 )
 
@@ -1397,8 +1408,6 @@ risk_layer.add_to(
 
 # ============================================================
 # MAP TITLE
-#
-# Positioned inside map without touching layer control.
 # ============================================================
 
 title_html = """
@@ -1602,9 +1611,6 @@ fire_map.get_root().html.add_child(
 
 # ============================================================
 # LAYER CONTROL
-#
-# It is deliberately placed in the TOP-RIGHT by Leaflet.
-# The title is TOP-CENTER, so they don't overlap.
 # ============================================================
 
 folium.LayerControl(
@@ -1640,7 +1646,7 @@ elif thermal_data:
 
 
 # ============================================================
-# DISPLAY
+# DISPLAY MAP
 # ============================================================
 
 st_folium(
