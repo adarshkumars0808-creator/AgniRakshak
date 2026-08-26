@@ -467,7 +467,7 @@ with header_right:
         """
         <div style="text-align:right; padding-top:10px;">
             <span class="live-badge">
-                🟢 LIVE MONITORING
+                🛰️ SATELLITE MONITORING
             </span>
         </div>
         """,
@@ -488,6 +488,57 @@ st.markdown(
 total_firms = len(firms_df)
 total_grids = len(risk_df)
 
+# ============================================================
+# LATEST DETECTION DATE
+# ============================================================
+
+latest_detection = None
+
+# Prefer date from raw FIRMS observations
+for date_col in ["acq_date", "date"]:
+
+    if date_col in firms_df.columns:
+
+        dates = pd.to_datetime(
+            firms_df[date_col],
+            errors="coerce"
+        )
+
+        if dates.notna().any():
+
+            latest_detection = dates.max().strftime(
+                "%d %b %Y"
+            )
+
+            break
+
+
+# Fallback to risk prediction data
+if latest_detection is None and "last_detection" in risk_df.columns:
+
+    dates = pd.to_datetime(
+        risk_df["last_detection"],
+        errors="coerce"
+    )
+
+    if dates.notna().any():
+
+        latest_detection = dates.max().strftime(
+            "%d %b %Y"
+        )
+
+
+high_count = int(
+    (risk_df[risk_column] == "HIGH").sum()
+)
+
+medium_count = int(
+    (risk_df[risk_column] == "MEDIUM").sum()
+)
+
+low_count = int(
+    (risk_df[risk_column] == "LOW").sum()
+)
 high_count = int(
     (risk_df[risk_column] == "HIGH").sum()
 )
@@ -501,7 +552,7 @@ low_count = int(
 )
 
 
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 
 
 with m1:
@@ -533,7 +584,11 @@ with m5:
         "🟢 LOW RISK",
         low_count,
     )
-
+with m6:
+    st.metric(
+        "📅 LAST DETECTION",
+        latest_detection if latest_detection else "N/A",
+    )
 
 # ============================================================
 # FIRE RISK MAP
@@ -638,7 +693,7 @@ if (
         """
 
         # Grid cell size
-        GRID_SIZE = 0.02
+        GRID_SIZE = 0.01
         half_grid = GRID_SIZE / 2
 
         folium.Rectangle(
