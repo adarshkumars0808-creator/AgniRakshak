@@ -35,7 +35,7 @@ def generate_alert(row):
         priority = "CRITICAL"
         message = "Immediate attention recommended."
 
-    elif risk_score >= 0.50:
+    elif risk_score >= 0.45:
         risk_level = "MEDIUM"
         priority = "WARNING"
         message = "Area should be monitored closely."
