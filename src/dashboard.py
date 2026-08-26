@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import folium
+
+from PIL import Image
+from folium import plugins
 from streamlit_folium import st_folium
 
 
@@ -43,7 +47,9 @@ st.markdown(
 }
 
 
-/* ---------- SIDEBAR ---------- */
+/* ============================================================
+    SIDEBAR
+   ============================================================ */
 
 [data-testid="stSidebar"] {
     background: #0d121a;
@@ -57,22 +63,38 @@ st.markdown(
 }
 
 
-/* ---------- HERO ---------- */
+/* ============================================================
+    HERO
+   ============================================================ */
 
 .hero {
-    padding: 10px 0 20px 0;
+    background: linear-gradient(
+        145deg,
+        #151b24,
+        #10151d
+    );
+
+    border: 1px solid #29313d;
+    border-radius: 18px;
+    padding: 24px 28px;
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .hero-title {
     font-size: 48px;
     font-weight: 850;
     letter-spacing: -1px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    color: #f5f7fa;
 }
 
 .hero-subtitle {
     color: #9aa4b2;
     font-size: 17px;
+    line-height: 1.5;
+    margin-top: 4px;
 }
 
 .live-badge {
@@ -88,7 +110,9 @@ st.markdown(
 }
 
 
-/* ---------- SECTION ---------- */
+/* ============================================================
+    SECTION
+   ============================================================ */
 
 .section-label {
     color: #737f8e;
@@ -113,7 +137,9 @@ st.markdown(
 }
 
 
-/* ---------- METRIC CARDS ---------- */
+/* ============================================================
+    METRIC CARDS
+   ============================================================ */
 
 div[data-testid="stMetric"] {
     background: linear-gradient(
@@ -121,10 +147,13 @@ div[data-testid="stMetric"] {
         #151b24,
         #10151d
     );
+
     border: 1px solid #29313d;
     border-radius: 15px;
     padding: 18px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.18);
 }
 
 div[data-testid="stMetricLabel"] {
@@ -140,7 +169,9 @@ div[data-testid="stMetricValue"] {
 }
 
 
-/* ---------- INFO CARDS ---------- */
+/* ============================================================
+    INFO CARDS
+   ============================================================ */
 
 .info-card {
     background: #111720;
@@ -173,7 +204,9 @@ div[data-testid="stMetricValue"] {
 }
 
 
-/* ---------- DIVIDER ---------- */
+/* ============================================================
+    DIVIDER
+   ============================================================ */
 
 hr {
     border-color: #252c36 !important;
@@ -182,7 +215,9 @@ hr {
 }
 
 
-/* ---------- TABLE ---------- */
+/* ============================================================
+    TABLE
+   ============================================================ */
 
 [data-testid="stDataFrame"] {
     border: 1px solid #29313d;
@@ -191,7 +226,9 @@ hr {
 }
 
 
-/* ---------- MAP ---------- */
+/* ============================================================
+    MAP
+   ============================================================ */
 
 .map-caption {
     color: #7f8997;
@@ -200,7 +237,9 @@ hr {
 }
 
 
-/* ---------- FOOTER ---------- */
+/* ============================================================
+    FOOTER
+   ============================================================ */
 
 .footer {
     text-align: center;
@@ -247,7 +286,7 @@ except Exception as e:
 
 
 # ============================================================
-# HELPER FUNCTION
+# HELPER FUNCTIONS
 # ============================================================
 
 def find_column(df, names):
@@ -258,6 +297,7 @@ def find_column(df, names):
             return name
 
     return None
+
 
 def render_info_card(title, value, text):
 
@@ -274,8 +314,9 @@ def render_info_card(title, value, text):
         unsafe_allow_html=True,
     )
 
+
 # ============================================================
-# DETECT IMPORTANT COLUMNS
+# DETECT IMPORTANT RISK COLUMNS
 # ============================================================
 
 risk_column = find_column(
@@ -351,18 +392,18 @@ if risk_column is None:
         risk_df["risk_category"] = pd.cut(
             pd.to_numeric(
                 risk_df["activity_score"],
-                errors="coerce"
+                errors="coerce",
             ),
             bins=[
                 -float("inf"),
                 0.33,
                 0.66,
-                float("inf")
+                float("inf"),
             ],
             labels=[
                 "LOW",
                 "MEDIUM",
-                "HIGH"
+                "HIGH",
             ],
         )
 
@@ -371,18 +412,18 @@ if risk_column is None:
         risk_df["risk_category"] = pd.cut(
             pd.to_numeric(
                 risk_df[avg_frp_column],
-                errors="coerce"
+                errors="coerce",
             ),
             bins=[
                 -float("inf"),
                 2,
                 4,
-                float("inf")
+                float("inf"),
             ],
             labels=[
                 "LOW",
                 "MEDIUM",
-                "HIGH"
+                "HIGH",
             ],
         )
 
@@ -391,18 +432,18 @@ if risk_column is None:
         risk_df["risk_category"] = pd.cut(
             pd.to_numeric(
                 risk_df[detection_column],
-                errors="coerce"
+                errors="coerce",
             ),
             bins=[
                 -float("inf"),
                 1,
                 2,
-                float("inf")
+                float("inf"),
             ],
             labels=[
                 "LOW",
                 "MEDIUM",
-                "HIGH"
+                "HIGH",
             ],
         )
 
@@ -442,7 +483,7 @@ with st.sidebar:
         for x in [
             "HIGH",
             "MEDIUM",
-            "LOW"
+            "LOW",
         ]
         if x in risk_df[risk_column].unique()
     ]
@@ -478,7 +519,7 @@ VIIRS satellite observations
         """
 **Delhi NCR**
 
-Approx. bounding region
+Approx. Delhi NCR monitoring extent
 """
     )
 
@@ -508,7 +549,6 @@ else:
 
     filtered_risk = risk_df.copy()
 
-
 # ============================================================
 # HEADER
 # ============================================================
@@ -522,14 +562,12 @@ header_left, header_right = st.columns(
 with header_left:
 
     st.markdown(
-        """
-<div class="hero">
-    <div class="hero-title">🔥 THERMOSCOPE</div>
-    <div class="hero-subtitle">
-        Delhi NCR Fire Risk Intelligence & Satellite Monitoring System
-    </div>
-</div>
-""",
+        '<div class="hero">'
+        '<div class="hero-title">🔥 THERMOSCOPE</div>'
+        '<div class="hero-subtitle">'
+        'Delhi NCR Fire Risk Intelligence & Satellite Monitoring System'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -537,16 +575,19 @@ with header_left:
 with header_right:
 
     st.markdown(
-        """
-<div style="text-align:right; padding-top:10px;">
-    <span class="live-badge">
-        🛰️ SATELLITE MONITORING
-    </span>
-</div>
-""",
+        '<div style="'
+        'display:flex;'
+        'justify-content:flex-end;'
+        'align-items:center;'
+        'height:100%;'
+        'padding-top:12px;'
+        '">'
+        '<div class="live-badge">'
+        '🛰️ SATELLITE MONITORING'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
-
 
 # ============================================================
 # SYSTEM OVERVIEW
@@ -571,14 +612,14 @@ latest_detection = None
 
 for date_col in [
     "acq_date",
-    "date"
+    "date",
 ]:
 
     if date_col in firms_df.columns:
 
         dates = pd.to_datetime(
             firms_df[date_col],
-            errors="coerce"
+            errors="coerce",
         )
 
         if dates.notna().any():
@@ -597,7 +638,7 @@ if (
 
     dates = pd.to_datetime(
         risk_df["last_detection"],
-        errors="coerce"
+        errors="coerce",
     )
 
     if dates.notna().any():
@@ -612,15 +653,23 @@ if (
 # ============================================================
 
 high_count = int(
-    (risk_df[risk_column] == "HIGH").sum()
+    (
+        risk_df[risk_column] == "HIGH"
+    ).sum()
 )
+
 
 medium_count = int(
-    (risk_df[risk_column] == "MEDIUM").sum()
+    (
+        risk_df[risk_column] == "MEDIUM"
+    ).sum()
 )
 
+
 low_count = int(
-    (risk_df[risk_column] == "LOW").sum()
+    (
+        risk_df[risk_column] == "LOW"
+    ).sum()
 )
 
 
@@ -681,57 +730,433 @@ with m6:
     )
 
 
+
 # ============================================================
-# FIRE RISK MAP
+# THERMOSCOPE THERMAL FIRE RISK MAP
 # ============================================================
 
+st.markdown("<hr>", unsafe_allow_html=True)
+
 st.markdown(
-    "<hr>",
+    """
+    <div class="section-title">
+        🗺️ Delhi NCR Thermal Fire Risk Map
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="section-subtitle">
+        NASA FIRMS thermal activity with FRP-weighted spatial
+        intensity and Thermoscope risk classification
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
 
-st.markdown(
-    '<div class="section-title">🗺️ Delhi NCR Fire Risk Map</div>',
-    unsafe_allow_html=True,
-)
+# ============================================================
+# MAP CENTER
+# ============================================================
+
+map_center = [28.6139, 77.2090]
 
 
-st.markdown(
-    '<div class="section-subtitle">'
-    'Satellite-derived fire activity and predicted spatial risk zones'
-    '</div>',
-    unsafe_allow_html=True,
-)
+# ============================================================
+# CREATE MAP
+# IMPORTANT:
+# NO ImageOverlay is used here.
+# ============================================================
 
-
-map_center = [
-    28.6139,
-    77.2090,
-]
-
+# ============================================================
+# CREATE MAP
+# API-KEY-FREE BASE MAP
+# ============================================================
 
 fire_map = folium.Map(
     location=map_center,
     zoom_start=10,
-    tiles="CartoDB dark_matter",
+    tiles="OpenStreetMap",
     control_scale=True,
 )
 
 
+# ============================================================
+# OPTIONAL SATELLITE BASE MAP
+# ============================================================
+
+folium.TileLayer(
+    tiles=(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/"
+        "World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    ),
+    attr="Esri World Imagery",
+    name="Satellite Base",
+    overlay=False,
+    control=True,
+    show=False,
+).add_to(fire_map)
+
+
+# ============================================================
+# RISK COLORS
+# ============================================================
+
 risk_colors = {
-    "HIGH": "#ff3b30",
+    "HIGH": "#ff3030",
     "MEDIUM": "#ff9500",
-    "LOW": "#30d158",
+    "LOW": "#20c96b",
 }
+
+
+# ============================================================
+# FIRMS COORDINATE COLUMNS
+# ============================================================
+
+firms_lat_column = find_column(
+    firms_df,
+    [
+        "latitude",
+        "lat",
+        "Latitude",
+        "LATITUDE",
+    ],
+)
+
+firms_lon_column = find_column(
+    firms_df,
+    [
+        "longitude",
+        "lon",
+        "Longitude",
+        "LONGITUDE",
+    ],
+)
+
+firms_frp_column = find_column(
+    firms_df,
+    [
+        "frp",
+        "FRP",
+        "fire_radiative_power",
+        "Fire Radiative Power",
+    ],
+)
+
+
+# ============================================================
+# CREATE THERMAL DATA
+# ============================================================
+
+thermal_data = []
+
+thermal_df = pd.DataFrame()
+
+
+if (
+    firms_lat_column is not None
+    and firms_lon_column is not None
+):
+
+    thermal_df = firms_df.copy()
+
+    thermal_df[firms_lat_column] = pd.to_numeric(
+        thermal_df[firms_lat_column],
+        errors="coerce",
+    )
+
+    thermal_df[firms_lon_column] = pd.to_numeric(
+        thermal_df[firms_lon_column],
+        errors="coerce",
+    )
+
+
+    # --------------------------------------------------------
+    # FRP
+    # --------------------------------------------------------
+
+    if firms_frp_column is not None:
+
+        thermal_df["_thermal_frp"] = pd.to_numeric(
+            thermal_df[firms_frp_column],
+            errors="coerce",
+        )
+
+    else:
+
+        thermal_df["_thermal_frp"] = 1.0
+
+
+    thermal_df["_thermal_frp"] = (
+        thermal_df["_thermal_frp"]
+        .fillna(0)
+        .clip(lower=0)
+    )
+
+
+    # --------------------------------------------------------
+    # DELHI NCR BOUNDING REGION
+    # --------------------------------------------------------
+
+    thermal_df = thermal_df[
+        thermal_df[firms_lat_column].between(
+            27.0,
+            30.5,
+        )
+        &
+        thermal_df[firms_lon_column].between(
+            75.0,
+            79.5,
+        )
+    ].copy()
+
+
+    # --------------------------------------------------------
+    # REMOVE INVALID COORDINATES
+    # --------------------------------------------------------
+
+    thermal_df = thermal_df[
+        thermal_df[firms_lat_column].notna()
+        &
+        thermal_df[firms_lon_column].notna()
+    ].copy()
+
+
+    # --------------------------------------------------------
+    # NORMALIZE FRP
+    # --------------------------------------------------------
+
+    if not thermal_df.empty:
+
+        max_frp = thermal_df["_thermal_frp"].max()
+
+        if max_frp > 0:
+
+            thermal_df["_thermal_weight"] = (
+                thermal_df["_thermal_frp"]
+                / max_frp
+            )
+
+        else:
+
+            thermal_df["_thermal_weight"] = 0.5
+
+
+        # Keep weak detections visible
+        thermal_df["_thermal_weight"] = (
+            thermal_df["_thermal_weight"]
+            .clip(
+                lower=0.08,
+                upper=1.0,
+            )
+        )
+
+
+        # ----------------------------------------------------
+        # HEATMAP DATA
+        # ----------------------------------------------------
+
+        for _, row in thermal_df.iterrows():
+
+            try:
+
+                lat = float(
+                    row[firms_lat_column]
+                )
+
+                lon = float(
+                    row[firms_lon_column]
+                )
+
+                weight = float(
+                    row["_thermal_weight"]
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                continue
+
+
+            thermal_data.append(
+                [
+                    lat,
+                    lon,
+                    weight,
+                ]
+            )
+
+
+# ============================================================
+# THERMAL INTENSITY LAYER
+# ============================================================
+
+thermal_layer = folium.FeatureGroup(
+    name="🔥 FIRMS Thermal Activity",
+    show=True,
+)
+
+
+# ============================================================
+# BROAD THERMAL FIELD
+#
+# This creates the wide green/yellow/orange transition
+# around the observed FIRMS activity.
+#
+# It is a visualization of spatial thermal activity,
+# NOT a fabricated temperature measurement.
+# ============================================================
+
+if thermal_data:
+
+    broad_thermal = plugins.HeatMap(
+        thermal_data,
+
+        name="Broad Thermal Field",
+
+        radius=70,
+
+        blur=55,
+
+        min_opacity=0.10,
+
+        max_zoom=12,
+
+        gradient={
+            0.00: "#063b1d",
+            0.10: "#0b6b32",
+            0.20: "#16a34a",
+            0.32: "#65c466",
+            0.45: "#b7e51d",
+            0.58: "#ffe600",
+            0.70: "#ffae00",
+            0.82: "#ff6500",
+            0.92: "#ff2b00",
+            1.00: "#c90000",
+        },
+    )
+
+    broad_thermal.add_to(
+        thermal_layer
+    )
+
+
+# ============================================================
+# CORE THERMAL HOTSPOTS
+# ============================================================
+
+if thermal_data:
+
+    core_thermal = plugins.HeatMap(
+        thermal_data,
+
+        name="Thermal Hotspots",
+
+        radius=32,
+
+        blur=24,
+
+        min_opacity=0.25,
+
+        max_zoom=15,
+
+        gradient={
+            0.00: "#16803a",
+            0.20: "#39b54a",
+            0.40: "#d6e900",
+            0.58: "#ffd000",
+            0.72: "#ff8c00",
+            0.86: "#ff3b00",
+            1.00: "#b80000",
+        },
+    )
+
+    core_thermal.add_to(
+        thermal_layer
+    )
+
+
+# ============================================================
+# FIRMS DETECTION POINTS
+#
+# Separate layer so it does NOT visually merge with
+# the thermal layer controls.
+# ============================================================
+
+detection_layer = folium.FeatureGroup(
+    name="🔥 FIRMS Detection Points",
+    show=True,
+)
+
+
+if thermal_data:
+
+    for point in thermal_data:
+
+        fire_lat = point[0]
+        fire_lon = point[1]
+        fire_weight = point[2]
+
+
+        folium.CircleMarker(
+            location=[
+                fire_lat,
+                fire_lon,
+            ],
+
+            radius=3,
+
+            color="#ffd166",
+
+            fill=True,
+
+            fill_color="#ff5a00",
+
+            fill_opacity=0.85,
+
+            weight=1,
+
+            tooltip="NASA FIRMS thermal detection",
+
+        ).add_to(
+            detection_layer
+        )
+
+
+# ============================================================
+# ADD DETECTION LAYER
+# ============================================================
+
+detection_layer.add_to(
+    fire_map
+)
+
+
+# ============================================================
+# ADD THERMAL LAYER
+# ============================================================
+
+thermal_layer.add_to(
+    fire_map
+)
+
+
+# ============================================================
+# RISK CLASSIFICATION LAYER
+# ============================================================
+
+risk_layer = folium.FeatureGroup(
+    name="🎯 Risk Classification",
+    show=True,
+)
 
 
 map_bounds = []
 
-
-# ============================================================
-# ADD RISK GRID CELLS
-# ============================================================
 
 if (
     lat_column is not None
@@ -751,53 +1176,137 @@ if (
                 row[lon_column]
             )
 
-        except (TypeError, ValueError):
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            continue
+
+
+        if pd.isna(lat) or pd.isna(lon):
 
             continue
 
 
         map_bounds.append(
-            [lat, lon]
+            [
+                lat,
+                lon,
+            ]
         )
 
+
+        # ----------------------------------------------------
+        # RISK VALUE
+        # ----------------------------------------------------
 
         risk_value = str(
             row[risk_column]
         ).upper().strip()
 
 
-        color = risk_colors.get(
+        risk_color = risk_colors.get(
             risk_value,
             "#38bdf8",
         )
 
 
+        # ----------------------------------------------------
+        # POPUP
+        # ----------------------------------------------------
+
         popup_text = f"""
-<div style="width:280px">
+        <div style="
+            width:300px;
+            font-family:Arial,sans-serif;
+            color:#222;
+        ">
 
-<h4>🔥 THERMOSCOPE RISK CELL</h4>
+            <h3 style="margin-bottom:10px;">
+                🔥 THERMOSCOPE RISK CELL
+            </h3>
 
-<b>Risk Level:</b> {risk_value}<br>
-<b>Grid:</b> {row.get("grid_id", "N/A")}<br>
-<b>Latitude:</b> {lat:.5f}<br>
-<b>Longitude:</b> {lon:.5f}<br><br>
+            <b>Risk Level:</b>
+            <span style="
+                color:{risk_color};
+                font-weight:bold;
+            ">
+                {risk_value}
+            </span>
 
-<b>Risk Score:</b> {row.get("risk_score", "N/A")}<br>
-<b>Risk Percentage:</b> {row.get("risk_percentage", "N/A")}%<br><br>
+            <br><br>
 
-<b>Detection Count:</b> {row.get("detection_count", "N/A")}<br>
-<b>Active Days:</b> {row.get("active_days", "N/A")}<br>
-<b>Average FRP:</b> {row.get("avg_frp", "N/A")}<br>
-<b>Maximum FRP:</b> {row.get("max_frp", "N/A")}<br><br>
+            <b>Grid:</b>
+            {row.get("grid_id", "N/A")}
 
-<b>Recurrence Score:</b> {row.get("recurrence_score", "N/A")}<br>
-<b>Satellite Score:</b> {row.get("satellite_score", "N/A")}<br>
-<b>FRP Intensity:</b> {row.get("frp_intensity", "N/A")}<br>
-<b>Activity Score:</b> {row.get("activity_score", "N/A")}
+            <br>
 
-</div>
-"""
+            <b>Latitude:</b>
+            {lat:.5f}
 
+            <br>
+
+            <b>Longitude:</b>
+            {lon:.5f}
+
+            <hr>
+
+            <b>Risk Score:</b>
+            {row.get("risk_score", "N/A")}
+
+            <br>
+
+            <b>Risk Percentage:</b>
+            {row.get("risk_percentage", "N/A")}%
+
+            <br><br>
+
+            <b>Detection Count:</b>
+            {row.get("detection_count", "N/A")}
+
+            <br>
+
+            <b>Active Days:</b>
+            {row.get("active_days", "N/A")}
+
+            <br>
+
+            <b>Average FRP:</b>
+            {row.get("avg_frp", "N/A")}
+
+            <br>
+
+            <b>Maximum FRP:</b>
+            {row.get("max_frp", "N/A")}
+
+            <hr>
+
+            <b>Recurrence Score:</b>
+            {row.get("recurrence_score", "N/A")}
+
+            <br>
+
+            <b>Satellite Score:</b>
+            {row.get("satellite_score", "N/A")}
+
+            <br>
+
+            <b>FRP Intensity:</b>
+            {row.get("frp_intensity", "N/A")}
+
+            <br>
+
+            <b>Activity Score:</b>
+            {row.get("activity_score", "N/A")}
+
+        </div>
+        """
+
+
+        # ----------------------------------------------------
+        # RISK GRID CELL
+        # ----------------------------------------------------
 
         GRID_SIZE = 0.01
         half_grid = GRID_SIZE / 2
@@ -807,24 +1316,303 @@ if (
             bounds=[
                 [
                     lat - half_grid,
-                    lon - half_grid
+                    lon - half_grid,
                 ],
                 [
                     lat + half_grid,
-                    lon + half_grid
+                    lon + half_grid,
                 ],
             ],
-            color=color,
+
+            color=risk_color,
+
             fill=True,
-            fill_color=color,
-            fill_opacity=0.55,
-            weight=2,
+
+            fill_color=risk_color,
+
+            fill_opacity=0.06,
+
+            weight=1.2,
+
+            opacity=0.75,
+
             popup=folium.Popup(
                 popup_text,
                 max_width=350,
             ),
+
+            tooltip=(
+                f"🎯 {risk_value} RISK"
+                "<br>"
+                "Click for details"
+            ),
+
+        ).add_to(
+            risk_layer
+        )
+
+
+        # ----------------------------------------------------
+        # RISK MARKER
+        # ----------------------------------------------------
+
+        folium.CircleMarker(
+            location=[
+                lat,
+                lon,
+            ],
+
+            radius=5,
+
+            color=risk_color,
+
+            fill=True,
+
+            fill_color=risk_color,
+
+            fill_opacity=0.95,
+
+            weight=2,
+
+            popup=folium.Popup(
+                popup_text,
+                max_width=350,
+            ),
+
             tooltip=f"{risk_value} RISK",
-        ).add_to(fire_map)
+
+        ).add_to(
+            risk_layer
+        )
+
+
+# ============================================================
+# ADD RISK LAYER
+# ============================================================
+
+risk_layer.add_to(
+    fire_map
+)
+
+
+# ============================================================
+# MAP TITLE
+#
+# Positioned inside map without touching layer control.
+# ============================================================
+
+title_html = """
+<div style="
+    position:absolute;
+    top:18px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:1000;
+
+    background:rgba(8,12,18,0.94);
+
+    border:1px solid #465365;
+    border-radius:14px;
+
+    padding:11px 24px;
+
+    color:#f5f7fa;
+
+    font-family:Arial,sans-serif;
+
+    font-size:18px;
+    font-weight:800;
+
+    white-space:nowrap;
+
+    box-shadow:
+        0 6px 25px rgba(0,0,0,0.45);
+">
+🔥 THERMOSCOPE • DELHI NCR THERMAL RISK
+</div>
+"""
+
+
+fire_map.get_root().html.add_child(
+    folium.Element(
+        title_html
+    )
+)
+
+
+# ============================================================
+# CUSTOM LEGEND
+# ============================================================
+
+legend_html = """
+<div style="
+    position:absolute;
+    bottom:28px;
+    right:20px;
+    z-index:1000;
+
+    width:310px;
+
+    background:rgba(8,12,18,0.94);
+
+    border:1px solid #465365;
+    border-radius:14px;
+
+    padding:17px 19px;
+
+    color:#f5f7fa;
+
+    font-family:Arial,sans-serif;
+
+    box-shadow:
+        0 6px 25px rgba(0,0,0,0.45);
+">
+
+
+<div style="
+    font-size:17px;
+    font-weight:800;
+    margin-bottom:12px;
+">
+🔥 THERMAL INTENSITY
+</div>
+
+
+<div style="
+    height:16px;
+    border-radius:10px;
+
+    background:
+        linear-gradient(
+            to right,
+            #063b1d,
+            #16a34a,
+            #b7e51d,
+            #ffe600,
+            #ffae00,
+            #ff6500,
+            #ff2b00,
+            #c90000
+        );
+"></div>
+
+
+<div style="
+    display:flex;
+    justify-content:space-between;
+
+    margin-top:5px;
+
+    color:#aab4c1;
+    font-size:11px;
+">
+
+<span>LOW FRP</span>
+<span>HIGH FRP</span>
+
+</div>
+
+
+<div style="
+    border-top:1px solid #29313d;
+    margin:15px 0;
+"></div>
+
+
+<div style="
+    font-size:17px;
+    font-weight:800;
+    margin-bottom:10px;
+">
+🎯 RISK CLASSIFICATION
+</div>
+
+
+<div style="margin:7px 0;">
+<span style="
+    display:inline-block;
+    width:12px;
+    height:12px;
+    background:#ff3030;
+    border-radius:50%;
+    margin-right:8px;
+"></span>
+HIGH RISK
+</div>
+
+
+<div style="margin:7px 0;">
+<span style="
+    display:inline-block;
+    width:12px;
+    height:12px;
+    background:#ff9500;
+    border-radius:50%;
+    margin-right:8px;
+"></span>
+MEDIUM RISK
+</div>
+
+
+<div style="margin:7px 0;">
+<span style="
+    display:inline-block;
+    width:12px;
+    height:12px;
+    background:#20c96b;
+    border-radius:50%;
+    margin-right:8px;
+"></span>
+LOW RISK
+</div>
+
+
+<div style="
+    border-top:1px solid #29313d;
+    margin:15px 0;
+"></div>
+
+
+<div style="
+    color:#aab4c1;
+    font-size:11px;
+    line-height:1.5;
+">
+
+Thermal visualization is derived from
+NASA FIRMS Fire Radiative Power (FRP).
+
+<br><br>
+
+Green → Yellow → Orange → Red represents
+increasing observed thermal activity.
+
+</div>
+
+</div>
+"""
+
+
+fire_map.get_root().html.add_child(
+    folium.Element(
+        legend_html
+    )
+)
+
+
+# ============================================================
+# LAYER CONTROL
+#
+# It is deliberately placed in the TOP-RIGHT by Leaflet.
+# The title is TOP-CENTER, so they don't overlap.
+# ============================================================
+
+folium.LayerControl(
+    position="topright",
+    collapsed=False,
+).add_to(
+    fire_map
+)
 
 
 # ============================================================
@@ -835,29 +1623,52 @@ if map_bounds:
 
     fire_map.fit_bounds(
         map_bounds,
-        padding=(30, 30),
+        padding=(45, 45),
+    )
+
+elif thermal_data:
+
+    thermal_bounds = [
+        [point[0], point[1]]
+        for point in thermal_data
+    ]
+
+    fire_map.fit_bounds(
+        thermal_bounds,
+        padding=(45, 45),
     )
 
 
 # ============================================================
-# DISPLAY MAP
+# DISPLAY
 # ============================================================
 
 st_folium(
     fire_map,
     width=None,
-    height=560,
+    height=650,
     returned_objects=[],
 )
 
 
+# ============================================================
+# MAP CAPTION
+# ============================================================
+
 st.markdown(
-    '<div class="map-caption">'
-    '🔴 High Risk &nbsp;&nbsp; '
-    '🟠 Medium Risk &nbsp;&nbsp; '
-    '🟢 Low Risk &nbsp;&nbsp; '
-    'Click a zone for satellite-derived details.'
-    '</div>',
+    """
+    <div class="map-caption">
+        🟢 Low Thermal Activity
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        🟡 Moderate
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        🟠 Elevated
+        &nbsp;&nbsp;→&nbsp;&nbsp;
+        🔴 High Thermal Activity
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        🎯 Risk markers show Thermoscope spatial classification.
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -873,7 +1684,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">🧠 Risk Intelligence Summary</div>',
+    '<div class="section-title">'
+    '🧠 Risk Intelligence Summary'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -889,21 +1702,21 @@ st.markdown(
 intel1, intel2, intel3, intel4 = st.columns(4)
 
 
-# ---------- ACTIVE RISK CELLS ----------
+# ============================================================
+# INTELLIGENCE VALUES
+# ============================================================
 
 active_cells = len(
     filtered_risk
 )
 
 
-# ---------- TOTAL DETECTIONS ----------
-
 if detection_column is not None:
 
     total_detections = int(
         pd.to_numeric(
             filtered_risk[detection_column],
-            errors="coerce"
+            errors="coerce",
         )
         .fillna(0)
         .sum()
@@ -914,13 +1727,11 @@ else:
     total_detections = 0
 
 
-# ---------- AVERAGE FRP ----------
-
 if avg_frp_column is not None:
 
     avg_frp = pd.to_numeric(
         filtered_risk[avg_frp_column],
-        errors="coerce"
+        errors="coerce",
     ).mean()
 
 
@@ -934,8 +1745,6 @@ else:
 
     avg_frp_text = "N/A"
 
-
-# ---------- DOMINANT RISK ----------
 
 if not filtered_risk.empty:
 
@@ -997,7 +1806,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">🔥 Temporal Fire Activity</div>',
+    '<div class="section-title">'
+    '🔥 Temporal Fire Activity'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -1021,7 +1832,7 @@ if "acq_date" in temporal_df.columns:
 
     temporal_df["acq_date"] = pd.to_datetime(
         temporal_df["acq_date"],
-        errors="coerce"
+        errors="coerce",
     )
 
     temporal_df = temporal_df[
@@ -1047,28 +1858,24 @@ if not temporal_df.empty:
     )
 
 
-    # ---------- TEMPORAL CHART ----------
-
     st.line_chart(
         daily_activity,
         height=320,
     )
 
 
-    # ---------- TEMPORAL SUMMARY VALUES ----------
-
     peak_date = daily_activity.idxmax()
+
 
     peak_count = int(
         daily_activity.max()
     )
 
+
     observation_days = int(
         daily_activity.count()
     )
 
-
-    # ---------- TEMPORAL SUMMARY CARDS ----------
 
     temporal_left, temporal_right = st.columns(2)
 
@@ -1076,22 +1883,22 @@ if not temporal_df.empty:
     with temporal_left:
 
         render_info_card(
-        "PEAK FIRE ACTIVITY",
-        f"{peak_count} detections",
-        (
-            "Highest number of FIRMS detections recorded on "
-            f"{peak_date.strftime('%d %b %Y')}."
-        ),
-    )
+            "PEAK FIRE ACTIVITY",
+            f"{peak_count} detections",
+            (
+                "Highest number of FIRMS detections recorded on "
+                f"{peak_date.strftime('%d %b %Y')}."
+            ),
+        )
 
 
     with temporal_right:
 
         render_info_card(
-        "OBSERVATION PERIOD",
-        f"{observation_days} active days",
-        "Number of dates containing at least one FIRMS fire detection.",
-    )
+            "OBSERVATION PERIOD",
+            f"{observation_days} active days",
+            "Number of dates containing at least one FIRMS fire detection.",
+        )
 
 
 else:
@@ -1112,7 +1919,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">📊 Fire Risk Analytics</div>',
+    '<div class="section-title">'
+    '📊 Fire Risk Analytics'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -1143,7 +1952,7 @@ with analytics_left:
             [
                 "HIGH",
                 "MEDIUM",
-                "LOW"
+                "LOW",
             ],
             fill_value=0,
         )
@@ -1186,7 +1995,7 @@ with analytics_right:
 
         activity_df[sort_column] = pd.to_numeric(
             activity_df[sort_column],
-            errors="coerce"
+            errors="coerce",
         )
 
         activity_df = activity_df.sort_values(
@@ -1237,7 +2046,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">🛰️ Satellite Observation Information</div>',
+    '<div class="section-title">'
+    '🛰️ Satellite Observation Information'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -1300,7 +2111,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">🔥 FIRMS Detection Data</div>',
+    '<div class="section-title">'
+    '🔥 FIRMS Detection Data'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -1332,7 +2145,9 @@ st.markdown(
 
 
 st.markdown(
-    '<div class="section-title">🎯 Risk Prediction Data</div>',
+    '<div class="section-title">'
+    '🎯 Risk Prediction Data'
+    '</div>',
     unsafe_allow_html=True,
 )
 
@@ -1360,9 +2175,13 @@ st.dataframe(
 st.markdown(
     """
 <div class="footer">
+
     THERMOSCOPE • Satellite-Based Fire Risk Intelligence • Delhi NCR
+
     <br>
+
     Powered by NASA FIRMS / VIIRS satellite observations
+
 </div>
 """,
     unsafe_allow_html=True,
