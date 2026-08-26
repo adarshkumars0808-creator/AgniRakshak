@@ -179,3 +179,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# Thermoscope experimental live/backup files
+data/*_live.csv
+src/*_live.py
+src/*_backup.py

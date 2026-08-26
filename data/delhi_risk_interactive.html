@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_68cb1922491ee14d7e4ae1a509c1accf {
+                #map_c649dde42a92b33bbdd63be526b7164b {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,16 +54,16 @@
 <body>
     
     
-            <div class="folium-map" id="map_68cb1922491ee14d7e4ae1a509c1accf" ></div>
+            <div class="folium-map" id="map_c649dde42a92b33bbdd63be526b7164b" ></div>
         
 </body>
 <script>
     
     
-            var map_68cb1922491ee14d7e4ae1a509c1accf = L.map(
-                "map_68cb1922491ee14d7e4ae1a509c1accf",
+            var map_c649dde42a92b33bbdd63be526b7164b = L.map(
+                "map_c649dde42a92b33bbdd63be526b7164b",
                 {
-                    center: [28.646666666666665, 76.88333333333334],
+                    center: [28.83, 77.13],
                     crs: L.CRS.EPSG3857,
                     ...{
   "zoom": 10,
@@ -78,7 +78,7 @@
 
         
     
-            var tile_layer_2b852ba8e93d36ac8550c673d1f4d5f3 = L.tileLayer(
+            var tile_layer_403240ee10796c021216bd94a507e04a = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -95,41 +95,59 @@
             );
         
     
-            tile_layer_2b852ba8e93d36ac8550c673d1f4d5f3.addTo(map_68cb1922491ee14d7e4ae1a509c1accf);
+            tile_layer_403240ee10796c021216bd94a507e04a.addTo(map_c649dde42a92b33bbdd63be526b7164b);
         
     
-            var feature_group_3639b7ab228fcc0ab85491749fc88a66 = L.featureGroup(
+            var feature_group_c04a0bdf611c710495e76d1523d1e5dd = L.featureGroup(
                 {
 }
             );
         
     
-            var circle_marker_28aae2e78675d617aa221889fed35c9d = L.circleMarker(
-                [28.74, 76.92],
-                {"bubblingMouseEvents": true, "color": "green", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "green", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 11.372996794871796, "stroke": true, "weight": 2}
-            ).addTo(feature_group_3639b7ab228fcc0ab85491749fc88a66);
+            feature_group_c04a0bdf611c710495e76d1523d1e5dd.addTo(map_c649dde42a92b33bbdd63be526b7164b);
         
     
-        var popup_b0f5c02e556248e7f74dbf7ae4ebf53d = L.popup({
+            var feature_group_a5922c3b1f7cb6d258402a2ffeaedcee = L.featureGroup(
+                {
+}
+            );
+        
+    
+            feature_group_a5922c3b1f7cb6d258402a2ffeaedcee.addTo(map_c649dde42a92b33bbdd63be526b7164b);
+        
+    
+            var feature_group_7963afa9f588c5734ef41c5759cd0c5e = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var circle_marker_78fa8fba635d5686fccd96e2d4ef75b3 = L.circleMarker(
+                [28.83, 77.13],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 15.333333333333332, "stroke": true, "weight": 2}
+            ).addTo(feature_group_7963afa9f588c5734ef41c5759cd0c5e);
+        
+    
+        var popup_f72e663f8a697b7a87940af1fe53dca5 = L.popup({
   "maxWidth": 300,
 });
 
         
             
-                var html_417dbf809cf96a563c03e677b3e8983f = $(`<div id="html_417dbf809cf96a563c03e677b3e8983f" style="width: 100.0%; height: 100.0%;">     <div style="width:260px">          <h4 style="margin-bottom:10px;">             🔥 THERMOSCOPE Risk Cell         </h4>          <b>Grid ID:</b> 28.74_76.92<br><br>          <b>Risk Level:</b>         <span style="             color:green;             font-weight:bold;         ">             LOW         </span>         <br><br>          <b>Risk Percentage:</b>         43.73<br>          <b>Risk Score:</b>         0.437<br>          <b>Activity Score:</b>         0.4372996794871794<br>          <b>FIRMS Detections:</b>         1<br>          <b>Active Days:</b>         1<br><br>          <b>Latitude:</b>         28.74000<br>          <b>Longitude:</b>         76.92000      </div>     </div>`)[0];
-                popup_b0f5c02e556248e7f74dbf7ae4ebf53d.setContent(html_417dbf809cf96a563c03e677b3e8983f);
+                var html_2fafe58c425108ed855469d1f6db5a3e = $(`<div id="html_2fafe58c425108ed855469d1f6db5a3e" style="width: 100.0%; height: 100.0%;">     <div style="width:260px">          <h4 style="margin-bottom:10px;">             🔥 THERMOSCOPE Risk Cell         </h4>          <b>Grid ID:</b> 28.83_77.13<br><br>          <b>Risk Level:</b>         <span style="             color:red;             font-weight:bold;         ">             HIGH         </span>         <br><br>          <b>Risk Percentage:</b>         83.33<br>          <b>Risk Score:</b>         0.833<br>          <b>Activity Score:</b>         0.8333333333333334<br>          <b>FIRMS Detections:</b>         1<br>          <b>Active Days:</b>         1<br><br>          <b>Latitude:</b>         28.83000<br>          <b>Longitude:</b>         77.13000      </div>     </div>`)[0];
+                popup_f72e663f8a697b7a87940af1fe53dca5.setContent(html_2fafe58c425108ed855469d1f6db5a3e);
             
         
 
-        circle_marker_28aae2e78675d617aa221889fed35c9d.bindPopup(popup_b0f5c02e556248e7f74dbf7ae4ebf53d)
+        circle_marker_78fa8fba635d5686fccd96e2d4ef75b3.bindPopup(popup_f72e663f8a697b7a87940af1fe53dca5)
         ;
 
         
     
     
-            circle_marker_28aae2e78675d617aa221889fed35c9d.bindTooltip(
+            circle_marker_78fa8fba635d5686fccd96e2d4ef75b3.bindTooltip(
                 `<div>
-                     28.74_76.92 | LOW RISK
+                     28.83_77.13 | HIGH RISK
                  </div>`,
                 {
   "sticky": true,
@@ -137,112 +155,28 @@
             );
         
     
-            feature_group_3639b7ab228fcc0ab85491749fc88a66.addTo(map_68cb1922491ee14d7e4ae1a509c1accf);
+            feature_group_7963afa9f588c5734ef41c5759cd0c5e.addTo(map_c649dde42a92b33bbdd63be526b7164b);
         
     
-            var feature_group_372998769b7e70ffea483ee2c43b5f63 = L.featureGroup(
-                {
-}
-            );
-        
-    
-            var circle_marker_e3a5bdcfdea2c54c54b87dd49ccaadac = L.circleMarker(
-                [28.74, 76.93],
-                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 13.806891025641026, "stroke": true, "weight": 2}
-            ).addTo(feature_group_372998769b7e70ffea483ee2c43b5f63);
-        
-    
-        var popup_867a4f35732b01e88d3eaae75d74d62e = L.popup({
-  "maxWidth": 300,
-});
-
-        
-            
-                var html_f03f9b041b6191a3dc1e4eb1485f4a28 = $(`<div id="html_f03f9b041b6191a3dc1e4eb1485f4a28" style="width: 100.0%; height: 100.0%;">     <div style="width:260px">          <h4 style="margin-bottom:10px;">             🔥 THERMOSCOPE Risk Cell         </h4>          <b>Grid ID:</b> 28.74_76.93<br><br>          <b>Risk Level:</b>         <span style="             color:orange;             font-weight:bold;         ">             MEDIUM         </span>         <br><br>          <b>Risk Percentage:</b>         68.07<br>          <b>Risk Score:</b>         0.681<br>          <b>Activity Score:</b>         0.6806891025641025<br>          <b>FIRMS Detections:</b>         2<br>          <b>Active Days:</b>         2<br><br>          <b>Latitude:</b>         28.74000<br>          <b>Longitude:</b>         76.93000      </div>     </div>`)[0];
-                popup_867a4f35732b01e88d3eaae75d74d62e.setContent(html_f03f9b041b6191a3dc1e4eb1485f4a28);
-            
-        
-
-        circle_marker_e3a5bdcfdea2c54c54b87dd49ccaadac.bindPopup(popup_867a4f35732b01e88d3eaae75d74d62e)
-        ;
-
-        
-    
-    
-            circle_marker_e3a5bdcfdea2c54c54b87dd49ccaadac.bindTooltip(
-                `<div>
-                     28.74_76.93 | MEDIUM RISK
-                 </div>`,
-                {
-  "sticky": true,
-}
-            );
-        
-    
-            var circle_marker_ee2519a70fb3ece80d622ce68d635c29 = L.circleMarker(
-                [28.46, 76.8],
-                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 12.833333333333334, "stroke": true, "weight": 2}
-            ).addTo(feature_group_372998769b7e70ffea483ee2c43b5f63);
-        
-    
-        var popup_4a45385e01eccce63c0611df23023a28 = L.popup({
-  "maxWidth": 300,
-});
-
-        
-            
-                var html_b50d3639659b20e4680d0e054f33152d = $(`<div id="html_b50d3639659b20e4680d0e054f33152d" style="width: 100.0%; height: 100.0%;">     <div style="width:260px">          <h4 style="margin-bottom:10px;">             🔥 THERMOSCOPE Risk Cell         </h4>          <b>Grid ID:</b> 28.46_76.8<br><br>          <b>Risk Level:</b>         <span style="             color:orange;             font-weight:bold;         ">             MEDIUM         </span>         <br><br>          <b>Risk Percentage:</b>         58.33<br>          <b>Risk Score:</b>         0.583<br>          <b>Activity Score:</b>         0.5833333333333333<br>          <b>FIRMS Detections:</b>         1<br>          <b>Active Days:</b>         1<br><br>          <b>Latitude:</b>         28.46000<br>          <b>Longitude:</b>         76.80000      </div>     </div>`)[0];
-                popup_4a45385e01eccce63c0611df23023a28.setContent(html_b50d3639659b20e4680d0e054f33152d);
-            
-        
-
-        circle_marker_ee2519a70fb3ece80d622ce68d635c29.bindPopup(popup_4a45385e01eccce63c0611df23023a28)
-        ;
-
-        
-    
-    
-            circle_marker_ee2519a70fb3ece80d622ce68d635c29.bindTooltip(
-                `<div>
-                     28.46_76.8 | MEDIUM RISK
-                 </div>`,
-                {
-  "sticky": true,
-}
-            );
-        
-    
-            feature_group_372998769b7e70ffea483ee2c43b5f63.addTo(map_68cb1922491ee14d7e4ae1a509c1accf);
-        
-    
-            var feature_group_b25b2952f3f49c4eea2f434de16309ee = L.featureGroup(
-                {
-}
-            );
-        
-    
-            feature_group_b25b2952f3f49c4eea2f434de16309ee.addTo(map_68cb1922491ee14d7e4ae1a509c1accf);
-        
-    
-            var layer_control_7d59fe7ddea009dbbc728ec24eb14b46_layers = {
+            var layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers = {
                 base_layers : {
-                    "openstreetmap" : tile_layer_2b852ba8e93d36ac8550c673d1f4d5f3,
+                    "openstreetmap" : tile_layer_403240ee10796c021216bd94a507e04a,
                 },
                 overlays :  {
-                    "LOW Risk" : feature_group_3639b7ab228fcc0ab85491749fc88a66,
-                    "MEDIUM Risk" : feature_group_372998769b7e70ffea483ee2c43b5f63,
-                    "HIGH Risk" : feature_group_b25b2952f3f49c4eea2f434de16309ee,
+                    "LOW Risk" : feature_group_c04a0bdf611c710495e76d1523d1e5dd,
+                    "MEDIUM Risk" : feature_group_a5922c3b1f7cb6d258402a2ffeaedcee,
+                    "HIGH Risk" : feature_group_7963afa9f588c5734ef41c5759cd0c5e,
                 },
             };
-            let layer_control_7d59fe7ddea009dbbc728ec24eb14b46 = L.control.layers(
-                layer_control_7d59fe7ddea009dbbc728ec24eb14b46_layers.base_layers,
-                layer_control_7d59fe7ddea009dbbc728ec24eb14b46_layers.overlays,
+            let layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f = L.control.layers(
+                layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers.base_layers,
+                layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers.overlays,
                 {
   "position": "topright",
   "collapsed": false,
   "autoZIndex": true,
 }
-            ).addTo(map_68cb1922491ee14d7e4ae1a509c1accf);
+            ).addTo(map_c649dde42a92b33bbdd63be526b7164b);
 
         
 </script>

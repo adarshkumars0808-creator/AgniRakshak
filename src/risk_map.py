@@ -5,11 +5,13 @@ from matplotlib.lines import Line2D
 
 
 # ============================================================
-# THERMOSCOPE - DELHI NCR FIRE RISK MAP
+# THERMOSCOPE - STEP 5
+# DELHI NCR FIRE RISK MAP
 # ============================================================
 
 print("=" * 65)
 print("THERMOSCOPE - DELHI NCR FIRE RISK MAP")
+print("USING SIH PROVIDED NASA FIRMS DATA")
 print("=" * 65)
 
 
@@ -18,49 +20,53 @@ print("=" * 65)
 # ============================================================
 
 PREDICTION_FILE = "data/delhi_risk_predictions.csv"
-FIRMS_FILE = "data/delhi_master.csv"
 OUTPUT_FILE = "data/delhi_fire_risk_map.png"
 
 
 # ============================================================
-# 1. LOAD DATA
+# 1. LOAD RISK PREDICTIONS
 # ============================================================
 
 pred = pd.read_csv(PREDICTION_FILE)
-firms = pd.read_csv(FIRMS_FILE)
 
 print("\nLoaded prediction cells:", len(pred))
-print("Loaded FIRMS observations:", len(firms))
 
 
 # ============================================================
-# 2. FIND RISK COLUMN
+# 2. CHECK REQUIRED COLUMNS
 # ============================================================
 
-risk_column = None
+required_columns = [
+    "grid_id",
+    "grid_lat",
+    "grid_lon",
+    "risk_score",
+    "risk_percentage",
+    "risk_category"
+]
 
-for column in [
-    "predicted_risk",
-    "risk_category",
-    "activity_category"
-]:
-    if column in pred.columns:
-        risk_column = column
-        break
+missing_columns = [
+    column
+    for column in required_columns
+    if column not in pred.columns
+]
 
+if missing_columns:
 
-if risk_column is None:
+    print("\nERROR: Missing columns:")
+    print(missing_columns)
+
     raise ValueError(
-        "No risk column found. Expected one of: "
-        "predicted_risk, risk_category, activity_category"
+        "Required risk map columns are missing."
     )
 
 
-print("Using risk column:", risk_column)
+# ============================================================
+# 3. PREPARE RISK CATEGORY
+# ============================================================
 
-
-pred[risk_column] = (
-    pred[risk_column]
+pred["risk_category"] = (
+    pred["risk_category"]
     .astype(str)
     .str.upper()
     .str.strip()
@@ -68,76 +74,27 @@ pred[risk_column] = (
 
 
 # ============================================================
-# 3. GET GRID COORDINATES
+# 4. GET GRID COORDINATES
 # ============================================================
 
-if (
-    "grid_lat" in pred.columns
-    and "grid_lon" in pred.columns
-):
+pred["latitude"] = pd.to_numeric(
+    pred["grid_lat"],
+    errors="coerce"
+)
 
-    pred["latitude"] = pd.to_numeric(
-        pred["grid_lat"],
-        errors="coerce"
-    )
-
-    pred["longitude"] = pd.to_numeric(
-        pred["grid_lon"],
-        errors="coerce"
-    )
-
-    print("Using grid coordinates from prediction data.")
+pred["longitude"] = pd.to_numeric(
+    pred["grid_lon"],
+    errors="coerce"
+)
 
 
-else:
-
-    firms["latitude"] = pd.to_numeric(
-        firms["latitude"],
-        errors="coerce"
-    )
-
-    firms["longitude"] = pd.to_numeric(
-        firms["longitude"],
-        errors="coerce"
-    )
-
-    firms = firms.dropna(
-        subset=[
-            "latitude",
-            "longitude"
-        ]
-    ).copy()
-
-
-    firms["grid_id"] = (
-        firms["latitude"].round(2).astype(str)
-        + "_"
-        + firms["longitude"].round(2).astype(str)
-    )
-
-
-    coordinates = (
-        firms.groupby("grid_id")
-        .agg(
-            latitude=("latitude", "mean"),
-            longitude=("longitude", "mean")
-        )
-        .reset_index()
-    )
-
-
-    pred = pred.merge(
-        coordinates,
-        on="grid_id",
-        how="left"
-    )
-
-
-    print("Coordinates calculated from FIRMS data.")
+print(
+    "Using grid coordinates from risk predictions."
+)
 
 
 # ============================================================
-# 4. CHECK COORDINATES
+# 5. CHECK VALID COORDINATES
 # ============================================================
 
 df = pred.dropna(
@@ -148,114 +105,52 @@ df = pred.dropna(
 ).copy()
 
 
-matched = len(df)
-
 print(
     "\nCoordinates matched:",
-    matched,
+    len(df),
     "/",
     len(pred)
 )
 
 
 if df.empty:
+
     raise ValueError(
         "No valid coordinates found for risk cells."
     )
 
 
 # ============================================================
-# 5. PREPARE RISK SCORE
+# 6. PREPARE RISK SCORE
 # ============================================================
 
-if "risk_score" in df.columns:
-
-    df["display_score"] = pd.to_numeric(
-        df["risk_score"],
-        errors="coerce"
-    )
-
-elif "activity_score" in df.columns:
-
-    df["display_score"] = pd.to_numeric(
-        df["activity_score"],
-        errors="coerce"
-    )
-
-else:
-
-    df["display_score"] = np.nan
+df["display_score"] = pd.to_numeric(
+    df["risk_score"],
+    errors="coerce"
+)
 
 
-# ============================================================
-# 6. FORMAT RISK SCORE
-# ============================================================
-
-def format_risk_score(value):
-
-    if pd.isna(value):
-        return None
-
-    value = float(value)
-
-    if value > 1:
-        return f"{value:.1f}%"
-
-    return f"{value * 100:.1f}%"
+df["risk_percentage"] = pd.to_numeric(
+    df["risk_percentage"],
+    errors="coerce"
+)
 
 
 # ============================================================
 # 7. CALCULATE BUBBLE SIZE
 # ============================================================
 
-def calculate_bubble_size(data):
-
-    if "activity_score" in data.columns:
-
-        values = pd.to_numeric(
-            data["activity_score"],
-            errors="coerce"
-        )
-
-    elif "risk_score" in data.columns:
-
-        values = pd.to_numeric(
-            data["risk_score"],
-            errors="coerce"
-        )
-
-    else:
-
-        return np.full(
-            len(data),
-            400
-        )
+score_values = (
+    df["display_score"]
+    .fillna(0)
+    .clip(0, 1)
+)
 
 
-    values = values.fillna(0)
-
-
-    values = np.where(
-        values > 1,
-        values / 100,
-        values
-    )
-
-
-    values = np.clip(
-        values,
-        0,
-        1
-    )
-
-
-    return (
-        300
-        + values * 900
-    )
-
-
-df["bubble_size"] = calculate_bubble_size(df)
+df["bubble_size"] = (
+    350
+    + score_values * 1000
+)
 
 
 # ============================================================
@@ -289,7 +184,7 @@ for risk in [
 ]:
 
     subset = df[
-        df[risk_column] == risk
+        df["risk_category"] == risk
     ]
 
 
@@ -302,7 +197,7 @@ for risk in [
         subset["latitude"],
         s=subset["bubble_size"],
         color=RISK_COLORS[risk],
-        alpha=0.65,
+        alpha=0.70,
         edgecolors="black",
         linewidths=1.2,
         zorder=3
@@ -310,19 +205,7 @@ for risk in [
 
 
 # ============================================================
-# 11. SORT DATA
-# ============================================================
-
-df = df.sort_values(
-    by=[
-        "longitude",
-        "latitude"
-    ]
-).reset_index(drop=True)
-
-
-# ============================================================
-# 12. ADD CLEAN LABELS
+# 11. ADD RISK LABELS
 # ============================================================
 
 for _, row in df.iterrows():
@@ -335,68 +218,47 @@ for _, row in df.iterrows():
         row["longitude"]
     )
 
-
-    score_text = format_risk_score(
-        row["display_score"]
+    grid_id = str(
+        row["grid_id"]
     )
 
-
-    grid_id = row.get(
-        "grid_id",
-        f"{latitude:.2f}_{longitude:.2f}"
+    risk_category = str(
+        row["risk_category"]
     )
 
+    risk_percentage = row[
+        "risk_percentage"
+    ]
 
-    if score_text is None:
 
-        label = str(grid_id)
+    if pd.notna(risk_percentage):
+
+        score_text = (
+            f"{float(risk_percentage):.1f}%"
+        )
 
     else:
 
-        label = (
-            f"{grid_id}\n"
-            f"Risk: {score_text}"
-        )
+        score_text = "N/A"
+
+
+    label = (
+        f"{grid_id}\n"
+        f"{risk_category}\n"
+        f"Risk: {score_text}"
+    )
 
 
     # --------------------------------------------------------
     # Label positioning
     # --------------------------------------------------------
 
-    if (
-        abs(latitude - 28.74) < 0.01
-        and abs(longitude - 76.92) < 0.005
-    ):
+    offset = (
+        15,
+        12
+    )
 
-        offset = (
-            -85,
-            20
-        )
-
-        horizontal_alignment = "right"
-
-
-    elif (
-        abs(latitude - 28.74) < 0.01
-        and abs(longitude - 76.93) < 0.005
-    ):
-
-        offset = (
-            18,
-            20
-        )
-
-        horizontal_alignment = "left"
-
-
-    else:
-
-        offset = (
-            15,
-            12
-        )
-
-        horizontal_alignment = "left"
+    horizontal_alignment = "left"
 
 
     ax.annotate(
@@ -429,7 +291,7 @@ for _, row in df.iterrows():
 
 
 # ============================================================
-# 13. TITLE
+# 12. TITLE
 # ============================================================
 
 ax.set_title(
@@ -441,7 +303,7 @@ ax.set_title(
 
 
 # ============================================================
-# 14. AXIS LABELS
+# 13. AXIS LABELS
 # ============================================================
 
 ax.set_xlabel(
@@ -456,7 +318,7 @@ ax.set_ylabel(
 
 
 # ============================================================
-# 15. GRID
+# 14. MAP GRID
 # ============================================================
 
 ax.grid(
@@ -469,7 +331,7 @@ ax.grid(
 
 
 # ============================================================
-# 16. MAP MARGINS
+# 15. MAP MARGINS
 # ============================================================
 
 ax.margins(
@@ -479,12 +341,13 @@ ax.margins(
 
 
 # ============================================================
-# 17. RISK COUNTS
+# 16. RISK COUNTS
 # ============================================================
 
-risk_counts = df[
-    risk_column
-].value_counts()
+risk_counts = (
+    df["risk_category"]
+    .value_counts()
+)
 
 
 high_count = int(
@@ -494,12 +357,14 @@ high_count = int(
     )
 )
 
+
 medium_count = int(
     risk_counts.get(
         "MEDIUM",
         0
     )
 )
+
 
 low_count = int(
     risk_counts.get(
@@ -510,7 +375,7 @@ low_count = int(
 
 
 # ============================================================
-# 18. CLEAN LEGEND
+# 17. LEGEND
 # ============================================================
 
 legend_handles = [
@@ -571,7 +436,7 @@ ax.legend(
 
 
 # ============================================================
-# 19. SUMMARY BOX
+# 18. SUMMARY BOX
 # ============================================================
 
 summary_text = (
@@ -603,10 +468,47 @@ ax.text(
 
 
 # ============================================================
+# 19. MAP LIMITS
+# ============================================================
+
+# Automatically fit map around available grid cells
+
+lat_min = df["latitude"].min()
+lat_max = df["latitude"].max()
+
+lon_min = df["longitude"].min()
+lon_max = df["longitude"].max()
+
+
+lat_padding = max(
+    (lat_max - lat_min) * 0.15,
+    0.02
+)
+
+lon_padding = max(
+    (lon_max - lon_min) * 0.15,
+    0.02
+)
+
+
+ax.set_xlim(
+    lon_min - lon_padding,
+    lon_max + lon_padding
+)
+
+
+ax.set_ylim(
+    lat_min - lat_padding,
+    lat_max + lat_padding
+)
+
+
+# ============================================================
 # 20. SAVE MAP
 # ============================================================
 
 plt.tight_layout()
+
 
 plt.savefig(
     OUTPUT_FILE,
@@ -621,14 +523,44 @@ plt.savefig(
 
 print("\nRisk distribution:")
 print(
-    df[risk_column].value_counts()
+    df["risk_category"]
+    .value_counts()
 )
+
+
+print("\nHighest-risk grid:")
+
+highest_risk = (
+    df.sort_values(
+        by="risk_score",
+        ascending=False
+    )
+    .iloc[0]
+)
+
+
+print(
+    "Grid:",
+    highest_risk["grid_id"]
+)
+
+print(
+    "Risk:",
+    highest_risk["risk_category"]
+)
+
+print(
+    "Risk percentage:",
+    f"{highest_risk['risk_percentage']:.2f}%"
+)
+
 
 print("\nMap saved to:")
 print(OUTPUT_FILE)
 
+
 print("\n" + "=" * 65)
-print("RISK MAP COMPLETE")
+print("STEP 5 - RISK MAP COMPLETE")
 print("=" * 65)
 
 

@@ -8,7 +8,6 @@ import numpy as np
 # ============================================================
 
 INPUT_FILE = "data/delhi_firms_sih.csv"
-GRID_FILE = "data/delhi_grid.csv"
 OUTPUT_FILE = "data/delhi_risk_features.csv"
 
 print("=" * 70)
@@ -112,20 +111,26 @@ grid = (
 )
 
 # ------------------------------------------------------------
-# 5. Satellite agreement
+# 5. Satellite source / agreement
 # ------------------------------------------------------------
 
-grid["satellite_agreement"] = (
+# Number of distinct satellite/source identifiers
+grid["satellite_source_count"] = (
     grid["satellite_count"]
 )
 
-# Maximum possible satellites in our Thermoscope system
-MAX_SATELLITES = 3
+# True multi-source agreement is possible only when
+# observations come from 2 or more independent sources.
+grid["satellite_agreement"] = (
+    grid["satellite_source_count"] >= 2
+).astype(int)
 
+# Satellite agreement score
+# 0 = only one source, agreement cannot be established
+# 1 = multiple independent sources detected
 grid["satellite_score"] = (
     grid["satellite_agreement"]
-    / MAX_SATELLITES
-).clip(upper=1)
+)
 
 # ------------------------------------------------------------
 # 6. Recurrence / persistence
@@ -210,17 +215,24 @@ else:
     grid["repeat_detection_score"] = 0.0
 
 # ------------------------------------------------------------
-# 11. Combined activity score
+# 11. Combined explainable activity / risk score
 # ------------------------------------------------------------
 
+# Current SIH dataset contains only one satellite source.
+# Therefore satellite source coverage is not used as an
+# independent risk-weighting factor.
+#
+# Risk score components:
+#   45% - Recurrence / persistence
+#   35% - FRP intensity
+#   20% - Repeat detections
+
 grid["activity_score"] = (
-    0.35 * grid["recurrence_score"]
+    0.45 * grid["recurrence_score"]
     +
-    0.25 * grid["satellite_score"]
+    0.35 * grid["frp_intensity"]
     +
-    0.25 * grid["frp_intensity"]
-    +
-    0.15 * grid["repeat_detection_score"]
+    0.20 * grid["repeat_detection_score"]
 )
 
 # ------------------------------------------------------------
@@ -275,6 +287,21 @@ print(
     global_end.date()
 )
 
+print("\nAvailable satellite sources:")
+
+available_satellites = (
+    df["satellite"]
+    .dropna()
+    .unique()
+)
+
+print(available_satellites)
+
+print(
+    "Unique satellite sources:",
+    len(available_satellites)
+)
+
 print("\nTOP GRID CELLS:")
 print("-" * 70)
 
@@ -284,11 +311,13 @@ print(
             "grid_id",
             "detection_count",
             "active_days",
+            "satellite_source_count",
             "satellite_agreement",
             "avg_frp",
             "max_frp",
             "recurrence_score",
             "frp_intensity",
+            "repeat_detection_score",
             "activity_score",
             "activity_category"
         ]

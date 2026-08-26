@@ -6,7 +6,7 @@ from folium.plugins import MarkerCluster
 # THERMOSCOPE - INTERACTIVE GIS RISK MAP
 # ============================================================
 
-INPUT_FILE = "data/delhi_risk_predictions.csv"
+INPUT_FILE = "data/delhi_risk_predictions_live.csv"
 OUTPUT_FILE = "data/delhi_risk_interactive.html"
 
 print("=" * 70)
