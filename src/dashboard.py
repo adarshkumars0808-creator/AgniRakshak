@@ -1,5 +1,6 @@
 import os
 import html
+import requests
 
 import streamlit as st
 import pandas as pd
@@ -240,27 +241,77 @@ def get_data_files(use_live=False):
 @st.cache_data
 def load_data(use_live=False):
 
-    risk_file, firms_file = get_data_files(
-        use_live
-    )
+    API_BASE_URL = "http://127.0.0.1:8000"
 
-    if not os.path.exists(risk_file):
+    try:
 
-        raise FileNotFoundError(
-            f"Risk file not found: {risk_file}"
+        # ----------------------------------------------------
+        # Get risk prediction data from FastAPI
+        # ----------------------------------------------------
+
+        risk_response = requests.get(
+            f"{API_BASE_URL}/api/risk",
+            timeout=10
         )
 
-    if not os.path.exists(firms_file):
+        risk_response.raise_for_status()
 
-        raise FileNotFoundError(
-            f"FIRMS file not found: {firms_file}"
+        risk_df = pd.DataFrame(
+            risk_response.json()
         )
 
-    risk_df = pd.read_csv(risk_file)
+        # ----------------------------------------------------
+        # Get FIRMS detection data from FastAPI
+        # ----------------------------------------------------
 
-    firms_df = pd.read_csv(firms_file)
+        firms_response = requests.get(
+            f"{API_BASE_URL}/api/detections",
+            timeout=10
+        )
 
-    return risk_df, firms_df
+        firms_response.raise_for_status()
+
+        firms_df = pd.DataFrame(
+            firms_response.json()
+        )
+
+        # ----------------------------------------------------
+        # Validate responses
+        # ----------------------------------------------------
+
+        if risk_df.empty:
+
+            raise ValueError(
+                "Risk API returned no data."
+            )
+
+        if firms_df.empty:
+
+            raise ValueError(
+                "FIRMS API returned no data."
+            )
+
+        return risk_df, firms_df
+
+    except requests.exceptions.ConnectionError:
+
+        raise RuntimeError(
+            "Unable to connect to AgniRakshak API. "
+            "Please start FastAPI on port 8000."
+        )
+
+    except requests.exceptions.Timeout:
+
+        raise RuntimeError(
+            "API request timed out. "
+            "Please check that FastAPI is running."
+        )
+
+    except requests.exceptions.RequestException as error:
+
+        raise RuntimeError(
+            f"API request failed: {error}"
+        )
 
 
 # ============================================================
@@ -692,6 +743,53 @@ render_template(
 total_firms = len(firms_df)
 
 total_grids = len(risk_df)
+
+
+# ============================================================
+# SYSTEM STATUS
+# ============================================================
+
+st.markdown(
+    "<hr>",
+    unsafe_allow_html=True,
+)
+
+render_template(
+    "SECTION_TITLE",
+    TEXT="🟢 System Status",
+)
+
+status1, status2, status3, status4 = st.columns(4)
+
+with status1:
+
+    st.metric(
+        "🔥 FIRMS DETECTIONS",
+        len(firms_df),
+    )
+
+with status2:
+
+    st.metric(
+        "🗺️ RISK GRID CELLS",
+        len(risk_df),
+    )
+
+with status3:
+
+    st.metric(
+        "🛰️ SATELLITE",
+        "VIIRS",
+    )
+
+with status4:
+
+    st.metric(
+        "⚡ BACKEND",
+        "ONLINE",
+    )
+
+
 
 
 # ============================================================
