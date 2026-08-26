@@ -579,8 +579,12 @@ risk_colors = {
     "LOW": "#30d158",
 }
 
+map_bounds = []
 
-# Add risk grid markers
+# ============================================================
+# ADD RISK GRID CELLS
+# ============================================================
+
 if (
     lat_column is not None
     and lon_column is not None
@@ -590,16 +594,17 @@ if (
     for _, row in filtered_risk.iterrows():
 
         try:
-
             lat = float(row[lat_column])
             lon = float(row[lon_column])
 
         except Exception:
             continue
 
+        map_bounds.append([lat, lon])
+
         risk_value = str(
             row[risk_column]
-        ).upper()
+        ).upper().strip()
 
         color = risk_colors.get(
             risk_value,
@@ -607,46 +612,67 @@ if (
         )
 
         popup_text = f"""
-<div style="width:280px">
+        <div style="width:280px">
 
-<h4>🔥 THERMOSCOPE RISK CELL</h4>
+        <h4>🔥 THERMOSCOPE RISK CELL</h4>
 
-<b>Risk Level:</b> {risk_value}<br>
-<b>Grid:</b> {row.get("grid_id", "N/A")}<br>
-<b>Latitude:</b> {lat:.5f}<br>
-<b>Longitude:</b> {lon:.5f}<br><br>
+        <b>Risk Level:</b> {risk_value}<br>
+        <b>Grid:</b> {row.get("grid_id", "N/A")}<br>
+        <b>Latitude:</b> {lat:.5f}<br>
+        <b>Longitude:</b> {lon:.5f}<br><br>
 
-<b>Risk Score:</b> {row.get("risk_score", "N/A")}<br>
-<b>Risk Percentage:</b> {row.get("risk_percentage", "N/A")}%<br><br>
+        <b>Risk Score:</b> {row.get("risk_score", "N/A")}<br>
+        <b>Risk Percentage:</b> {row.get("risk_percentage", "N/A")}%<br><br>
 
-<b>Detection Count:</b> {row.get("detection_count", "N/A")}<br>
-<b>Active Days:</b> {row.get("active_days", "N/A")}<br>
-<b>Average FRP:</b> {row.get("avg_frp", "N/A")}<br>
-<b>Maximum FRP:</b> {row.get("max_frp", "N/A")}<br><br>
+        <b>Detection Count:</b> {row.get("detection_count", "N/A")}<br>
+        <b>Active Days:</b> {row.get("active_days", "N/A")}<br>
+        <b>Average FRP:</b> {row.get("avg_frp", "N/A")}<br>
+        <b>Maximum FRP:</b> {row.get("max_frp", "N/A")}<br><br>
 
-<b>Recurrence Score:</b> {row.get("recurrence_score", "N/A")}<br>
-<b>Satellite Score:</b> {row.get("satellite_score", "N/A")}<br>
-<b>FRP Intensity:</b> {row.get("frp_intensity", "N/A")}<br>
-<b>Activity Score:</b> {row.get("activity_score", "N/A")}
+        <b>Recurrence Score:</b> {row.get("recurrence_score", "N/A")}<br>
+        <b>Satellite Score:</b> {row.get("satellite_score", "N/A")}<br>
+        <b>FRP Intensity:</b> {row.get("frp_intensity", "N/A")}<br>
+        <b>Activity Score:</b> {row.get("activity_score", "N/A")}
 
-</div>
-"""
+        </div>
+        """
 
-        folium.CircleMarker(
-            location=[lat, lon],
-            radius=10,
+        # Grid cell size
+        GRID_SIZE = 0.02
+        half_grid = GRID_SIZE / 2
+
+        folium.Rectangle(
+            bounds=[
+                [lat - half_grid, lon - half_grid],
+                [lat + half_grid, lon + half_grid],
+            ],
             color=color,
             fill=True,
             fill_color=color,
-            fill_opacity=0.65,
+            fill_opacity=0.55,
             weight=2,
             popup=folium.Popup(
                 popup_text,
-                max_width=300,
+                max_width=350,
             ),
             tooltip=f"{risk_value} RISK",
         ).add_to(fire_map)
 
+
+# ============================================================
+# AUTO ZOOM
+# ============================================================
+
+if map_bounds:
+    fire_map.fit_bounds(
+        map_bounds,
+        padding=(30, 30),
+    )
+
+
+# ============================================================
+# DISPLAY MAP
+# ============================================================
 
 st_folium(
     fire_map,
