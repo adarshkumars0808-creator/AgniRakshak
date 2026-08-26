@@ -1,6 +1,4 @@
 import os
-import subprocess
-import sys
 from io import StringIO
 
 import numpy as np
@@ -10,9 +8,10 @@ from dotenv import load_dotenv
 
 
 # ============================================================
-# THERMOSCOPE
-# LIVE NASA FIRMS → GRID → RISK PIPELINE
+# THERMOSCOPE - LIVE FIRE RISK PIPELINE
 # ============================================================
+
+load_dotenv()
 
 print("=" * 70)
 print("THERMOSCOPE - LIVE FIRE RISK PIPELINE")
@@ -23,612 +22,650 @@ print("=" * 70)
 # CONFIGURATION
 # ============================================================
 
-load_dotenv()
-
 MAP_KEY = os.getenv("FIRMS_MAP_KEY")
-
-SOURCE = "VIIRS_NOAA20_NRT"
-DAY_RANGE = 5
-
-# west, south, east, north
-DELHI_BBOX = "76.8,28.4,77.4,28.9"
-
-GRID_SIZE = 0.01
-
-LIVE_FIRMS_FILE = "data/delhi_firms_live.csv"
-LIVE_RISK_FILE = "data/delhi_risk_predictions_live.csv"
-
-
-# ============================================================
-# CHECK API KEY
-# ============================================================
 
 if not MAP_KEY:
     print("\nERROR: FIRMS_MAP_KEY not found in .env")
-    print("Create/update .env with:")
+    print("\nCreate a .env file in the project root containing:")
     print("FIRMS_MAP_KEY=YOUR_NASA_FIRMS_MAP_KEY")
-    sys.exit(1)
+    raise SystemExit(1)
+
+
+# Delhi NCR bounding box
+# west, south, east, north
+DELHI_BBOX = "76.8,28.4,77.4,28.9"
+
+# NASA FIRMS source
+SOURCE = "VIIRS_NOAA20_NRT"
+
+# Number of days requested
+DAY_RANGE = 5
+
+GRID_SIZE = 0.01
+
+
+# Output files
+LIVE_FIRMS_FILE = "data/delhi_firms_live.csv"
+LIVE_GRID_FILE = "data/delhi_grid_live.csv"
+LIVE_FEATURES_FILE = "data/delhi_risk_features_live.csv"
+LIVE_PREDICTIONS_FILE = "data/delhi_risk_predictions_live.csv"
 
 
 # ============================================================
 # 1. FETCH LIVE NASA FIRMS DATA
 # ============================================================
 
-print("\n[1/4] Fetching latest NASA FIRMS observations...")
+def fetch_live_firms():
 
-URL = (
-    "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-    f"{MAP_KEY}/{SOURCE}/{DELHI_BBOX}/{DAY_RANGE}"
-)
+    print("\n[1/5] Fetching live NASA FIRMS data...")
 
-try:
-    response = requests.get(
-        URL,
-        timeout=30
+    url = (
+        "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
+        f"{MAP_KEY}/{SOURCE}/{DELHI_BBOX}/{DAY_RANGE}"
     )
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=30
+        )
+
+    except requests.RequestException as e:
+
+        print("\nERROR connecting to NASA FIRMS:")
+        print(e)
+
+        raise SystemExit(1)
 
     print("HTTP Status:", response.status_code)
 
     if response.status_code != 200:
+
         print("\nERROR: NASA FIRMS API request failed.")
         print(response.text[:500])
-        sys.exit(1)
 
-except requests.RequestException as exc:
+        raise SystemExit(1)
 
-    print("\nERROR connecting to NASA FIRMS:")
-    print(exc)
-    sys.exit(1)
+    try:
 
+        df = pd.read_csv(
+            StringIO(response.text)
+        )
 
-try:
+    except Exception as e:
 
-    live_df = pd.read_csv(
-        StringIO(response.text)
-    )
+        print("\nERROR reading FIRMS response:")
+        print(e)
 
-except Exception as exc:
+        raise SystemExit(1)
 
-    print("\nERROR reading FIRMS response:")
-    print(exc)
-    sys.exit(1)
+    print("Live observations received:", len(df))
 
+    if df.empty:
 
-print(
-    "Live FIRMS observations:",
-    len(live_df)
-)
+        print("\nWARNING: No FIRMS detections returned.")
 
+        # Still save an empty file
+        df.to_csv(
+            LIVE_FIRMS_FILE,
+            index=False
+        )
 
-# ============================================================
-# SAVE LIVE FIRMS DATA
-# ============================================================
+        return df
 
-os.makedirs(
-    "data",
-    exist_ok=True
-)
-
-live_df.to_csv(
-    LIVE_FIRMS_FILE,
-    index=False
-)
-
-print(
-    "Saved:",
-    LIVE_FIRMS_FILE
-)
-
-
-if live_df.empty:
-
-    print(
-        "\nNo current FIRMS detections were returned "
-        "for the selected monitoring region."
-    )
-
-    # Create an empty prediction file with expected columns.
-    empty_columns = [
-        "grid_id",
-        "grid_lat",
-        "grid_lon",
-        "detection_count",
-        "active_days",
-        "avg_frp",
-        "max_frp",
-        "min_frp",
-        "satellite_count",
-        "satellite_source_count",
-        "satellite_agreement",
-        "satellite_score",
-        "recurrence_ratio",
-        "detections_per_active_day",
-        "frp_intensity",
-        "recurrence_score",
-        "repeat_detection_score",
-        "activity_score",
-        "risk_score",
-        "risk_percentage",
-        "risk_category",
-        "risk_priority",
-        "first_detection",
-        "last_detection",
+    required = [
+        "latitude",
+        "longitude",
+        "acq_date",
+        "satellite",
+        "frp"
     ]
 
-    pd.DataFrame(
-        columns=empty_columns
-    ).to_csv(
-        LIVE_RISK_FILE,
+    missing = [
+        col for col in required
+        if col not in df.columns
+    ]
+
+    if missing:
+
+        print("\nERROR: Required FIRMS columns missing:")
+        print(missing)
+
+        raise SystemExit(1)
+
+    df.to_csv(
+        LIVE_FIRMS_FILE,
         index=False
     )
 
-    print(
-        "Created empty live prediction file:",
-        LIVE_RISK_FILE
-    )
+    print("Saved:")
+    print(LIVE_FIRMS_FILE)
 
-    sys.exit(0)
+    return df
 
 
 # ============================================================
 # 2. CLEAN LIVE DATA
 # ============================================================
 
-print("\n[2/4] Processing live FIRMS observations...")
+def clean_data(df):
 
+    print("\n[2/5] Cleaning live FIRMS data...")
 
-required_columns = [
-    "latitude",
-    "longitude",
-    "frp",
-    "acq_date",
-    "satellite",
-]
+    if df.empty:
+        return df
 
-missing = [
-    column
-    for column in required_columns
-    if column not in live_df.columns
-]
+    df = df.copy()
 
-if missing:
-
-    print(
-        "\nERROR: FIRMS response missing columns:"
+    df["latitude"] = pd.to_numeric(
+        df["latitude"],
+        errors="coerce"
     )
 
-    print(missing)
+    df["longitude"] = pd.to_numeric(
+        df["longitude"],
+        errors="coerce"
+    )
 
-    sys.exit(1)
+    df["frp"] = pd.to_numeric(
+        df["frp"],
+        errors="coerce"
+    )
 
+    df["acq_date"] = pd.to_datetime(
+        df["acq_date"],
+        errors="coerce"
+    )
 
-live_df["latitude"] = pd.to_numeric(
-    live_df["latitude"],
-    errors="coerce"
-)
+    df = df.dropna(
+        subset=[
+            "latitude",
+            "longitude",
+            "frp",
+            "acq_date",
+            "satellite"
+        ]
+    ).copy()
 
-live_df["longitude"] = pd.to_numeric(
-    live_df["longitude"],
-    errors="coerce"
-)
+    print("Valid observations:", len(df))
 
-live_df["frp"] = pd.to_numeric(
-    live_df["frp"],
-    errors="coerce"
-)
-
-live_df["acq_date"] = pd.to_datetime(
-    live_df["acq_date"],
-    errors="coerce"
-)
-
-
-live_df = live_df.dropna(
-    subset=[
-        "latitude",
-        "longitude",
-        "frp",
-        "acq_date",
-        "satellite",
-    ]
-).copy()
-
-
-print(
-    "Valid live observations:",
-    len(live_df)
-)
+    return df
 
 
 # ============================================================
 # 3. CREATE SPATIAL GRID
 # ============================================================
 
-live_df["grid_lat"] = (
-    np.floor(
-        live_df["latitude"] / GRID_SIZE
+def create_grid(df):
+
+    print("\n[3/5] Creating spatial grid...")
+
+    if df.empty:
+
+        empty = pd.DataFrame(
+            columns=[
+                "grid_id",
+                "grid_lat",
+                "grid_lon",
+                "detection_count",
+                "active_days",
+                "avg_frp",
+                "max_frp",
+                "min_frp",
+                "satellite_count",
+                "first_detection",
+                "last_detection"
+            ]
+        )
+
+        empty.to_csv(
+            LIVE_GRID_FILE,
+            index=False
+        )
+
+        return empty
+
+    df = df.copy()
+
+    df["grid_lat"] = (
+        np.floor(
+            df["latitude"] / GRID_SIZE
+        ) * GRID_SIZE
     )
-    * GRID_SIZE
-)
 
-live_df["grid_lon"] = (
-    np.floor(
-        live_df["longitude"] / GRID_SIZE
+    df["grid_lon"] = (
+        np.floor(
+            df["longitude"] / GRID_SIZE
+        ) * GRID_SIZE
     )
-    * GRID_SIZE
-)
 
+    df["grid_lat"] = df[
+        "grid_lat"
+    ].round(2)
 
-live_df["grid_lat"] = (
-    live_df["grid_lat"]
-    .round(2)
-)
+    df["grid_lon"] = df[
+        "grid_lon"
+    ].round(2)
 
-live_df["grid_lon"] = (
-    live_df["grid_lon"]
-    .round(2)
-)
-
-
-live_df["grid_id"] = (
-    live_df["grid_lat"].astype(str)
-    + "_"
-    + live_df["grid_lon"].astype(str)
-)
-
-
-print(
-    "Live grid cells:",
-    live_df["grid_id"].nunique()
-)
-
-
-# ============================================================
-# 4. AGGREGATE GRID FEATURES
-# ============================================================
-
-print("\n[3/4] Calculating risk features...")
-
-
-grid = (
-    live_df
-    .groupby("grid_id")
-    .agg(
-        grid_lat=("grid_lat", "first"),
-        grid_lon=("grid_lon", "first"),
-
-        detection_count=("grid_id", "count"),
-
-        active_days=("acq_date", "nunique"),
-
-        avg_frp=("frp", "mean"),
-
-        max_frp=("frp", "max"),
-
-        min_frp=("frp", "min"),
-
-        satellite_count=("satellite", "nunique"),
-
-        first_detection=("acq_date", "min"),
-
-        last_detection=("acq_date", "max"),
+    df["grid_id"] = (
+        df["grid_lat"].astype(str)
+        + "_"
+        + df["grid_lon"].astype(str)
     )
-    .reset_index()
-)
 
+    grid = (
+        df.groupby("grid_id")
+        .agg(
+            grid_lat=("grid_lat", "first"),
+            grid_lon=("grid_lon", "first"),
 
-# ============================================================
-# SATELLITE SIGNAL
-# ============================================================
+            detection_count=(
+                "grid_id",
+                "count"
+            ),
 
-grid["satellite_source_count"] = (
-    grid["satellite_count"]
-)
+            active_days=(
+                "acq_date",
+                "nunique"
+            ),
 
-grid["satellite_agreement"] = (
-    grid["satellite_source_count"] >= 2
-).astype(int)
+            avg_frp=(
+                "frp",
+                "mean"
+            ),
 
-grid["satellite_score"] = (
-    grid["satellite_agreement"]
-)
+            max_frp=(
+                "frp",
+                "max"
+            ),
 
+            min_frp=(
+                "frp",
+                "min"
+            ),
 
-# ============================================================
-# RECURRENCE
-# ============================================================
+            satellite_count=(
+                "satellite",
+                "nunique"
+            ),
 
-global_start = (
-    live_df["acq_date"].min()
-)
+            first_detection=(
+                "acq_date",
+                "min"
+            ),
 
-global_end = (
-    live_df["acq_date"].max()
-)
-
-
-total_days = (
-    global_end - global_start
-).days + 1
-
-
-total_days = max(
-    total_days,
-    1
-)
-
-
-grid["recurrence_ratio"] = (
-    grid["active_days"]
-    / total_days
-).clip(
-    upper=1
-)
-
-
-# ============================================================
-# DETECTIONS PER ACTIVE DAY
-# ============================================================
-
-grid["detections_per_active_day"] = (
-    grid["detection_count"]
-    /
-    grid["active_days"].clip(
-        lower=1
+            last_detection=(
+                "acq_date",
+                "max"
+            )
+        )
+        .reset_index()
     )
-)
+
+    grid["repeat_score"] = (
+        grid["detection_count"]
+        /
+        grid["active_days"].clip(lower=1)
+    )
+
+    grid.to_csv(
+        LIVE_GRID_FILE,
+        index=False
+    )
+
+    print("Live grid cells:", len(grid))
+
+    print("Saved:")
+    print(LIVE_GRID_FILE)
+
+    return grid
 
 
 # ============================================================
-# FRP INTENSITY
+# 4. ENGINEER LIVE RISK FEATURES
 # ============================================================
 
-max_frp = (
-    grid["max_frp"].max()
-)
+def create_risk_features(grid):
 
+    print("\n[4/5] Creating live risk features...")
 
-if (
-    pd.notna(max_frp)
-    and max_frp > 0
-):
+    if grid.empty:
+
+        empty = grid.copy()
+
+        empty.to_csv(
+            LIVE_FEATURES_FILE,
+            index=False
+        )
+
+        return empty
+
+    grid = grid.copy()
+
+    # --------------------------------------------------------
+    # Satellite information
+    # --------------------------------------------------------
+
+    grid["satellite_source_count"] = (
+        grid["satellite_count"]
+    )
+
+    grid["satellite_agreement"] = (
+        grid["satellite_source_count"] >= 2
+    ).astype(int)
+
+    grid["satellite_score"] = (
+        grid["satellite_agreement"]
+    )
+
+    # --------------------------------------------------------
+    # Recurrence
+    # --------------------------------------------------------
+
+    max_active_days = (
+        grid["active_days"].max()
+    )
+
+    if (
+        pd.notna(max_active_days)
+        and max_active_days > 0
+    ):
+
+        grid["recurrence_score"] = (
+            grid["active_days"]
+            / max_active_days
+        )
+
+    else:
+
+        grid["recurrence_score"] = 0.0
+
+    # --------------------------------------------------------
+    # FRP intensity
+    # --------------------------------------------------------
+
+    max_frp = (
+        grid["max_frp"].max()
+    )
+
+    if (
+        pd.notna(max_frp)
+        and max_frp > 0
+    ):
+
+        grid["frp_intensity"] = (
+            grid["max_frp"]
+            / max_frp
+        )
+
+    else:
+
+        grid["frp_intensity"] = 0.0
 
     grid["frp_intensity"] = (
-        grid["max_frp"]
-        / max_frp
-    ).clip(
-        0,
-        1
+        grid["frp_intensity"]
+        .clip(0, 1)
     )
 
-else:
+    # --------------------------------------------------------
+    # Repeat detection score
+    # --------------------------------------------------------
 
-    grid["frp_intensity"] = 0.0
-
-
-# ============================================================
-# RECURRENCE SCORE
-# ============================================================
-
-max_active_days = (
-    grid["active_days"].max()
-)
-
-
-if (
-    pd.notna(max_active_days)
-    and max_active_days > 0
-):
-
-    grid["recurrence_score"] = (
-        grid["active_days"]
-        / max_active_days
-    ).clip(
-        0,
-        1
+    max_detection_count = (
+        grid["detection_count"].max()
     )
 
-else:
+    if (
+        pd.notna(max_detection_count)
+        and max_detection_count > 0
+    ):
 
-    grid["recurrence_score"] = 0.0
+        grid["repeat_detection_score"] = (
+            grid["detection_count"]
+            / max_detection_count
+        )
 
+    else:
 
-# ============================================================
-# REPEAT DETECTION SCORE
-# ============================================================
-
-max_detection_count = (
-    grid["detection_count"].max()
-)
-
-
-if (
-    pd.notna(max_detection_count)
-    and max_detection_count > 0
-):
+        grid["repeat_detection_score"] = 0.0
 
     grid["repeat_detection_score"] = (
-        grid["detection_count"]
-        / max_detection_count
-    ).clip(
-        0,
-        1
+        grid["repeat_detection_score"]
+        .clip(0, 1)
     )
 
-else:
+    # --------------------------------------------------------
+    # Combined explainable activity score
+    # --------------------------------------------------------
 
-    grid["repeat_detection_score"] = 0.0
-
-
-# ============================================================
-# EXPLAINABLE ACTIVITY SCORE
-# ============================================================
-
-grid["activity_score"] = (
-    0.45 * grid["recurrence_score"]
-    +
-    0.35 * grid["frp_intensity"]
-    +
-    0.20 * grid["repeat_detection_score"]
-)
-
-
-grid["activity_score"] = (
-    grid["activity_score"]
-    .clip(0, 1)
-)
-
-
-# ============================================================
-# RISK SCORE
-# ============================================================
-
-grid["risk_score"] = (
-    0.45 * grid["recurrence_score"]
-    +
-    0.35 * grid["frp_intensity"]
-    +
-    0.20 * grid["repeat_detection_score"]
-)
-
-
-grid["risk_score"] = (
-    grid["risk_score"]
-    .clip(0, 1)
-)
-
-
-# ============================================================
-# RISK PERCENTAGE
-# ============================================================
-
-grid["risk_percentage"] = (
-    grid["risk_score"] * 100
-).round(2)
-
-
-# ============================================================
-# RISK CLASSIFICATION
-# ============================================================
-
-def classify_risk(score):
-
-    if score >= 0.75:
-        return "HIGH"
-
-    elif score >= 0.45:
-        return "MEDIUM"
-
-    return "LOW"
-
-
-grid["risk_category"] = (
-    grid["risk_score"]
-    .apply(classify_risk)
-)
-
-
-# ============================================================
-# RISK PRIORITY
-# ============================================================
-
-grid["risk_priority"] = (
-    grid["risk_score"]
-    .rank(
-        ascending=False,
-        method="dense"
+    grid["activity_score"] = (
+        0.45 * grid["recurrence_score"]
+        +
+        0.35 * grid["frp_intensity"]
+        +
+        0.20 * grid["repeat_detection_score"]
     )
-    .astype(int)
-)
 
+    grid["activity_score"] = (
+        grid["activity_score"]
+        .clip(0, 1)
+    )
 
-# ============================================================
-# SORT
-# ============================================================
+    # --------------------------------------------------------
+    # Activity category
+    # --------------------------------------------------------
 
-grid = (
-    grid
-    .sort_values(
-        "risk_score",
+    def classify_activity(score):
+
+        if score >= 0.75:
+            return "HIGH"
+
+        elif score >= 0.45:
+            return "MEDIUM"
+
+        return "LOW"
+
+    grid["activity_category"] = (
+        grid["activity_score"]
+        .apply(classify_activity)
+    )
+
+    grid = grid.sort_values(
+        "activity_score",
         ascending=False
+    ).reset_index(drop=True)
+
+    grid.to_csv(
+        LIVE_FEATURES_FILE,
+        index=False
     )
-    .reset_index(drop=True)
-)
+
+    print("Live feature cells:", len(grid))
+
+    print("Saved:")
+    print(LIVE_FEATURES_FILE)
+
+    return grid
 
 
 # ============================================================
-# SAVE LIVE RISK PREDICTIONS
+# 5. GENERATE LIVE RISK PREDICTIONS
 # ============================================================
 
-grid.to_csv(
-    LIVE_RISK_FILE,
-    index=False
-)
+def generate_predictions(features):
 
+    print("\n[5/5] Generating live risk predictions...")
 
-print(
-    "Saved:",
-    LIVE_RISK_FILE
-)
+    if features.empty:
 
+        empty = features.copy()
 
-# ============================================================
-# SUMMARY
-# ============================================================
+        empty.to_csv(
+            LIVE_PREDICTIONS_FILE,
+            index=False
+        )
 
-print("\n[4/4] LIVE RISK SUMMARY")
-print("-" * 70)
+        return empty
 
-print(
-    "Total live detections:",
-    len(live_df)
-)
+    df = features.copy()
 
-print(
-    "Total risk cells:",
-    len(grid)
-)
+    # --------------------------------------------------------
+    # Explainable risk score
+    # --------------------------------------------------------
 
-print("\nRisk categories:")
+    df["risk_score"] = (
+        0.45 * df["recurrence_score"]
+        +
+        0.35 * df["frp_intensity"]
+        +
+        0.20 * df["repeat_detection_score"]
+    )
 
-print(
-    grid["risk_category"]
-    .value_counts()
-)
+    df["risk_score"] = (
+        df["risk_score"]
+        .clip(0, 1)
+    )
 
+    # --------------------------------------------------------
+    # Percentage
+    # --------------------------------------------------------
 
-print("\nTop live risk cells:")
+    df["risk_percentage"] = (
+        df["risk_score"] * 100
+    ).round(2)
 
-print(
-    grid[
-        [
-            "grid_id",
+    # --------------------------------------------------------
+    # Risk category
+    # --------------------------------------------------------
+
+    def classify_risk(score):
+
+        if score >= 0.75:
+            return "HIGH"
+
+        elif score >= 0.45:
+            return "MEDIUM"
+
+        return "LOW"
+
+    df["risk_category"] = (
+        df["risk_score"]
+        .apply(classify_risk)
+    )
+
+    # --------------------------------------------------------
+    # Risk priority
+    # --------------------------------------------------------
+
+    df["risk_priority"] = (
+        df["risk_score"]
+        .rank(
+            ascending=False,
+            method="dense"
+        )
+        .astype(int)
+    )
+
+    # --------------------------------------------------------
+    # Sort
+    # --------------------------------------------------------
+
+    df = (
+        df.sort_values(
             "risk_score",
-            "risk_percentage",
-            "risk_category",
-            "detection_count",
-            "active_days",
-            "avg_frp",
-            "max_frp",
+            ascending=False
+        )
+        .reset_index(drop=True)
+    )
+
+    # --------------------------------------------------------
+    # Save
+    # --------------------------------------------------------
+
+    df.to_csv(
+        LIVE_PREDICTIONS_FILE,
+        index=False
+    )
+
+    print("\nLive risk results:")
+
+    print(
+        df[
+            [
+                "grid_id",
+                "risk_score",
+                "risk_percentage",
+                "risk_category",
+                "risk_priority"
+            ]
         ]
-    ]
-    .head(10)
-    .to_string(index=False)
-)
+        .to_string(index=False)
+    )
+
+    print("\nRisk categories:")
+
+    print(
+        df["risk_category"]
+        .value_counts()
+    )
+
+    print("\nSaved:")
+    print(LIVE_PREDICTIONS_FILE)
+
+    return df
 
 
-print("\n" + "=" * 70)
-print("LIVE PIPELINE COMPLETE")
-print("=" * 70)
+# ============================================================
+# MAIN PIPELINE
+# ============================================================
 
-print(
-    "\nLive FIRMS:",
-    LIVE_FIRMS_FILE
-)
+def main():
 
-print(
-    "Live Risk:",
-    LIVE_RISK_FILE
-)
+    # 1. NASA FIRMS
+    live_df = fetch_live_firms()
 
-print("=" * 70)
+    # 2. Cleaning
+    live_df = clean_data(
+        live_df
+    )
+
+    # 3. Spatial grid
+    grid = create_grid(
+        live_df
+    )
+
+    # 4. Risk features
+    features = create_risk_features(
+        grid
+    )
+
+    # 5. Risk predictions
+    predictions = generate_predictions(
+        features
+    )
+
+    # --------------------------------------------------------
+    # FINAL STATUS
+    # --------------------------------------------------------
+
+    print("\n" + "=" * 70)
+    print("THERMOSCOPE LIVE PIPELINE COMPLETE")
+    print("=" * 70)
+
+    print("\nGenerated files:")
+
+    print("1.", LIVE_FIRMS_FILE)
+    print("2.", LIVE_GRID_FILE)
+    print("3.", LIVE_FEATURES_FILE)
+    print("4.", LIVE_PREDICTIONS_FILE)
+
+    print("\nLive observations:", len(live_df))
+    print("Live grid cells:", len(grid))
+    print("Live predictions:", len(predictions))
+
+    print("\n" + "=" * 70)
+
+
+if __name__ == "__main__":
+    main()
