@@ -7,8 +7,8 @@ import numpy as np
 # USING SIH PROVIDED NASA FIRMS DATA
 # ============================================================
 
-INPUT_FILE = "data/delhi_firms_sih.csv"
-OUTPUT_FILE = "data/delhi_risk_features.csv"
+INPUT_FILE = "data/delhi_firms_live.csv"
+OUTPUT_FILE = "data/delhi_risk_features_live.csv"
 
 print("=" * 70)
 print("THERMOSCOPE - RISK FEATURE ENGINEERING")

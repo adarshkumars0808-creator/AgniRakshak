@@ -1,0 +1,413 @@
+/* ============================================================
+   THERMOSCOPE - GLOBAL STYLES
+   ============================================================ */
+
+.stApp {
+    background:
+        radial-gradient(circle at 85% 5%, rgba(255, 90, 30, 0.08), transparent 25%),
+        #0b0f15;
+    color: #f5f7fa;
+}
+
+.block-container {
+    max-width: 1500px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+[data-testid="stSidebar"] {
+    background: #0d121a;
+    border-right: 1px solid #252c36;
+}
+
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #f5f7fa;
+}
+
+/* HERO */
+.hero {
+    background: linear-gradient(145deg, #151b24, #10151d);
+    border: 1px solid #29313d;
+    border-radius: 18px;
+    padding: 26px 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+
+.hero-title {
+    font-size: 44px;
+    font-weight: 850;
+    letter-spacing: -1px;
+    margin: 0 0 8px 0;
+    color: #f5f7fa;
+}
+
+.hero-subtitle {
+    color: #9aa4b2;
+    font-size: 17px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* BADGES */
+.live-badge,
+.dataset-badge {
+    display: inline-block;
+    padding: 8px 15px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.live-badge {
+    border: 1px solid rgba(0, 220, 120, 0.30);
+    background: rgba(0, 180, 100, 0.08);
+    color: #35e68a;
+}
+
+.dataset-badge {
+    border: 1px solid rgba(70, 160, 255, 0.30);
+    background: rgba(70, 160, 255, 0.08);
+    color: #72b7ff;
+}
+
+/* SECTIONS */
+.section-label {
+    color: #737f8e;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    color: #f5f7fa;
+}
+
+.section-subtitle {
+    color: #8d98a7;
+    font-size: 14px;
+    margin-bottom: 18px;
+}
+
+/* METRIC CARDS */
+div[data-testid="stMetric"] {
+    background: linear-gradient(145deg, #151b24, #10151d);
+    border: 1px solid #29313d;
+    border-radius: 15px;
+    padding: 18px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+div[data-testid="stMetricLabel"] {
+    color: #8f9aaa !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    line-height: 1.3 !important;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #f4f7fb !important;
+    font-weight: 800 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    line-height: 1.15 !important;
+}
+
+/* INFO CARDS */
+.info-card {
+    background: #111720;
+    border: 1px solid #29313d;
+    border-radius: 15px;
+    padding: 20px;
+    min-height: 130px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.info-card-title {
+    color: #8d98a7;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.info-card-value {
+    color: #f4f7fb;
+    font-size: 22px;
+    font-weight: 750;
+}
+
+.info-card-text {
+    color: #8d98a7;
+    font-size: 13px;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+/* STATUS */
+.status-card {
+    background: #111720;
+    border: 1px solid #29313d;
+    border-radius: 12px;
+    padding: 12px 15px;
+    color: #aeb8c5;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+/* DATAFRAME */
+[data-testid="stDataFrame"] {
+    border: 1px solid #29313d;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* MAP */
+.map-caption {
+    color: #7f8997;
+    font-size: 12px;
+    margin-top: 7px;
+}
+
+/* FOOTER */
+.footer {
+    text-align: center;
+    color: #687382;
+    font-size: 12px;
+    padding: 25px 0 5px 0;
+}
+
+/* HR */
+hr {
+    border-color: #252c36 !important;
+    margin-top: 30px !important;
+    margin-bottom: 30px !important;
+}
+
+/* FOLIUM POPUP */
+.map-popup {
+    width: 330px;
+    font-family: Arial, sans-serif;
+    color: #222;
+}
+
+.popup-header {
+    background: #111720;
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 10px 10px 0 0;
+    margin: -10px -10px 12px -10px;
+}
+
+.popup-title {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.popup-risk {
+    margin-top: 5px;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.popup-meta {
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.popup-score {
+    margin: 12px 0;
+    padding: 10px;
+    background: #f4f5f7;
+    border-radius: 8px;
+}
+
+.popup-small {
+    font-size: 12px;
+    color: #666;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.popup-score-value {
+    font-size: 20px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.popup-heading {
+    font-size: 14px;
+    font-weight: 800;
+    margin-top: 14px;
+    margin-bottom: 7px;
+}
+
+.popup-explanation {
+    background: #fff8e8;
+    border-left: 4px solid;
+    padding: 9px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.popup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.popup-table td {
+    padding: 5px 0;
+}
+
+.popup-table td:last-child {
+    text-align: right;
+    font-weight: 700;
+}
+
+.popup-footer {
+    text-align: center;
+    padding: 10px;
+    background: #111720;
+    color: #fff;
+    border-radius: 8px;
+    margin-top: 10px;
+    border-top: 3px solid;
+}
+
+.popup-footer div {
+    font-size: 11px;
+    color: #aab4c1;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.popup-footer strong {
+    display: block;
+    font-size: 16px;
+    margin-top: 4px;
+}
+
+/* MAP OVERLAYS */
+.thermoscope-map-title {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(8, 12, 18, 0.94);
+    border: 1px solid #465365;
+    border-radius: 14px;
+    padding: 11px 24px;
+    color: #f5f7fa;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.45);
+}
+
+.thermoscope-legend {
+    position: absolute;
+    bottom: 28px;
+    right: 20px;
+    z-index: 1000;
+    width: 310px;
+    background: rgba(8, 12, 18, 0.94);
+    border: 1px solid #465365;
+    border-radius: 14px;
+    padding: 17px 19px;
+    color: #f5f7fa;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.45);
+}
+
+.thermoscope-legend .legend-title {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.thermal-gradient {
+    height: 16px;
+    border-radius: 10px;
+    background: linear-gradient(
+        to right,
+        #063b1d,
+        #16a34a,
+        #b7e51d,
+        #ffe600,
+        #ffae00,
+        #ff6500,
+        #ff2b00,
+        #c90000
+    );
+}
+
+.legend-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    color: #aab4c1;
+    font-size: 11px;
+}
+
+.legend-divider {
+    border-top: 1px solid #29313d;
+    margin: 15px 0;
+}
+
+.risk-item {
+    margin: 7px 0;
+}
+
+.risk-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.legend-note {
+    color: #aab4c1;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .hero-title {
+        font-size: 34px;
+    }
+
+    .thermoscope-map-title {
+        font-size: 14px;
+        padding: 9px 14px;
+    }
+
+    .thermoscope-legend {
+        width: 250px;
+        right: 10px;
+        bottom: 15px;
+    }
+}
