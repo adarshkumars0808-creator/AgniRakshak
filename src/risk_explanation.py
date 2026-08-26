@@ -32,7 +32,7 @@ def explain_grid(row):
 
     if risk_score >= 0.75:
         risk_level = "HIGH"
-    elif risk_score >= 0.50:
+    elif risk_score >= 0.45:
         risk_level = "MEDIUM"
     else:
         risk_level = "LOW"
