@@ -1,158 +1,119 @@
-import pandas as pd
 import os
+import pandas as pd
+import requests
+from dotenv import load_dotenv
 
 # ============================================================
-# THERMOSCOPE - SIH FIRMS DATA LOADER
+# THERMOSCOPE - NASA FIRMS LIVE DATA FETCH
 # ============================================================
 
-INPUT_FILE = "data/delhi_firms_sih.csv"
-OUTPUT_FILE = "data/delhi_master.csv"
+load_dotenv()
 
-print("=" * 70)
-print("THERMOSCOPE - SIH FIRMS DATA LOADER")
-print("=" * 70)
+MAP_KEY = os.getenv("FIRMS_MAP_KEY")
 
-# ------------------------------------------------------------
-# LOAD SIH DATASET
-# ------------------------------------------------------------
-
-print(f"\nLoading SIH dataset:")
-print(INPUT_FILE)
-
-if not os.path.exists(INPUT_FILE):
-    print("\nERROR: SIH dataset not found!")
-    print(f"Please make sure this file exists:")
-    print(INPUT_FILE)
+if not MAP_KEY:
+    print("ERROR: FIRMS_MAP_KEY not found in .env")
     raise SystemExit
 
-df = pd.read_csv(INPUT_FILE)
-
-print("\nLoaded observations:", len(df))
-
 # ------------------------------------------------------------
-# CHECK REQUIRED COLUMNS
+# DELHI BOUNDING BOX
+# west, south, east, north
 # ------------------------------------------------------------
 
-required_columns = [
-    "latitude",
-    "longitude",
-    "acq_date",
-    "acq_time",
-    "satellite",
-    "instrument",
-    "confidence",
-    "frp"
-]
+DELHI_BBOX = "76.8,28.4,77.4,28.9"
 
-missing_columns = [
-    col for col in required_columns
-    if col not in df.columns
-]
+# ------------------------------------------------------------
+# NASA FIRMS API
+# ------------------------------------------------------------
 
-if missing_columns:
-    print("\nERROR: Missing columns:")
-    print(missing_columns)
+SOURCE = "VIIRS_NOAA20_NRT"
+DAY_RANGE = 5
+
+URL = (
+    f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
+    f"{MAP_KEY}/{SOURCE}/{DELHI_BBOX}/{DAY_RANGE}"
+)
+
+print("=" * 70)
+print("THERMOSCOPE - NASA FIRMS LIVE DATA")
+print("=" * 70)
+
+print("\nSource:")
+print(SOURCE)
+
+print("\nFetching latest FIRMS data for Delhi...")
+
+# ------------------------------------------------------------
+# FETCH DATA
+# ------------------------------------------------------------
+
+try:
+    response = requests.get(URL, timeout=30)
+
+    print("\nHTTP Status:", response.status_code)
+
+    if response.status_code != 200:
+        print("\nERROR: NASA FIRMS API request failed.")
+        print(response.text[:500])
+        raise SystemExit
+
+except requests.RequestException as e:
+    print("\nERROR connecting to NASA FIRMS:")
+    print(e)
     raise SystemExit
 
-print("\nRequired columns verified.")
-
 # ------------------------------------------------------------
-# CLEAN DATA
+# READ CSV
 # ------------------------------------------------------------
 
-print("\nCleaning data...")
+from io import StringIO
 
-before = len(df)
-
-# Remove exact duplicate rows
-df = df.drop_duplicates()
-
-# Remove rows with missing coordinates
-df = df.dropna(
-    subset=["latitude", "longitude"]
+df = pd.read_csv(
+    StringIO(response.text)
 )
 
-# Convert date
-df["acq_date"] = pd.to_datetime(
-    df["acq_date"],
-    errors="coerce"
-)
-
-# Convert FRP to numeric
-df["frp"] = pd.to_numeric(
-    df["frp"],
-    errors="coerce"
-)
-
-# Remove invalid dates
-df = df.dropna(
-    subset=["acq_date"]
-)
-
-after = len(df)
-
-print("Rows before cleaning :", before)
-print("Rows after cleaning  :", after)
-print("Duplicates/invalid rows removed:", before - after)
+print("\nLive observations received:", len(df))
 
 # ------------------------------------------------------------
-# SORT DATA
+# CHECK DATA
 # ------------------------------------------------------------
 
-df = df.sort_values(
-    by=["acq_date", "acq_time"]
-).reset_index(drop=True)
+if df.empty:
+    print("\nNo fire detections returned for the requested area/day.")
+else:
+
+    print("\nColumns received:")
+    print(df.columns.tolist())
+
+    print("\nLatest observations:")
+    print(
+        df[
+            [
+                "latitude",
+                "longitude",
+                "acq_date",
+                "acq_time",
+                "satellite",
+                "confidence",
+                "frp"
+            ]
+        ].head(20).to_string(index=False)
+    )
 
 # ------------------------------------------------------------
-# SAVE MASTER DATASET
+# SAVE LIVE DATA
 # ------------------------------------------------------------
+
+OUTPUT_FILE = "data/delhi_firms_live.csv"
 
 df.to_csv(
     OUTPUT_FILE,
     index=False
 )
 
-print("\n" + "=" * 70)
-print("DATASET SUMMARY")
-print("=" * 70)
-
-print("\nFinal observations:", len(df))
-
-print("\nColumns:")
-print(df.columns.tolist())
-
-print("\nDate range:")
-
-if len(df) > 0:
-    print(
-        df["acq_date"].min().date(),
-        "to",
-        df["acq_date"].max().date()
-    )
-
-print("\nSatellite distribution:")
-print(
-    df["satellite"].value_counts()
-)
-
-print("\nObservations:")
-print(
-    df[
-        [
-            "latitude",
-            "longitude",
-            "acq_date",
-            "acq_time",
-            "satellite",
-            "confidence",
-            "frp"
-        ]
-    ].to_string(index=False)
-)
-
-print("\nSaved to:")
+print("\nSaved live data to:")
 print(OUTPUT_FILE)
 
 print("\n" + "=" * 70)
-print("SIH DATA LOADING COMPLETE")
+print("LIVE FIRMS FETCH COMPLETE")
 print("=" * 70)

@@ -4,6 +4,7 @@ import numpy as np
 # ============================================================
 # THERMOSCOPE - STEP 4
 # EXPLAINABLE FIRE RISK SCORING
+# USING SIH PROVIDED NASA FIRMS DATA
 # ============================================================
 
 INPUT_FILE = "data/delhi_risk_features.csv"
@@ -11,6 +12,7 @@ OUTPUT_FILE = "data/delhi_risk_predictions.csv"
 
 print("=" * 70)
 print("THERMOSCOPE - FIRE RISK SCORING MODEL")
+print("USING SIH PROVIDED NASA FIRMS DATA")
 print("=" * 70)
 
 # ------------------------------------------------------------
@@ -31,12 +33,11 @@ required_columns = [
     "grid_lon",
     "detection_count",
     "active_days",
-    "satellite_agreement",
     "avg_frp",
     "max_frp",
     "recurrence_score",
-    "satellite_score",
     "frp_intensity",
+    "repeat_detection_score",
     "activity_score"
 ]
 
@@ -48,7 +49,10 @@ missing_columns = [
 if missing_columns:
     print("\nERROR: Missing columns:")
     print(missing_columns)
-    raise ValueError("Required risk features are missing.")
+
+    raise ValueError(
+        "Required risk features are missing."
+    )
 
 # ------------------------------------------------------------
 # 3. Clean numeric features
@@ -57,81 +61,82 @@ if missing_columns:
 numeric_columns = [
     "detection_count",
     "active_days",
-    "satellite_agreement",
     "avg_frp",
     "max_frp",
     "recurrence_score",
-    "satellite_score",
     "frp_intensity",
+    "repeat_detection_score",
     "activity_score"
 ]
 
 for column in numeric_columns:
+
     df[column] = pd.to_numeric(
         df[column],
         errors="coerce"
     )
 
-df[numeric_columns] = df[numeric_columns].fillna(0)
+df[numeric_columns] = (
+    df[numeric_columns]
+    .fillna(0)
+)
 
 # ------------------------------------------------------------
-# 4. Normalize detection activity
+# 4. Validate feature ranges
 # ------------------------------------------------------------
 
-max_detection = df["detection_count"].max()
+score_columns = [
+    "recurrence_score",
+    "frp_intensity",
+    "repeat_detection_score",
+    "activity_score"
+]
 
-if max_detection > 0:
-    df["detection_score"] = (
-        df["detection_count"] / max_detection
+for column in score_columns:
+
+    df[column] = (
+        df[column]
+        .clip(0, 1)
     )
-else:
-    df["detection_score"] = 0
 
 # ------------------------------------------------------------
-# 5. Normalize FRP activity
-# ------------------------------------------------------------
-
-max_avg_frp = df["avg_frp"].max()
-
-if max_avg_frp > 0:
-    df["avg_frp_score"] = (
-        df["avg_frp"] / max_avg_frp
-    )
-else:
-    df["avg_frp_score"] = 0
-
-# ------------------------------------------------------------
-# 6. Combined risk score
+# 5. Explainable risk score
 # ------------------------------------------------------------
 #
-# Current explainable weighting:
+# The feature-engineering stage already calculates
+# an explainable activity score using:
 #
-# Recurrence       = 30%
-# Satellite        = 25%
-# FRP intensity    = 25%
-# Detection        = 20%
+#   Recurrence / persistence = 45%
+#   FRP intensity             = 35%
+#   Repeat detections         = 20%
 #
-# Score range: 0 - 1
+# The current SIH-provided dataset contains only
+# one satellite source.
+#
+# Therefore satellite agreement is NOT artificially
+# included in the risk score.
+#
+# We use the validated activity_score as the base
+# risk score to keep Step 3B and Step 4 consistent.
 # ------------------------------------------------------------
 
 df["risk_score"] = (
-    0.30 * df["recurrence_score"]
+    0.45 * df["recurrence_score"]
     +
-    0.25 * df["satellite_score"]
+    0.35 * df["frp_intensity"]
     +
-    0.25 * df["frp_intensity"]
-    +
-    0.20 * df["detection_score"]
+    0.20 * df["repeat_detection_score"]
 )
 
-# Keep score within 0-1
+# Keep score between 0 and 1
+
 df["risk_score"] = (
     df["risk_score"]
     .clip(0, 1)
 )
 
 # ------------------------------------------------------------
-# 7. Convert to percentage
+# 6. Convert risk score to percentage
 # ------------------------------------------------------------
 
 df["risk_percentage"] = (
@@ -139,7 +144,7 @@ df["risk_percentage"] = (
 ).round(2)
 
 # ------------------------------------------------------------
-# 8. Risk classification
+# 7. Risk classification
 # ------------------------------------------------------------
 
 def classify_risk(score):
@@ -160,7 +165,7 @@ df["risk_category"] = (
 )
 
 # ------------------------------------------------------------
-# 9. Risk priority
+# 8. Risk priority
 # ------------------------------------------------------------
 
 df["risk_priority"] = (
@@ -173,16 +178,19 @@ df["risk_priority"] = (
 )
 
 # ------------------------------------------------------------
-# 10. Sort highest risk first
+# 9. Sort highest risk first
 # ------------------------------------------------------------
 
-df = df.sort_values(
-    by="risk_score",
-    ascending=False
-).reset_index(drop=True)
+df = (
+    df.sort_values(
+        by="risk_score",
+        ascending=False
+    )
+    .reset_index(drop=True)
+)
 
 # ------------------------------------------------------------
-# 11. Save results
+# 10. Save results
 # ------------------------------------------------------------
 
 df.to_csv(
@@ -191,7 +199,7 @@ df.to_csv(
 )
 
 # ------------------------------------------------------------
-# 12. Display results
+# 11. Display results
 # ------------------------------------------------------------
 
 print("\n" + "-" * 70)
@@ -212,12 +220,14 @@ print(
 )
 
 print("\nRisk categories:")
+
 print(
     df["risk_category"]
     .value_counts()
 )
 
 print("\nHighest-risk grid:")
+
 print(
     df.iloc[0][
         [
@@ -230,6 +240,7 @@ print(
 )
 
 print("\nSaved to:")
+
 print(OUTPUT_FILE)
 
 print("\n" + "=" * 70)
