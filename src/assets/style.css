@@ -203,80 +203,108 @@ hr {
 }
 
 /* FOLIUM POPUP */
+/* ============================================================
+   THERMOSCOPE - COMPACT MAP POPUP
+   ============================================================ */
+
 .map-popup {
-    width: 330px;
+    width: 300px;
+    max-width: 300px;
+    padding: 14px;
     font-family: Arial, sans-serif;
-    color: #222;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #e8edf5;
+    background: #10151d;
+    border-radius: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .popup-header {
-    background: #111720;
-    color: #fff;
-    padding: 12px 14px;
-    border-radius: 10px 10px 0 0;
-    margin: -10px -10px 12px -10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .popup-title {
-    font-size: 18px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 .popup-risk {
-    margin-top: 5px;
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 800;
+    white-space: nowrap;
 }
 
 .popup-meta {
-    font-size: 13px;
-    margin-bottom: 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+
+.map-popup hr {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    margin: 9px 0;
 }
 
 .popup-score {
-    margin: 12px 0;
-    padding: 10px;
-    background: #f4f5f7;
-    border-radius: 8px;
+    text-align: center;
+    padding: 7px 0;
 }
 
 .popup-small {
-    font-size: 12px;
-    color: #666;
+    font-size: 9px;
     font-weight: 700;
-    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    opacity: 0.65;
 }
 
 .popup-score-value {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 800;
-    margin-top: 4px;
+    line-height: 1.1;
+    margin: 3px 0;
 }
 
 .popup-heading {
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 800;
-    margin-top: 14px;
-    margin-bottom: 7px;
+    margin-top: 10px;
+    margin-bottom: 5px;
 }
 
 .popup-explanation {
-    background: #fff8e8;
-    border-left: 4px solid;
-    padding: 9px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    line-height: 1.5;
+    padding: 7px 8px;
+    border-left: 3px solid;
+    background: rgba(255,255,255,0.035);
+    border-radius: 0 5px 5px 0;
+    font-size: 10px;
+    line-height: 1.4;
 }
 
 .popup-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: 10px;
+}
+
+.popup-table tr {
+    border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .popup-table td {
-    padding: 5px 0;
+    padding: 4px 2px;
+    vertical-align: middle;
+}
+
+.popup-table td:first-child {
+    opacity: 0.75;
 }
 
 .popup-table td:last-child {
@@ -285,26 +313,20 @@ hr {
 }
 
 .popup-footer {
-    text-align: center;
-    padding: 10px;
-    background: #111720;
-    color: #fff;
-    border-radius: 8px;
     margin-top: 10px;
-    border-top: 3px solid;
-}
-
-.popup-footer div {
-    font-size: 11px;
-    color: #aab4c1;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.025);
+    font-size: 9px;
+    letter-spacing: 0.5px;
 }
 
 .popup-footer strong {
     display: block;
-    font-size: 16px;
-    margin-top: 4px;
+    font-size: 12px;
+    margin-top: 2px;
 }
 
 /* MAP OVERLAYS */

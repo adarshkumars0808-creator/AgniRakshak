@@ -1,33 +1,117 @@
+import os
 import pandas as pd
 
 
 # ============================================================
 # THERMOSCOPE - EXPLAINABLE FIRE RISK ENGINE
-# STEP 5
+# STEP 6
 # USING SIH PROVIDED NASA FIRMS DATA
+# SUPPORTS SIH + LIVE PROCESSED DATA
 # ============================================================
 
-PREDICTION_FILE = "data/delhi_risk_predictions.csv"
+
+SIH_PREDICTION_FILE = "data/delhi_risk_predictions.csv"
+LIVE_PREDICTION_FILE = "data/delhi_risk_predictions_live.csv"
 
 
 # ============================================================
 # 1. LOAD PREDICTIONS
 # ============================================================
 
-def load_predictions():
-    """Load Thermoscope risk prediction data."""
+def load_predictions(mode="auto"):
+    """
+    Load Thermoscope risk predictions.
 
-    return pd.read_csv(PREDICTION_FILE)
+    mode:
+        auto -> live file if available, otherwise SIH
+        live -> live predictions only
+        sih  -> SIH predictions only
+    """
+
+    if mode == "live":
+
+        if not os.path.exists(LIVE_PREDICTION_FILE):
+            raise FileNotFoundError(
+                f"Live prediction file not found: "
+                f"{LIVE_PREDICTION_FILE}"
+            )
+
+        return pd.read_csv(LIVE_PREDICTION_FILE)
+
+    if mode == "sih":
+
+        if not os.path.exists(SIH_PREDICTION_FILE):
+            raise FileNotFoundError(
+                f"SIH prediction file not found: "
+                f"{SIH_PREDICTION_FILE}"
+            )
+
+        return pd.read_csv(SIH_PREDICTION_FILE)
+
+    # --------------------------------------------------------
+    # AUTO MODE
+    # --------------------------------------------------------
+
+    if os.path.exists(LIVE_PREDICTION_FILE):
+
+        print(
+            "Explainability mode: LIVE PROCESSED DATA"
+        )
+
+        return pd.read_csv(LIVE_PREDICTION_FILE)
+
+    if os.path.exists(SIH_PREDICTION_FILE):
+
+        print(
+            "Explainability mode: SIH DATASET"
+        )
+
+        return pd.read_csv(SIH_PREDICTION_FILE)
+
+    raise FileNotFoundError(
+        "No Thermoscope prediction file found."
+    )
 
 
 # ============================================================
-# 2. RISK LEVEL
+# 2. SAFE VALUE HELPERS
+# ============================================================
+
+def safe_float(value, default=0.0):
+
+    try:
+
+        if pd.isna(value):
+            return default
+
+        return float(value)
+
+    except (ValueError, TypeError):
+
+        return default
+
+
+def safe_int(value, default=0):
+
+    try:
+
+        if pd.isna(value):
+            return default
+
+        return int(float(value))
+
+    except (ValueError, TypeError):
+
+        return default
+
+
+# ============================================================
+# 3. RISK LEVEL
 # ============================================================
 
 def get_risk_level(score):
-    """Convert risk score into LOW / MEDIUM / HIGH."""
 
-    score = float(score)
+    score = safe_float(score)
 
     if score >= 0.75:
         return "HIGH"
@@ -35,25 +119,24 @@ def get_risk_level(score):
     elif score >= 0.45:
         return "MEDIUM"
 
-    else:
-        return "LOW"
+    return "LOW"
 
 
 # ============================================================
-# 3. EXPLAIN RECURRENCE
+# 4. EXPLAIN RECURRENCE
 # ============================================================
 
 def explain_recurrence(row):
 
-    active_days = int(
+    active_days = safe_int(
         row.get("active_days", 0)
     )
 
-    detection_count = int(
+    detection_count = safe_int(
         row.get("detection_count", 0)
     )
 
-    recurrence_score = float(
+    recurrence_score = safe_float(
         row.get("recurrence_score", 0)
     )
 
@@ -75,8 +158,8 @@ def explain_recurrence(row):
     if detection_count >= 2:
 
         reasons.append(
-            f"The grid recorded {detection_count} fire detections, "
-            "indicating repeated activity."
+            f"The grid recorded {detection_count} fire "
+            "detections, indicating repeated activity."
         )
 
     elif detection_count == 1:
@@ -85,24 +168,31 @@ def explain_recurrence(row):
             "One fire detection was recorded in this grid."
         )
 
+    if not reasons:
+
+        reasons.append(
+            "No significant recurrence information "
+            "is available for this grid."
+        )
+
     return reasons, recurrence_score
 
 
 # ============================================================
-# 4. EXPLAIN FRP
+# 5. EXPLAIN FRP
 # ============================================================
 
 def explain_frp(row):
 
-    avg_frp = float(
+    avg_frp = safe_float(
         row.get("avg_frp", 0)
     )
 
-    max_frp = float(
+    max_frp = safe_float(
         row.get("max_frp", 0)
     )
 
-    frp_intensity = float(
+    frp_intensity = safe_float(
         row.get("frp_intensity", 0)
     )
 
@@ -119,43 +209,44 @@ def explain_frp(row):
     if frp_intensity >= 0.75:
 
         reasons.append(
-            "The observed FRP is relatively high compared "
+            "FRP intensity is relatively high compared "
             "with the strongest grid in the current dataset."
         )
 
     elif frp_intensity >= 0.45:
 
         reasons.append(
-            "The observed FRP indicates moderate fire intensity "
+            "FRP intensity indicates moderate fire intensity "
             "relative to the current dataset."
         )
 
     else:
 
         reasons.append(
-            "The observed FRP is relatively lower compared "
-            "with the strongest grid in the current dataset."
+            "FRP intensity is comparatively lower than "
+            "the strongest grid."
         )
 
     return reasons, frp_intensity
 
 
 # ============================================================
-# 5. EXPLAIN SATELLITE EVIDENCE
+# 6. EXPLAIN SATELLITE EVIDENCE
 # ============================================================
 
 def explain_satellite(row):
 
-    satellite_agreement = int(
+    satellite_agreement = safe_int(
         row.get("satellite_agreement", 0)
     )
 
-    satellite_score = float(
+    satellite_score = safe_float(
         row.get("satellite_score", 0)
     )
 
-    satellite_source_count = int(
-        row.get("satellite_source_count", 1)
+    satellite_source_count = safe_int(
+        row.get("satellite_source_count", 1),
+        default=1
     )
 
     reasons = []
@@ -164,31 +255,39 @@ def explain_satellite(row):
 
         reasons.append(
             f"Fire activity was supported by "
-            f"{satellite_source_count} satellite/source identifiers."
+            f"{satellite_source_count} satellite/source "
+            "identifiers."
+        )
+
+    elif satellite_source_count > 1:
+
+        reasons.append(
+            f"Multiple satellite/source identifiers "
+            f"are present ({satellite_source_count})."
         )
 
     else:
 
         reasons.append(
-            "Only one satellite/source identifier is available "
-            "in the current SIH dataset, so independent satellite "
-            "agreement cannot be established."
+            "The current dataset does not provide enough "
+            "independent satellite evidence to establish "
+            "multi-satellite agreement."
         )
 
     return reasons, satellite_score
 
 
 # ============================================================
-# 6. EXPLAIN DETECTION STRENGTH
+# 7. EXPLAIN DETECTION STRENGTH
 # ============================================================
 
 def explain_detection(row):
 
-    detection_count = int(
+    detection_count = safe_int(
         row.get("detection_count", 0)
     )
 
-    detection_score = float(
+    detection_score = safe_float(
         row.get("detection_score", 0)
     )
 
@@ -197,15 +296,15 @@ def explain_detection(row):
     if detection_score >= 0.75:
 
         reasons.append(
-            "Detection frequency is high relative to the "
+            "Detection frequency is high relative to "
             "other grids in the current dataset."
         )
 
     elif detection_score >= 0.45:
 
         reasons.append(
-            "Detection frequency is moderate relative to "
-            "the other grids."
+            "Detection frequency is moderate relative "
+            "to other grids."
         )
 
     else:
@@ -215,11 +314,18 @@ def explain_detection(row):
             "than the strongest grid."
         )
 
+    if detection_count > 0:
+
+        reasons.append(
+            f"Total detections in this grid: "
+            f"{detection_count}."
+        )
+
     return reasons, detection_score
 
 
 # ============================================================
-# 7. MAIN GRID EXPLANATION
+# 8. EXPLAIN GRID
 # ============================================================
 
 def explain_grid(row):
@@ -227,11 +333,11 @@ def explain_grid(row):
     Generate a human-readable explanation for one grid cell.
     """
 
-    risk_score = float(
+    risk_score = safe_float(
         row.get("risk_score", 0)
     )
 
-    risk_percentage = float(
+    risk_percentage = safe_float(
         row.get(
             "risk_percentage",
             risk_score * 100
@@ -243,7 +349,7 @@ def explain_grid(row):
     )
 
     # --------------------------------------------------------
-    # Individual evidence
+    # Evidence
     # --------------------------------------------------------
 
     recurrence_reasons, recurrence_score = (
@@ -263,26 +369,15 @@ def explain_grid(row):
     )
 
     # --------------------------------------------------------
-    # Combine explanations
+    # Combine reasons
     # --------------------------------------------------------
 
     reasons = []
 
-    reasons.extend(
-        recurrence_reasons
-    )
-
-    reasons.extend(
-        frp_reasons
-    )
-
-    reasons.extend(
-        satellite_reasons
-    )
-
-    reasons.extend(
-        detection_reasons
-    )
+    reasons.extend(recurrence_reasons)
+    reasons.extend(frp_reasons)
+    reasons.extend(satellite_reasons)
+    reasons.extend(detection_reasons)
 
     # --------------------------------------------------------
     # Overall interpretation
@@ -292,9 +387,9 @@ def explain_grid(row):
 
         summary = (
             f"HIGH RISK ({risk_percentage:.2f}%): "
-            "The grid has comparatively strong fire-activity "
-            "indicators based on recurrence, FRP intensity and "
-            "detection frequency."
+            "The grid shows comparatively strong fire-activity "
+            "indicators based on the available Thermoscope "
+            "features."
         )
 
     elif risk_level == "MEDIUM":
@@ -309,13 +404,9 @@ def explain_grid(row):
 
         summary = (
             f"LOW RISK ({risk_percentage:.2f}%): "
-            "The current indicators show comparatively "
+            "The available indicators show comparatively "
             "lower fire activity."
         )
-
-    # --------------------------------------------------------
-    # Return structured explanation
-    # --------------------------------------------------------
 
     return {
 
@@ -363,12 +454,14 @@ def explain_grid(row):
 
 
 # ============================================================
-# 8. EXPLAIN ALL GRIDS
+# 9. EXPLAIN ALL GRIDS
 # ============================================================
 
-def explain_all():
+def explain_all(mode="auto"):
 
-    df = load_predictions()
+    df = load_predictions(
+        mode=mode
+    )
 
     explanations = []
 
@@ -382,21 +475,31 @@ def explain_all():
 
 
 # ============================================================
-# 9. PRINT EXPLANATIONS
+# 10. PRINT EXPLANATIONS
 # ============================================================
 
-def print_explanations():
+def print_explanations(mode="auto"):
 
-    explanations = explain_all()
+    explanations = explain_all(
+        mode=mode
+    )
 
     print("=" * 70)
+
     print(
         "THERMOSCOPE - EXPLAINABLE FIRE RISK ANALYSIS"
     )
+
     print(
         "USING SIH PROVIDED NASA FIRMS DATA"
     )
+
     print("=" * 70)
+
+    print(
+        f"\nTotal grids analysed: "
+        f"{len(explanations)}"
+    )
 
     for item in explanations:
 
@@ -411,7 +514,7 @@ def print_explanations():
         )
 
         print(
-            f"Risk Score: {item['risk_score']}"
+            f"Risk Score: {item['risk_score']:.4f}"
         )
 
         print(
@@ -464,16 +567,20 @@ def print_explanations():
             )
 
     print("\n" + "=" * 70)
+
     print(
         "EXPLAINABLE RISK ANALYSIS COMPLETE"
     )
+
     print("=" * 70)
 
 
 # ============================================================
-# 10. RUN
+# 11. ENTRY POINT
 # ============================================================
 
 if __name__ == "__main__":
 
-    print_explanations()
+    print_explanations(
+        mode="auto"
+    )

@@ -199,6 +199,10 @@ def render_info_card(title, value, text):
 # DATA FILE PATHS
 # ============================================================
 
+# ============================================================
+# DATA FILE PATHS
+# ============================================================
+
 def get_data_files(use_live=False):
 
     if use_live:
@@ -229,7 +233,7 @@ def get_data_files(use_live=False):
             BASE_DIR,
             "..",
             "data",
-            "delhi_firms_sih.csv",
+            "delhi_firms.csv",
         ),
     )
 
@@ -238,20 +242,29 @@ def get_data_files(use_live=False):
 # LOAD DATA
 # ============================================================
 
+# ============================================================
+# LOAD DATA FROM FASTAPI
+# ============================================================
+
 @st.cache_data
 def load_data(use_live=False):
 
     API_BASE_URL = "http://127.0.0.1:8000"
 
+    mode = "live" if use_live else "sih"
+
     try:
 
-        # ----------------------------------------------------
-        # Get risk prediction data from FastAPI
-        # ----------------------------------------------------
+        # ====================================================
+        # RISK PREDICTIONS
+        # ====================================================
 
         risk_response = requests.get(
             f"{API_BASE_URL}/api/risk",
-            timeout=10
+            params={
+                "mode": mode
+            },
+            timeout=10,
         )
 
         risk_response.raise_for_status()
@@ -260,15 +273,101 @@ def load_data(use_live=False):
             risk_response.json()
         )
 
+        # ====================================================
+        # FIRMS DETECTIONS
+        # ====================================================
+
+        firms_response = requests.get(
+            f"{API_BASE_URL}/api/detections",
+            params={
+                "mode": mode
+            },
+            timeout=10,
+        )
+
+        firms_response.raise_for_status()
+
+        firms_df = pd.DataFrame(
+            firms_response.json()
+        )
+
+        # ====================================================
+        # VALIDATE RISK DATA
+        # ====================================================
+
+        if risk_df.empty:
+
+            raise ValueError(
+                "Risk API returned no data."
+            )
+
+        # ====================================================
+        # VALIDATE FIRMS DATA
+        # ====================================================
+
+        if firms_df.empty:
+
+            raise ValueError(
+                "FIRMS API returned no data."
+            )
+
+        return (
+            risk_df,
+            firms_df
+        )
+
+    # ========================================================
+    # API CONNECTION ERROR
+    # ========================================================
+
+    except requests.exceptions.ConnectionError:
+
+        raise RuntimeError(
+            "Unable to connect to Thermoscope FastAPI.\n\n"
+            "Start the API first using:\n"
+            "uvicorn src.api:app --reload --port 8000"
+        )
+
+    # ========================================================
+    # API TIMEOUT
+    # ========================================================
+
+    except requests.exceptions.Timeout:
+
+        raise RuntimeError(
+            "FastAPI request timed out.\n\n"
+            "Please check that FastAPI is running."
+        )
+
+    # ========================================================
+    # REQUEST ERROR
+    # ========================================================
+
+    except requests.exceptions.RequestException as error:
+
+        raise RuntimeError(
+            f"Thermoscope API request failed:\n{error}"
+        )
+
+    # ========================================================
+    # DATA ERROR
+    # ========================================================
+
+    except ValueError as error:
+
+        raise RuntimeError(
+            f"Thermoscope data error:\n{error}"
+        )
+
         # ----------------------------------------------------
         # Get FIRMS detection data from FastAPI
         # ----------------------------------------------------
 
         firms_response = requests.get(
-            f"{API_BASE_URL}/api/detections",
-            timeout=10
-        )
-
+    f"{API_BASE_URL}/api/detections",
+    params={"mode": mode},
+    timeout=10
+)
         firms_response.raise_for_status()
 
         firms_df = pd.DataFrame(
@@ -868,45 +967,31 @@ low_count = int(
 # OVERVIEW METRICS
 # ============================================================
 
-m1, m2, m3, m4, m5, m6 = st.columns(6)
+# ============================================================
+# RISK METRICS
+# ============================================================
+
+m1, m2, m3, m4 = st.columns(4)
 
 with m1:
-
     st.metric(
-        "🔥 FIRMS DETECTIONS",
-        total_firms,
+        "🔴 HIGH RISK",
+        f"{high_count:,}",
     )
 
 with m2:
-
     st.metric(
-        "🗺️ GRID CELLS",
-        total_grids,
+        "🟠 MEDIUM RISK",
+        f"{medium_count:,}",
     )
 
 with m3:
-
     st.metric(
-        "🔴 HIGH RISK",
-        high_count,
+        "🟢 LOW RISK",
+        f"{low_count:,}",
     )
 
 with m4:
-
-    st.metric(
-        "🟠 MEDIUM RISK",
-        medium_count,
-    )
-
-with m5:
-
-    st.metric(
-        "🟢 LOW RISK",
-        low_count,
-    )
-
-with m6:
-
     st.metric(
         "📅 LAST DETECTION",
         latest_detection or "N/A",
@@ -1299,31 +1384,17 @@ map_bounds = []
 
 for _, row in filtered_risk.iterrows():
 
-    if not (
-        lat_column
-        and lon_column
-    ):
-
-        break
-
+    if not lat_column or not lon_column:
+        continue
 
     try:
 
-        lat = float(
-            row[lat_column]
-        )
+        lat = float(row[lat_column])
+        lon = float(row[lon_column])
 
-        lon = float(
-            row[lon_column]
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
+    except (TypeError, ValueError):
 
         continue
-
 
     if not (
         np.isfinite(lat)
@@ -1332,25 +1403,15 @@ for _, row in filtered_risk.iterrows():
 
         continue
 
-
-    map_bounds.append(
-        [
-            lat,
-            lon,
-        ]
-    )
-
+    map_bounds.append([lat, lon])
 
     risk_value = (
         str(
-            row[
-                risk_column
-            ]
+            row[risk_column]
         )
         .upper()
         .strip()
     )
-
 
     risk_color = risk_colors.get(
         risk_value,
@@ -1359,7 +1420,7 @@ for _, row in filtered_risk.iterrows():
 
 
     # ========================================================
-    # ACTUAL STEP-4 EXPLAINABILITY
+    # EXPLAINABILITY
     # ========================================================
 
     dominant_factor = str(
@@ -1369,7 +1430,6 @@ for _, row in filtered_risk.iterrows():
             "Multiple fire indicators",
         )
     )
-
 
     explanation = {
 
@@ -1392,417 +1452,514 @@ for _, row in filtered_risk.iterrows():
 
 
     # ========================================================
-    # POPUP
+    # COMPACT POPUP
     # ========================================================
 
     popup_text = f"""
-    <div class="map-popup">
+    <div class="map-popup" style="
+        width: 100%;
+        max-width: 340px;
+        max-height: 360px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        box-sizing: border-box;
+        padding: 4px 7px 6px 4px;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 1.35;
+    ">
 
-      <div class="popup-header">
+        <!-- HEADER -->
 
-        <div class="popup-title">
-          🔥 THERMOSCOPE RISK CELL
-        </div>
+        <div class="popup-header" style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        ">
 
-        <div
-            class="popup-risk"
-            style="color:{risk_color}"
-        >
-          🎯 {html.escape(risk_value)} RISK
-        </div>
+            <div class="popup-title" style="
+                font-size: 13px;
+                font-weight: 700;
+                white-space: nowrap;
+            ">
+                🔥 THERMOSCOPE
+            </div>
 
-      </div>
-
-
-      <div class="popup-meta">
-
-        <b>Grid:</b>
-        {html.escape(
-            str(
-                popup_value(
-                    row,
-                    "grid_id",
-                )
-            )
-        )}
-        <br>
-
-        <b>Latitude:</b>
-        {lat:.5f}
-        <br>
-
-        <b>Longitude:</b>
-        {lon:.5f}
-
-      </div>
-
-
-      <hr>
-
-
-      <!-- RISK SCORE -->
-
-      <div class="popup-score">
-
-        <div class="popup-small">
-          RISK ASSESSMENT
-        </div>
-
-        <div
-            class="popup-score-value"
-            style="color:{risk_color}"
-        >
-          {html.escape(
-              str(
-                  popup_value(
-                      row,
-                      "risk_score",
-                  )
-              )
-          )}
-        </div>
-
-        <div class="popup-small">
-
-          Risk Percentage:
-          <b>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "risk_percentage",
-                    )
-                )
-            )}%
-          </b>
+            <div
+                class="popup-risk"
+                style="
+                    color:{risk_color};
+                    font-size:12px;
+                    font-weight:800;
+                    white-space:nowrap;
+                "
+            >
+                🎯 {html.escape(risk_value)} RISK
+            </div>
 
         </div>
 
-      </div>
 
+        <!-- LOCATION -->
 
-      <!-- WHY THIS RISK -->
+        <div class="popup-meta" style="
+            background: #f5f5f5;
+            border-radius: 7px;
+            padding: 6px 8px;
+            margin-bottom: 7px;
+            color: #333;
+        ">
 
-      <div class="popup-heading">
-        🔎 WHY THIS RISK?
-      </div>
-
-
-      <div
-          class="popup-explanation"
-          style="border-left-color:{risk_color}"
-      >
-
-        <b>
-          Dominant Factor:
-        </b>
-
-        {html.escape(
-            dominant_factor
-        )}
-
-        <br>
-
-        {html.escape(
-            explanation
-        )}
-
-      </div>
-
-
-      <!-- OBSERVED FIRE ACTIVITY -->
-
-      <div class="popup-heading">
-        🔥 OBSERVED FIRE ACTIVITY
-      </div>
-
-
-      <table class="popup-table">
-
-        <tr>
-
-          <td>
-            FIRMS Detections
-          </td>
-
-          <td>
+            <b>Grid:</b>
             {html.escape(
                 str(
                     popup_value(
                         row,
-                        "detection_count",
+                        "grid_id",
                     )
                 )
             )}
-          </td>
 
-        </tr>
+            <br>
 
+            <b>Location:</b>
+            {lat:.5f}, {lon:.5f}
 
-        <tr>
-
-          <td>
-            Active Days
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "active_days",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            Average FRP
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "avg_frp",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            Maximum FRP
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "max_frp",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-      </table>
-
-
-      <!-- INTELLIGENCE SIGNALS -->
-
-      <div class="popup-heading">
-        🧠 INTELLIGENCE SIGNALS
-      </div>
-
-
-      <table class="popup-table">
-
-        <tr>
-
-          <td>
-            ↻ Recurrence Score
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "recurrence_score",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            🛰️ Satellite Score
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "satellite_score",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            🌡️ FRP Intensity
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "frp_intensity",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            🔁 Repeat Detection Score
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "repeat_detection_score",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            📊 Activity Score
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "activity_score",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-      </table>
-
-
-      <!-- STEP-4 RISK CONTRIBUTIONS -->
-
-      <div class="popup-heading">
-        📊 RISK CONTRIBUTIONS
-      </div>
-
-
-      <table class="popup-table">
-
-        <tr>
-
-          <td>
-            ↻ Recurrence Contribution
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "recurrence_contribution",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            🌡️ FRP Contribution
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "frp_contribution",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-
-        <tr>
-
-          <td>
-            🔁 Repeat Detection Contribution
-          </td>
-
-          <td>
-            {html.escape(
-                str(
-                    popup_value(
-                        row,
-                        "repeat_detection_contribution",
-                    )
-                )
-            )}
-          </td>
-
-        </tr>
-
-      </table>
-
-
-      <!-- FINAL ASSESSMENT -->
-
-      <div
-          class="popup-footer"
-          style="border-color:{risk_color}"
-      >
-
-        <div>
-          THERMOSCOPE ASSESSMENT
         </div>
 
-        <strong
-            style="color:{risk_color}"
-        >
-          {html.escape(
-              risk_value
-          )} FIRE RISK
-        </strong>
 
-      </div>
+        <!-- RISK SCORE -->
+
+        <div class="popup-score" style="
+            text-align:center;
+            border-radius:8px;
+            padding:7px;
+            margin-bottom:8px;
+            background:#fafafa;
+            border:1px solid #e5e5e5;
+        ">
+
+            <div style="
+                font-size:9px;
+                font-weight:700;
+                letter-spacing:0.7px;
+                color:#777;
+            ">
+                RISK ASSESSMENT
+            </div>
+
+            <div style="
+                color:{risk_color};
+                font-size:22px;
+                font-weight:800;
+                margin:1px 0;
+            ">
+                {html.escape(
+                    str(
+                        popup_value(
+                            row,
+                            "risk_score",
+                        )
+                    )
+                )}
+            </div>
+
+            <div style="
+                font-size:10px;
+                color:#555;
+            ">
+                Risk Percentage:
+                <b>
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "risk_percentage",
+                            )
+                        )
+                    )}%
+                </b>
+            </div>
+
+        </div>
+
+
+        <!-- WHY THIS RISK -->
+
+        <div style="
+            font-size:11px;
+            font-weight:800;
+            margin:7px 0 4px 0;
+            color:#222;
+        ">
+            🔎 WHY THIS RISK?
+        </div>
+
+        <div style="
+            border-left:3px solid {risk_color};
+            background:#fafafa;
+            border-radius:5px;
+            padding:6px 8px;
+            margin-bottom:7px;
+            color:#444;
+            font-size:10px;
+        ">
+
+            <b>Dominant Factor:</b>
+            {html.escape(dominant_factor)}
+
+            <br>
+
+            {html.escape(explanation)}
+
+        </div>
+
+
+        <!-- OBSERVED FIRE ACTIVITY -->
+
+        <div style="
+            font-size:11px;
+            font-weight:800;
+            margin:7px 0 4px 0;
+            color:#222;
+        ">
+            🔥 OBSERVED FIRE ACTIVITY
+        </div>
+
+        <table style="
+            width:100%;
+            border-collapse:collapse;
+            font-size:10px;
+            margin-bottom:7px;
+        ">
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    FIRMS Detections
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "detection_count",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    Active Days
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "active_days",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    Average FRP
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "avg_frp",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    Maximum FRP
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "max_frp",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+        </table>
+
+
+        <!-- INTELLIGENCE SIGNALS -->
+
+        <div style="
+            font-size:11px;
+            font-weight:800;
+            margin:7px 0 4px 0;
+            color:#222;
+        ">
+            🧠 INTELLIGENCE SIGNALS
+        </div>
+
+        <table style="
+            width:100%;
+            border-collapse:collapse;
+            font-size:10px;
+            margin-bottom:7px;
+        ">
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    ↻ Recurrence Score
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "recurrence_score",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    🛰️ Satellite Score
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "satellite_score",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    🌡️ FRP Intensity
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "frp_intensity",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    🔁 Repeat Detection
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "repeat_detection_score",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    📊 Activity Score
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "activity_score",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+        </table>
+
+
+        <!-- RISK CONTRIBUTIONS -->
+
+        <div style="
+            font-size:11px;
+            font-weight:800;
+            margin:7px 0 4px 0;
+            color:#222;
+        ">
+            📊 RISK CONTRIBUTIONS
+        </div>
+
+        <table style="
+            width:100%;
+            border-collapse:collapse;
+            font-size:10px;
+            margin-bottom:7px;
+        ">
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    ↻ Recurrence
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "recurrence_contribution",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    🌡️ FRP
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "frp_contribution",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+            <tr>
+                <td style="padding:3px 4px;">
+                    🔁 Repeat Detection
+                </td>
+
+                <td style="
+                    padding:3px 4px;
+                    text-align:right;
+                    font-weight:700;
+                ">
+                    {html.escape(
+                        str(
+                            popup_value(
+                                row,
+                                "repeat_detection_contribution",
+                            )
+                        )
+                    )}
+                </td>
+            </tr>
+
+        </table>
+
+
+        <!-- FINAL ASSESSMENT -->
+
+        <div style="
+            border:1px solid {risk_color};
+            border-radius:7px;
+            padding:7px;
+            text-align:center;
+            margin-top:7px;
+            background:#fafafa;
+        ">
+
+            <div style="
+                font-size:9px;
+                color:#777;
+                font-weight:700;
+                letter-spacing:0.5px;
+            ">
+                THERMOSCOPE ASSESSMENT
+            </div>
+
+            <strong style="
+                color:{risk_color};
+                font-size:12px;
+            ">
+                {html.escape(risk_value)} FIRE RISK
+            </strong>
+
+        </div>
 
     </div>
     """
@@ -1813,8 +1970,7 @@ for _, row in filtered_risk.iterrows():
     # ========================================================
 
     grid_size = 0.01
-    half_grid = 0.005
-
+    half_grid = grid_size / 2
 
     folium.Rectangle(
         bounds=[
@@ -1835,15 +1991,14 @@ for _, row in filtered_risk.iterrows():
         opacity=0.75,
         popup=folium.Popup(
             popup_text,
-            max_width=380,
+            max_width=360,
+            max_height=430,
         ),
         tooltip=(
             f"🎯 {risk_value} RISK — "
             "Click for details"
         ),
-    ).add_to(
-        risk_layer
-    )
+    ).add_to(risk_layer)
 
 
     # ========================================================
@@ -1855,7 +2010,7 @@ for _, row in filtered_risk.iterrows():
             lat,
             lon,
         ],
-        radius=5,
+        radius=6,
         color=risk_color,
         fill=True,
         fill_color=risk_color,
@@ -1863,14 +2018,14 @@ for _, row in filtered_risk.iterrows():
         weight=2,
         popup=folium.Popup(
             popup_text,
-            max_width=380,
+            max_width=360,
+            max_height=430,
         ),
         tooltip=(
-            f"{risk_value} RISK"
+            f"🎯 {risk_value} RISK — "
+            "Click for details"
         ),
-    ).add_to(
-        risk_layer
-    )
+    ).add_to(risk_layer)
 
 
 risk_layer.add_to(

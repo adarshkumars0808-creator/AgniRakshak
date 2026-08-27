@@ -1,127 +1,314 @@
-import sqlite3
 from pathlib import Path
 
 import pandas as pd
 
-from database import get_connection, initialize_database
+from database import (
+    get_connection,
+    initialize_database,
+    add_missing_columns,
+)
 
 
 # ============================================================
-# THERMOSCOPE - IMPORT CSV DATA INTO SQLITE
+# THERMOSCOPE - CSV TO SQLITE IMPORT
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 
 
-FIRMS_FILE = DATA_DIR / "delhi_firms.csv"
-FEATURES_FILE = DATA_DIR / "delhi_risk_features.csv"
-PREDICTIONS_FILE = DATA_DIR / "delhi_risk_predictions.csv"
+# ============================================================
+# SIH DATA
+# ============================================================
+
+SIH_FILES = {
+
+    "fire_detections":
+        DATA_DIR / "delhi_firms.csv",
+
+    "risk_features":
+        DATA_DIR / "delhi_risk_features.csv",
+
+    "risk_predictions":
+        DATA_DIR / "delhi_risk_predictions.csv",
+}
 
 
-def import_fire_detections(connection):
-    print("\n[1/3] Importing FIRMS fire detections...")
+# ============================================================
+# LIVE DATA
+# ============================================================
 
-    df = pd.read_csv(FIRMS_FILE)
+LIVE_FILES = {
 
-    # Replace existing data so repeated imports don't create duplicates.
-    connection.execute("DELETE FROM fire_detections")
+    "fire_detections_live":
+        DATA_DIR / "delhi_firms_live.csv",
+
+    "risk_features_live":
+        DATA_DIR / "delhi_risk_features_live.csv",
+
+    "risk_predictions_live":
+        DATA_DIR / "delhi_risk_predictions_live.csv",
+}
+
+
+# ============================================================
+# IMPORT ONE FILE
+# ============================================================
+
+def import_file(
+    connection,
+    table_name,
+    file_path
+):
+
+    print(
+        f"\n      Table: {table_name}"
+    )
+
+    # --------------------------------------------------------
+    # CHECK FILE
+    # --------------------------------------------------------
+
+    if not file_path.exists():
+
+        print(
+            f"      WARNING: File not found: "
+            f"{file_path.name}"
+        )
+
+        return 0
+
+    # --------------------------------------------------------
+    # READ CSV
+    # --------------------------------------------------------
+
+    df = pd.read_csv(
+        file_path
+    )
+
+    # --------------------------------------------------------
+    # AUTOMATIC COLUMN MIGRATION
+    # --------------------------------------------------------
+    # If CSV contains a new column that is not yet present
+    # in SQLite, automatically add it to the table.
+
+    added_columns = add_missing_columns(
+        connection,
+        table_name,
+        df
+    )
+
+    if added_columns:
+
+        print(
+            "      Added database columns:"
+        )
+
+        for column in added_columns:
+
+            print(
+                f"        + {column}"
+            )
+
+    # --------------------------------------------------------
+    # REMOVE PREVIOUS DATA
+    # --------------------------------------------------------
+
+    connection.execute(
+        f"DELETE FROM {table_name}"
+    )
+
+    # --------------------------------------------------------
+    # IMPORT DATA
+    # --------------------------------------------------------
 
     df.to_sql(
-        "fire_detections",
+        table_name,
         connection,
         if_exists="append",
         index=False
     )
 
-    print(f"      Imported {len(df)} fire detections.")
-
-
-def import_risk_features(connection):
-    print("\n[2/3] Importing risk features...")
-
-    df = pd.read_csv(FEATURES_FILE)
-
-    connection.execute("DELETE FROM risk_features")
-
-    df.to_sql(
-        "risk_features",
-        connection,
-        if_exists="append",
-        index=False
+    print(
+        f"      Imported {len(df)} records."
     )
 
-    print(f"      Imported {len(df)} risk-feature records.")
+    return len(df)
 
 
-def import_risk_predictions(connection):
-    print("\n[3/3] Importing risk predictions...")
+# ============================================================
+# IMPORT SIH DATA
+# ============================================================
 
-    df = pd.read_csv(PREDICTIONS_FILE)
+def import_sih_data(
+    connection
+):
 
-    connection.execute("DELETE FROM risk_predictions")
-
-    df.to_sql(
-        "risk_predictions",
-        connection,
-        if_exists="append",
-        index=False
+    print(
+        "\n" + "=" * 60
     )
 
-    print(f"      Imported {len(df)} risk-prediction records.")
+    print(
+        "IMPORTING SIH DATA"
+    )
+
+    print(
+        "=" * 60
+    )
+
+    totals = {}
+
+    for table, file_path in SIH_FILES.items():
+
+        totals[table] = import_file(
+            connection,
+            table,
+            file_path
+        )
+
+    return totals
 
 
-def verify_database(connection):
-    print("\n" + "=" * 60)
-    print("DATABASE VERIFICATION")
-    print("=" * 60)
+# ============================================================
+# IMPORT LIVE DATA
+# ============================================================
+
+def import_live_data(
+    connection
+):
+
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "IMPORTING LIVE PROCESSED DATA"
+    )
+
+    print(
+        "=" * 60
+    )
+
+    totals = {}
+
+    for table, file_path in LIVE_FILES.items():
+
+        totals[table] = import_file(
+            connection,
+            table,
+            file_path
+        )
+
+    return totals
+
+
+# ============================================================
+# DATABASE VERIFICATION
+# ============================================================
+
+def verify_database(
+    connection
+):
+
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "DATABASE VERIFICATION"
+    )
+
+    print(
+        "=" * 60
+    )
 
     tables = [
+
         "fire_detections",
         "risk_features",
-        "risk_predictions"
+        "risk_predictions",
+
+        "fire_detections_live",
+        "risk_features_live",
+        "risk_predictions_live"
     ]
 
     for table in tables:
 
-        cursor = connection.execute(
+        count = connection.execute(
             f"SELECT COUNT(*) FROM {table}"
+        ).fetchone()[0]
+
+        print(
+            f"{table}: {count} records"
         )
 
-        count = cursor.fetchone()[0]
 
-        print(f"{table}: {count} records")
-
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
 
     print("=" * 60)
-    print("THERMOSCOPE - CSV TO SQLITE IMPORT")
+
+    print(
+        "THERMOSCOPE - DATA IMPORT"
+    )
+
     print("=" * 60)
 
-    # Make sure database/tables exist.
+    # --------------------------------------------------------
+    # MAKE SURE DATABASE EXISTS
+    # --------------------------------------------------------
+
     initialize_database()
 
     connection = get_connection()
 
     try:
 
-        import_fire_detections(connection)
+        # ----------------------------------------------------
+        # SIH DATA
+        # ----------------------------------------------------
 
-        import_risk_features(connection)
+        import_sih_data(
+            connection
+        )
 
-        import_risk_predictions(connection)
+        # ----------------------------------------------------
+        # LIVE DATA
+        # ----------------------------------------------------
+
+        import_live_data(
+            connection
+        )
+
+        # ----------------------------------------------------
+        # COMMIT
+        # ----------------------------------------------------
 
         connection.commit()
 
-        verify_database(connection)
+        # ----------------------------------------------------
+        # VERIFY
+        # ----------------------------------------------------
+
+        verify_database(
+            connection
+        )
 
     except Exception as error:
 
         connection.rollback()
 
-        print("\nERROR:")
-        print(error)
+        print(
+            "\nERROR:"
+        )
+
+        print(
+            error
+        )
 
         raise
 
@@ -129,10 +316,23 @@ def main():
 
         connection.close()
 
-    print("\n" + "=" * 60)
-    print("DATA IMPORT COMPLETE")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 60
+    )
 
+    print(
+        "DATA IMPORT COMPLETE"
+    )
+
+    print(
+        "=" * 60
+    )
+
+
+# ============================================================
+# RUN
+# ============================================================
 
 if __name__ == "__main__":
+
     main()

@@ -19,7 +19,7 @@ print("=" * 65)
 # FILE PATHS
 # ============================================================
 
-PREDICTION_FILE = "data/delhi_risk_predictions.csv"
+PREDICTION_FILE = "data/delhi_risk_predictions_live.csv"
 OUTPUT_FILE = "data/delhi_fire_risk_map.png"
 
 
