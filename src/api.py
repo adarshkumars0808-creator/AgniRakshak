@@ -167,16 +167,30 @@ def get_database_stats():
 # ============================================================
 
 @app.get("/api/risk")
-def get_all_risk():
+def get_all_risk(mode: str = "sih"):
+
+    mode = mode.lower().strip()
+
+    if mode not in ["sih", "live"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Mode must be either 'sih' or 'live'."
+        )
+
+    table_name = (
+        "risk_predictions_live"
+        if mode == "live"
+        else "risk_predictions"
+    )
 
     connection = get_db_connection()
 
     try:
 
         cursor = connection.execute(
-            """
+            f"""
             SELECT *
-            FROM risk_predictions
+            FROM {table_name}
             ORDER BY risk_score DESC
             """
         )
@@ -188,7 +202,6 @@ def get_all_risk():
     finally:
 
         connection.close()
-
 
 # ============================================================
 # TOP HIGH-RISK LOCATIONS
@@ -327,16 +340,31 @@ def get_location_risk(grid_id: str):
 # ============================================================
 
 @app.get("/api/detections")
-def get_fire_detections():
+@app.get("/api/detections")
+def get_fire_detections(mode: str = "sih"):
+
+    mode = mode.lower().strip()
+
+    if mode not in ["sih", "live"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Mode must be either 'sih' or 'live'."
+        )
+
+    table_name = (
+        "fire_detections_live"
+        if mode == "live"
+        else "fire_detections"
+    )
 
     connection = get_db_connection()
 
     try:
 
         cursor = connection.execute(
-            """
+            f"""
             SELECT *
-            FROM fire_detections
+            FROM {table_name}
             ORDER BY acq_date DESC, acq_time DESC
             """
         )
@@ -487,3 +515,12 @@ def get_api_status():
     finally:
 
         connection.close()
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "api:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True
+    )

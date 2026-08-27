@@ -2,9 +2,10 @@ import sqlite3
 from pathlib import Path
 import pandas as pd
 
+
 # ============================================================
 # THERMOSCOPE DATABASE
-# SQLite database connection + automatic schema migration
+# SQLite connection + schema
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,10 +14,6 @@ DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 DB_PATH = DATA_DIR / "thermoscope.db"
-
-PREDICTIONS_FILE = DATA_DIR / "delhi_risk_predictions_live.csv"
-FEATURES_FILE = DATA_DIR / "delhi_risk_features_live.csv"
-FIRMS_FILE = DATA_DIR / "delhi_firms_live.csv"
 
 
 # ============================================================
@@ -33,20 +30,21 @@ def get_connection():
 
 
 # ============================================================
-# INITIAL DATABASE TABLES
+# TABLE CREATION
 # ============================================================
 
-def initialize_database():
+def create_tables(connection, suffix=""):
 
-    connection = get_connection()
-    cursor = connection.cursor()
+    fire_table = f"fire_detections{suffix}"
+    feature_table = f"risk_features{suffix}"
+    prediction_table = f"risk_predictions{suffix}"
 
-    # ========================================================
+    # --------------------------------------------------------
     # FIRE DETECTIONS
-    # ========================================================
+    # --------------------------------------------------------
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS fire_detections (
+    connection.execute(f"""
+        CREATE TABLE IF NOT EXISTS {fire_table} (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -74,12 +72,12 @@ def initialize_database():
         )
     """)
 
-    # ========================================================
+    # --------------------------------------------------------
     # RISK FEATURES
-    # ========================================================
+    # --------------------------------------------------------
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS risk_features (
+    connection.execute(f"""
+        CREATE TABLE IF NOT EXISTS {feature_table} (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -113,16 +111,18 @@ def initialize_database():
             repeat_detection_score REAL,
             activity_score REAL,
 
-            activity_category TEXT
+            activity_category TEXT,
+
+            repeat_score REAL
         )
     """)
 
-    # ========================================================
+    # --------------------------------------------------------
     # RISK PREDICTIONS
-    # ========================================================
+    # --------------------------------------------------------
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS risk_predictions (
+    connection.execute(f"""
+        CREATE TABLE IF NOT EXISTS {prediction_table} (
 
             id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -171,19 +171,50 @@ def initialize_database():
             score_difference REAL,
             score_consistent INTEGER,
 
-            dominant_factor TEXT
+            dominant_factor TEXT,
+
+            repeat_score REAL
         )
     """)
 
-    connection.commit()
-    connection.close()
+
+# ============================================================
+# INITIALIZE DATABASE
+# ============================================================
+
+def initialize_database():
+
+    connection = get_connection()
+
+    try:
+
+        # SIH / default tables
+        create_tables(
+            connection,
+            ""
+        )
+
+        # LIVE tables
+        create_tables(
+            connection,
+            "_live"
+        )
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
 
 
 # ============================================================
 # GET EXISTING COLUMNS
 # ============================================================
 
-def get_columns(connection, table_name):
+def get_columns(
+    connection,
+    table_name
+):
 
     cursor = connection.execute(
         f"PRAGMA table_info({table_name})"
@@ -196,47 +227,7 @@ def get_columns(connection, table_name):
 
 
 # ============================================================
-# AUTOMATIC COLUMN MIGRATION
-# ============================================================
-
-def add_missing_columns(connection, table_name, dataframe):
-
-    existing_columns = get_columns(
-        connection,
-        table_name
-    )
-
-    added = []
-
-    for column in dataframe.columns:
-
-        # Ignore SQLite primary key.
-        if column == "id":
-            continue
-
-        if column in existing_columns:
-            continue
-
-        column_type = infer_sqlite_type(
-            dataframe[column]
-        )
-
-        connection.execute(
-            f"""
-            ALTER TABLE {table_name}
-            ADD COLUMN "{column}" {column_type}
-            """
-        )
-
-        added.append(
-            f"{table_name}.{column}"
-        )
-
-    return added
-
-
-# ============================================================
-# INFER SQLITE TYPE
+# SQLITE TYPE INFERENCE
 # ============================================================
 
 def infer_sqlite_type(series):
@@ -259,125 +250,65 @@ def infer_sqlite_type(series):
 
 
 # ============================================================
-# AUTOMATIC DATABASE MIGRATION
+# AUTOMATIC COLUMN MIGRATION
+# ============================================================
+
+def add_missing_columns(
+    connection,
+    table_name,
+    dataframe
+):
+
+    existing_columns = get_columns(
+        connection,
+        table_name
+    )
+
+    added = []
+
+    for column in dataframe.columns:
+
+        # SQLite already has its own auto-increment ID.
+        if column == "id":
+            continue
+
+        # Column already exists.
+        if column in existing_columns:
+            continue
+
+        column_type = infer_sqlite_type(
+            dataframe[column]
+        )
+
+        connection.execute(
+            f"""
+            ALTER TABLE {table_name}
+            ADD COLUMN "{column}" {column_type}
+            """
+        )
+
+        added.append(
+            f"{table_name}.{column}"
+        )
+
+    return added
+
+
+# ============================================================
+# DATABASE MIGRATION
 # ============================================================
 
 def migrate_database():
 
     connection = get_connection()
 
-    all_added_columns = []
+    try:
 
-    # ========================================================
-    # LIVE FIRMS FILE
-    # ========================================================
+        initialize_database()
 
-    if FIRMS_FILE.exists():
+    finally:
 
-        try:
-
-            firms_df = pd.read_csv(
-                FIRMS_FILE,
-                nrows=5
-            )
-
-            added = add_missing_columns(
-                connection,
-                "fire_detections",
-                firms_df
-            )
-
-            all_added_columns.extend(added)
-
-        except Exception as error:
-
-            print(
-                "Warning: Could not inspect live FIRMS file:"
-            )
-
-            print(error)
-
-    # ========================================================
-    # LIVE FEATURES FILE
-    # ========================================================
-
-    if FEATURES_FILE.exists():
-
-        try:
-
-            features_df = pd.read_csv(
-                FEATURES_FILE,
-                nrows=5
-            )
-
-            added = add_missing_columns(
-                connection,
-                "risk_features",
-                features_df
-            )
-
-            all_added_columns.extend(added)
-
-        except Exception as error:
-
-            print(
-                "Warning: Could not inspect live features file:"
-            )
-
-            print(error)
-
-    # ========================================================
-    # LIVE PREDICTIONS FILE
-    # ========================================================
-
-    if PREDICTIONS_FILE.exists():
-
-        try:
-
-            predictions_df = pd.read_csv(
-                PREDICTIONS_FILE,
-                nrows=5
-            )
-
-            added = add_missing_columns(
-                connection,
-                "risk_predictions",
-                predictions_df
-            )
-
-            all_added_columns.extend(added)
-
-        except Exception as error:
-
-            print(
-                "Warning: Could not inspect live predictions file:"
-            )
-
-            print(error)
-
-    connection.commit()
-    connection.close()
-
-    # ========================================================
-    # DISPLAY MIGRATIONS
-    # ========================================================
-
-    if all_added_columns:
-
-        print("\nDatabase migration:")
-
-        for column in all_added_columns:
-
-            print(
-                f"Added column: {column}"
-            )
-
-    else:
-
-        print(
-            "\nDatabase migration: "
-            "No new columns required."
-        )
+        connection.close()
 
 
 # ============================================================
@@ -388,33 +319,42 @@ def show_database_schema():
 
     connection = get_connection()
 
-    print("\n" + "=" * 60)
-    print("DATABASE SCHEMA")
-    print("=" * 60)
+    try:
 
-    tables = [
-        "fire_detections",
-        "risk_features",
-        "risk_predictions"
-    ]
+        print("\n" + "=" * 60)
+        print("DATABASE SCHEMA")
+        print("=" * 60)
 
-    for table in tables:
+        tables = [
 
-        print(f"\n{table}:")
+            "fire_detections",
+            "risk_features",
+            "risk_predictions",
 
-        cursor = connection.execute(
-            f"PRAGMA table_info({table})"
-        )
+            "fire_detections_live",
+            "risk_features_live",
+            "risk_predictions_live"
+        ]
 
-        columns = cursor.fetchall()
+        for table in tables:
 
-        for column in columns:
+            print(f"\n{table}:")
 
-            print(
-                f"  - {column['name']}"
+            cursor = connection.execute(
+                f"PRAGMA table_info({table})"
             )
 
-    connection.close()
+            columns = cursor.fetchall()
+
+            for column in columns:
+
+                print(
+                    f"  - {column['name']}"
+                )
+
+    finally:
+
+        connection.close()
 
 
 # ============================================================
@@ -430,30 +370,16 @@ if __name__ == "__main__":
     print("\nDatabase location:")
     print(DB_PATH)
 
-    # --------------------------------------------------------
-    # Create tables
-    # --------------------------------------------------------
-
     initialize_database()
-
-    # --------------------------------------------------------
-    # Automatically compare current live CSV schema
-    # with SQLite schema and add anything missing.
-    # --------------------------------------------------------
-
-    migrate_database()
-
-    # --------------------------------------------------------
-    # Show final schema
-    # --------------------------------------------------------
 
     show_database_schema()
 
-    print("\n" + "=" * 60)
-    print("DATABASE INITIALIZATION / MIGRATION COMPLETE")
+    print(
+        "\n" + "=" * 60
+    )
+
+    print(
+        "DATABASE INITIALIZATION COMPLETE"
+    )
+
     print("=" * 60)
-
-    print("\nDatabase:")
-    print(DB_PATH)
-
-    print("\nReady for live database update.")
