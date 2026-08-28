@@ -17,7 +17,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_c649dde42a92b33bbdd63be526b7164b {
+                #map_6a64649edab3e6b87e9a36cf432d8c95 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -54,31 +54,61 @@
 <body>
     
     
-            <div class="folium-map" id="map_c649dde42a92b33bbdd63be526b7164b" ></div>
+<div style="
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index:9999;
+
+    background:white;
+
+    padding:10px 20px;
+
+    border-radius:8px;
+
+    box-shadow:
+        0 2px 8px rgba(0,0,0,0.25);
+
+    font-family:Arial,sans-serif;
+
+    font-size:18px;
+
+    font-weight:bold;
+
+    color:#222;
+">
+
+🔥 THERMOSCOPE — Delhi NCR Fire Risk Grid
+
+</div>
+    
+            <div class="folium-map" id="map_6a64649edab3e6b87e9a36cf432d8c95" ></div>
         
 </body>
 <script>
     
     
-            var map_c649dde42a92b33bbdd63be526b7164b = L.map(
-                "map_c649dde42a92b33bbdd63be526b7164b",
+            var map_6a64649edab3e6b87e9a36cf432d8c95 = L.map(
+                "map_6a64649edab3e6b87e9a36cf432d8c95",
                 {
-                    center: [28.83, 77.13],
+                    center: [28.535, 77.20499999999998],
                     crs: L.CRS.EPSG3857,
                     ...{
-  "zoom": 10,
+  "zoom": 9,
   "zoomControl": true,
   "preferCanvas": false,
 }
 
                 }
             );
+            L.control.scale().addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
 
             
 
         
     
-            var tile_layer_403240ee10796c021216bd94a507e04a = L.tileLayer(
+            var tile_layer_d2d5401ae3714e9b74d23be693fbd7b9 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -95,59 +125,50 @@
             );
         
     
-            tile_layer_403240ee10796c021216bd94a507e04a.addTo(map_c649dde42a92b33bbdd63be526b7164b);
+            tile_layer_d2d5401ae3714e9b74d23be693fbd7b9.addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
         
     
-            var feature_group_c04a0bdf611c710495e76d1523d1e5dd = L.featureGroup(
+            var feature_group_b3370696a48eb3f572aa8fcdc9c0dd1c = L.featureGroup(
                 {
 }
             );
         
     
-            feature_group_c04a0bdf611c710495e76d1523d1e5dd.addTo(map_c649dde42a92b33bbdd63be526b7164b);
+            feature_group_b3370696a48eb3f572aa8fcdc9c0dd1c.addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
         
     
-            var feature_group_a5922c3b1f7cb6d258402a2ffeaedcee = L.featureGroup(
+            var feature_group_bc7ad66bc029cabebd900db24836ecfa = L.featureGroup(
                 {
 }
             );
         
     
-            feature_group_a5922c3b1f7cb6d258402a2ffeaedcee.addTo(map_c649dde42a92b33bbdd63be526b7164b);
+            var rectangle_1bf4d137aa4f17a3eb677f8d302e7662 = L.rectangle(
+                [[28.7, 76.85], [28.71, 76.86]],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.5123246951219512, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
         
     
-            var feature_group_7963afa9f588c5734ef41c5759cd0c5e = L.featureGroup(
-                {
-}
-            );
-        
-    
-            var circle_marker_78fa8fba635d5686fccd96e2d4ef75b3 = L.circleMarker(
-                [28.83, 77.13],
-                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 15.333333333333332, "stroke": true, "weight": 2}
-            ).addTo(feature_group_7963afa9f588c5734ef41c5759cd0c5e);
-        
-    
-        var popup_f72e663f8a697b7a87940af1fe53dca5 = L.popup({
-  "maxWidth": 300,
+        var popup_5e8eed8f8ce732efd6b4aff71da3a479 = L.popup({
+  "maxWidth": 380,
 });
 
         
             
-                var html_2fafe58c425108ed855469d1f6db5a3e = $(`<div id="html_2fafe58c425108ed855469d1f6db5a3e" style="width: 100.0%; height: 100.0%;">     <div style="width:260px">          <h4 style="margin-bottom:10px;">             🔥 THERMOSCOPE Risk Cell         </h4>          <b>Grid ID:</b> 28.83_77.13<br><br>          <b>Risk Level:</b>         <span style="             color:red;             font-weight:bold;         ">             HIGH         </span>         <br><br>          <b>Risk Percentage:</b>         83.33<br>          <b>Risk Score:</b>         0.833<br>          <b>Activity Score:</b>         0.8333333333333334<br>          <b>FIRMS Detections:</b>         1<br>          <b>Active Days:</b>         1<br><br>          <b>Latitude:</b>         28.83000<br>          <b>Longitude:</b>         77.13000      </div>     </div>`)[0];
-                popup_f72e663f8a697b7a87940af1fe53dca5.setContent(html_2fafe58c425108ed855469d1f6db5a3e);
+                var html_2f75af88ec57627fe44a18df52a99c1d = $(`<div id="html_2f75af88ec57627fe44a18df52a99c1d" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:orange;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 MEDIUM RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.7_76.85</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>0.694</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:orange;">                         MEDIUM                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>69.41%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>1.350</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>1.350</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>0.412</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>0.500</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              MEDIUM risk with Recurrence / Persistence as the strongest contributing factor. Recurrence score: 1.00, FRP intensity: 0.41, repeat detection score: 0.50.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.70000<br>              Longitude:             76.85000          </div>      </div>     </div>`)[0];
+                popup_5e8eed8f8ce732efd6b4aff71da3a479.setContent(html_2f75af88ec57627fe44a18df52a99c1d);
             
         
 
-        circle_marker_78fa8fba635d5686fccd96e2d4ef75b3.bindPopup(popup_f72e663f8a697b7a87940af1fe53dca5)
+        rectangle_1bf4d137aa4f17a3eb677f8d302e7662.bindPopup(popup_5e8eed8f8ce732efd6b4aff71da3a479)
         ;
 
         
     
     
-            circle_marker_78fa8fba635d5686fccd96e2d4ef75b3.bindTooltip(
+            rectangle_1bf4d137aa4f17a3eb677f8d302e7662.bindTooltip(
                 `<div>
-                     28.83_77.13 | HIGH RISK
+                     🔥 MEDIUM | Risk: 69.4% | Grid: 28.7_76.85
                  </div>`,
                 {
   "sticky": true,
@@ -155,28 +176,298 @@
             );
         
     
-            feature_group_7963afa9f588c5734ef41c5759cd0c5e.addTo(map_c649dde42a92b33bbdd63be526b7164b);
+            var circle_marker_f11f3a05f4023cbe5897664d90cc743c = L.circleMarker(
+                [28.705, 76.85499999999999],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8.858384146341463, "stroke": true, "weight": 1}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
         
     
-            var layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers = {
+            circle_marker_f11f3a05f4023cbe5897664d90cc743c.bindTooltip(
+                `<div>
+                     MEDIUM Risk - 69.4%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var rectangle_4164a9a23cbcbf225df61107cf7ce66e = L.rectangle(
+                [[28.66, 77.57], [28.67, 77.58]],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.5022408536585365, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+        var popup_1d58ea0640a5d1893b0ed1a042cb4281 = L.popup({
+  "maxWidth": 380,
+});
+
+        
+            
+                var html_a1586297810c632e5c2fbd24cc4b3a28 = $(`<div id="html_a1586297810c632e5c2fbd24cc4b3a28" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:orange;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 MEDIUM RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.66_77.57</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>0.672</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:orange;">                         MEDIUM                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>67.16%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>1.140</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>1.140</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>0.348</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>0.500</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              MEDIUM risk with Recurrence / Persistence as the strongest contributing factor. Recurrence score: 1.00, FRP intensity: 0.35, repeat detection score: 0.50.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.66000<br>              Longitude:             77.57000          </div>      </div>     </div>`)[0];
+                popup_1d58ea0640a5d1893b0ed1a042cb4281.setContent(html_a1586297810c632e5c2fbd24cc4b3a28);
+            
+        
+
+        rectangle_4164a9a23cbcbf225df61107cf7ce66e.bindPopup(popup_1d58ea0640a5d1893b0ed1a042cb4281)
+        ;
+
+        
+    
+    
+            rectangle_4164a9a23cbcbf225df61107cf7ce66e.bindTooltip(
+                `<div>
+                     🔥 MEDIUM | Risk: 67.2% | Grid: 28.66_77.57
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0d692261a55abf5b71047e9ec8d52dd4 = L.circleMarker(
+                [28.665, 77.57499999999999],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8.701524390243902, "stroke": true, "weight": 1}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+            circle_marker_0d692261a55abf5b71047e9ec8d52dd4.bindTooltip(
+                `<div>
+                     MEDIUM Risk - 67.2%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var rectangle_4a1860c213fe5ab01583f3360fcdc382 = L.rectangle(
+                [[28.33, 77.21], [28.34, 77.22]],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.4767911585365854, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+        var popup_a9a0d1b5e6a72693580b46eafa55b8f2 = L.popup({
+  "maxWidth": 380,
+});
+
+        
+            
+                var html_c318e862eab572af793187523f2c6662 = $(`<div id="html_c318e862eab572af793187523f2c6662" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:orange;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 MEDIUM RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.33_77.21</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>0.615</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:orange;">                         MEDIUM                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>61.51%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>0.610</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>0.610</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>0.186</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>0.500</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              MEDIUM risk with Recurrence / Persistence as the strongest contributing factor. Recurrence score: 1.00, FRP intensity: 0.19, repeat detection score: 0.50.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.33000<br>              Longitude:             77.21000          </div>      </div>     </div>`)[0];
+                popup_a9a0d1b5e6a72693580b46eafa55b8f2.setContent(html_c318e862eab572af793187523f2c6662);
+            
+        
+
+        rectangle_4a1860c213fe5ab01583f3360fcdc382.bindPopup(popup_a9a0d1b5e6a72693580b46eafa55b8f2)
+        ;
+
+        
+    
+    
+            rectangle_4a1860c213fe5ab01583f3360fcdc382.bindTooltip(
+                `<div>
+                     🔥 MEDIUM | Risk: 61.5% | Grid: 28.33_77.21
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0fbe39fecbd19b585138b19a6af0352e = L.circleMarker(
+                [28.334999999999997, 77.21499999999999],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8.305640243902438, "stroke": true, "weight": 1}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+            circle_marker_0fbe39fecbd19b585138b19a6af0352e.bindTooltip(
+                `<div>
+                     MEDIUM Risk - 61.5%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var rectangle_3047e879bd01fef1267263a7d4dbf120 = L.rectangle(
+                [[28.34, 77.22], [28.35, 77.23]],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.46430640243902443, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+        var popup_5ea3340e1cc2110107a4faa5a2696545 = L.popup({
+  "maxWidth": 380,
+});
+
+        
+            
+                var html_2e9c76f1d569be4184a0f3a0f3e46692 = $(`<div id="html_2e9c76f1d569be4184a0f3a0f3e46692" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:orange;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 MEDIUM RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.34_77.22</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>0.587</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:orange;">                         MEDIUM                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>58.73%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>0.350</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>0.350</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>0.107</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>0.500</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              MEDIUM risk with Recurrence / Persistence as the strongest contributing factor. Recurrence score: 1.00, FRP intensity: 0.11, repeat detection score: 0.50.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.34000<br>              Longitude:             77.22000          </div>      </div>     </div>`)[0];
+                popup_5ea3340e1cc2110107a4faa5a2696545.setContent(html_2e9c76f1d569be4184a0f3a0f3e46692);
+            
+        
+
+        rectangle_3047e879bd01fef1267263a7d4dbf120.bindPopup(popup_5ea3340e1cc2110107a4faa5a2696545)
+        ;
+
+        
+    
+    
+            rectangle_3047e879bd01fef1267263a7d4dbf120.bindTooltip(
+                `<div>
+                     🔥 MEDIUM | Risk: 58.7% | Grid: 28.34_77.22
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_5871e4bcf058d6995c116abc79f5324f = L.circleMarker(
+                [28.345, 77.225],
+                {"bubblingMouseEvents": true, "color": "orange", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "orange", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 8.111432926829268, "stroke": true, "weight": 1}
+            ).addTo(feature_group_bc7ad66bc029cabebd900db24836ecfa);
+        
+    
+            circle_marker_5871e4bcf058d6995c116abc79f5324f.bindTooltip(
+                `<div>
+                     MEDIUM Risk - 58.7%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            feature_group_bc7ad66bc029cabebd900db24836ecfa.addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
+        
+    
+            var feature_group_a40bb13a068dff2d838f0d6b86b24393 = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var rectangle_4e16b3c9f45992565cca865cf10fc2de = L.rectangle(
+                [[28.35, 77.25], [28.360000000000003, 77.26]],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.65, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_a40bb13a068dff2d838f0d6b86b24393);
+        
+    
+        var popup_8171a484282783fe0cf26558d1f06560 = L.popup({
+  "maxWidth": 380,
+});
+
+        
+            
+                var html_625b122a0fdcc4648e71dbdc43dda1fa = $(`<div id="html_625b122a0fdcc4648e71dbdc43dda1fa" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:red;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 HIGH RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.35_77.25</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:red;">                         HIGH                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>100.00%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>2</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>3.135</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>3.280</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>1.000</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              HIGH risk driven primarily by Recurrence / Persistence. Recurrence score: 1.00, FRP intensity: 1.00, repeat detection score: 1.00.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.35000<br>              Longitude:             77.25000          </div>      </div>     </div>`)[0];
+                popup_8171a484282783fe0cf26558d1f06560.setContent(html_625b122a0fdcc4648e71dbdc43dda1fa);
+            
+        
+
+        rectangle_4e16b3c9f45992565cca865cf10fc2de.bindPopup(popup_8171a484282783fe0cf26558d1f06560)
+        ;
+
+        
+    
+    
+            rectangle_4e16b3c9f45992565cca865cf10fc2de.bindTooltip(
+                `<div>
+                     🔥 HIGH | Risk: 100.0% | Grid: 28.35_77.25
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_14723a828b11996c615edafe32e9f662 = L.circleMarker(
+                [28.355, 77.255],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 11.0, "stroke": true, "weight": 1}
+            ).addTo(feature_group_a40bb13a068dff2d838f0d6b86b24393);
+        
+    
+            circle_marker_14723a828b11996c615edafe32e9f662.bindTooltip(
+                `<div>
+                     HIGH Risk - 100.0%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var rectangle_dbcccc8f52cdb35742b8b4eeaeee9d5f = L.rectangle(
+                [[28.83, 77.13], [28.84, 77.14]],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.5560213414634146, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_a40bb13a068dff2d838f0d6b86b24393);
+        
+    
+        var popup_149c8ac010eb1da55e0898e91b30aebf = L.popup({
+  "maxWidth": 380,
+});
+
+        
+            
+                var html_f979cd3cee5d6259c6bdaa0dd353c026 = $(`<div id="html_f979cd3cee5d6259c6bdaa0dd353c026" style="width: 100.0%; height: 100.0%;">     <div style="         width:330px;         font-family:Arial,sans-serif;         line-height:1.5;     ">          <div style="             background:red;             color:white;             padding:10px;             border-radius:7px;             margin-bottom:10px;             text-align:center;         ">              <div style="                 font-size:18px;                 font-weight:bold;             ">                 🔥 THERMOSCOPE             </div>              <div style="                 font-size:14px;                 margin-top:3px;             ">                 HIGH RISK ZONE             </div>          </div>           <table style="             width:100%;             border-collapse:collapse;             font-size:13px;         ">              <tr>                 <td><b>Grid ID</b></td>                 <td>28.83_77.13</td>             </tr>              <tr>                 <td><b>Risk Score</b></td>                 <td>0.791</td>             </tr>              <tr>                 <td><b>Risk Level</b></td>                 <td>                     <b style="color:red;">                         HIGH                     </b>                 </td>             </tr>              <tr>                 <td><b>Risk Percentage</b></td>                 <td>79.12%</td>             </tr>              <tr>                 <td><b>FIRMS Detections</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Active Days</b></td>                 <td>1</td>             </tr>              <tr>                 <td><b>Average FRP</b></td>                 <td>2.260</td>             </tr>              <tr>                 <td><b>Maximum FRP</b></td>                 <td>2.260</td>             </tr>              <tr>                 <td><b>Recurrence Score</b></td>                 <td>1.000</td>             </tr>              <tr>                 <td><b>FRP Intensity</b></td>                 <td>0.689</td>             </tr>              <tr>                 <td><b>Repeat Detection</b></td>                 <td>0.500</td>             </tr>          </table>           <hr>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;         ">              <b>Dominant Risk Factor:</b><br>              Recurrence / Persistence          </div>           <div style="             background:#f4f4f4;             padding:8px;             border-radius:6px;             margin-top:7px;         ">              <b>Risk Explanation:</b><br>              HIGH risk driven primarily by Recurrence / Persistence. Recurrence score: 1.00, FRP intensity: 0.69, repeat detection score: 0.50.          </div>           <hr>           <div style="font-size:12px;color:#555;">              <b>Grid Coordinates</b><br>              Latitude:             28.83000<br>              Longitude:             77.13000          </div>      </div>     </div>`)[0];
+                popup_149c8ac010eb1da55e0898e91b30aebf.setContent(html_f979cd3cee5d6259c6bdaa0dd353c026);
+            
+        
+
+        rectangle_dbcccc8f52cdb35742b8b4eeaeee9d5f.bindPopup(popup_149c8ac010eb1da55e0898e91b30aebf)
+        ;
+
+        
+    
+    
+            rectangle_dbcccc8f52cdb35742b8b4eeaeee9d5f.bindTooltip(
+                `<div>
+                     🔥 HIGH | Risk: 79.1% | Grid: 28.83_77.13
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_ae55ee443b1e471d1440bcab44e37d1d = L.circleMarker(
+                [28.834999999999997, 77.13499999999999],
+                {"bubblingMouseEvents": true, "color": "red", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "red", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 9.538109756097562, "stroke": true, "weight": 1}
+            ).addTo(feature_group_a40bb13a068dff2d838f0d6b86b24393);
+        
+    
+            circle_marker_ae55ee443b1e471d1440bcab44e37d1d.bindTooltip(
+                `<div>
+                     HIGH Risk - 79.1%
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            feature_group_a40bb13a068dff2d838f0d6b86b24393.addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
+        
+    
+            var layer_control_ea98c003479a109986326d659a0fa436_layers = {
                 base_layers : {
-                    "openstreetmap" : tile_layer_403240ee10796c021216bd94a507e04a,
+                    "openstreetmap" : tile_layer_d2d5401ae3714e9b74d23be693fbd7b9,
                 },
                 overlays :  {
-                    "LOW Risk" : feature_group_c04a0bdf611c710495e76d1523d1e5dd,
-                    "MEDIUM Risk" : feature_group_a5922c3b1f7cb6d258402a2ffeaedcee,
-                    "HIGH Risk" : feature_group_7963afa9f588c5734ef41c5759cd0c5e,
+                    "LOW Risk Grid" : feature_group_b3370696a48eb3f572aa8fcdc9c0dd1c,
+                    "MEDIUM Risk Grid" : feature_group_bc7ad66bc029cabebd900db24836ecfa,
+                    "HIGH Risk Grid" : feature_group_a40bb13a068dff2d838f0d6b86b24393,
                 },
             };
-            let layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f = L.control.layers(
-                layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers.base_layers,
-                layer_control_ac2b2faf8e8cfb8af9e090d6bbde286f_layers.overlays,
+            let layer_control_ea98c003479a109986326d659a0fa436 = L.control.layers(
+                layer_control_ea98c003479a109986326d659a0fa436_layers.base_layers,
+                layer_control_ea98c003479a109986326d659a0fa436_layers.overlays,
                 {
   "position": "topright",
   "collapsed": false,
   "autoZIndex": true,
 }
-            ).addTo(map_c649dde42a92b33bbdd63be526b7164b);
+            ).addTo(map_6a64649edab3e6b87e9a36cf432d8c95);
 
         
 </script>
