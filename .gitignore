@@ -189,3 +189,9 @@ data/delhi_risk_interactive.html
 # Thermoscope local database / backups
 data/thermoscope.db
 src/dashboard_backup_before_api.py
+
+# Thermoscope large local datasets
+data/processed/firms_clean_merged.csv
+data/worldcover/
+data/processed/*.html
+data/raw/
