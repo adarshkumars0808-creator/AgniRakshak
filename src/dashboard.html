@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgniRakshak — AI Fire Risk Intelligence</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- HEADER -->
+  <section class="top-header">
+    <div class="brand-section">
+      <div class="fire-logo">🔥</div>
+      <div>
+        <div class="brand-title">AGNIRAKSHAK</div>
+        <div class="brand-subtitle">
+          AI-ENABLED FIRE RISK INTELLIGENCE
+          <span class="separator">•</span>
+          NASA FIRMS SATELLITE MONITORING
+        </div>
+      </div>
+    </div>
+    <div class="pipeline-status" id="pipelineStatus">
+      <span class="status-dot"></span>
+      FIRMS DATA PIPELINE ACTIVE
+    </div>
+  </section>
+
+  <!-- INFO STRIP -->
+  <section class="info-strip" id="infoStrip">
+    <div>▲ AGNIRAKSHAK — NASA FIRMS THERMAL ANOMALY MONITORING</div>
+    <div>▲ AI RISK RANKING — DELHI NCR + UTTAR PRADESH</div>
+    <div>▲ HISTORICAL SATELLITE ANALYSIS: 2020 – PRESENT</div>
+    <div>▲ RISK SCORE = ML THERMAL-RISK RANKING (0–100)</div>
+  </section>
+
+  <!-- METRICS -->
+  <section class="metrics-grid" id="metricsGrid">
+    <div class="metric-card">
+      <div class="metric-title">TOTAL GRID CELLS</div>
+      <div class="metric-value" id="mTotalCells">—</div>
+      <div class="metric-badge">Delhi NCR + UP, 5km grid</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">FIRMS DETECTIONS (ALL-TIME)</div>
+      <div class="metric-value" id="mTotalDetections">—</div>
+      <div class="metric-badge">2020 → present</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">CRITICAL RISK CELLS</div>
+      <div class="metric-value" id="mCritical">—</div>
+      <div class="metric-badge" style="background:#3a1414; color:#ff6b5e;">risk score ≥ 75</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">HIGH RISK CELLS</div>
+      <div class="metric-value" id="mHigh">—</div>
+      <div class="metric-badge" style="background:#3a2a10; color:#ffae42;">risk score 50–75</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">AVG FRP (MW)</div>
+      <div class="metric-value" id="mAvgFrp">—</div>
+      <div class="metric-badge">mean across all grid cells</div>
+    </div>
+  </section>
+
+  <!-- MAIN LAYOUT -->
+  <section class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="side-block">
+        <div class="side-title">Data Source</div>
+        <div class="data-readout" id="dataReadout">Loading risk_predictions.csv…</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Risk Filter</div>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="CRITICAL" checked><span class="chip chip-critical"></span> Critical</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="HIGH" checked><span class="chip chip-high"></span> High</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="MODERATE" checked><span class="chip chip-moderate"></span> Moderate</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="LOW"><span class="chip chip-low"></span> Low</label>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Map Layers</div>
+        <div class="toggle-row">Heatmap <label class="switch"><input type="checkbox" id="lyrHeat" checked><span class="slider"></span></label></div>
+        <div class="toggle-row">Risk Grid Markers <label class="switch"><input type="checkbox" id="lyrMarkers" checked><span class="slider"></span></label></div>
+        <div class="toggle-row">Satellite Imagery <label class="switch"><input type="checkbox" id="lyrSatellite"><span class="slider"></span></label></div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Map Color Mode</div>
+        <label class="check-row"><input type="radio" name="colorMode" value="risk" checked> Risk Level (regional zones)</label>
+        <label class="check-row"><input type="radio" name="colorMode" value="fireType"> Fire Type (verified sites)</label>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Fire Type Filter</div>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="INDUSTRIAL" checked><span class="chip chip-industrial"></span> Industrial</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="MINING" checked><span class="chip chip-mining"></span> Mining</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="AGRICULTURAL_BURNING" checked><span class="chip chip-agricultural"></span> Agricultural Burning</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="FOREST_FIRE" checked><span class="chip chip-wildfire"></span> Forest / Wildfire</label>
+        <div class="hint">Every site here has been checked against real ESA WorldCover (10m) land cover — Industrial/Mining must actually sit on built-up or bare land, not just be near an OSM-tagged area. Nearby grid cells (within 8km) for the same Industrial/Mining site are merged into one marker. ~92% of the earlier proximity-only Industrial/Mining labels failed this check and are excluded here.</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Activity Timeline Range</div>
+        <input type="date" id="dateFrom">
+        <div style="height:6px;"></div>
+        <input type="date" id="dateTo">
+        <div class="hint">Controls the chart below only — the risk map reflects the full historical model.</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Legend</div>
+        <div class="legend-item"><span class="swatch" style="background:#ff382f;"></span> Critical (≥75)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ff6b1a;"></span> High (50–75)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffae42;"></span> Moderate (25–50)</div>
+        <div class="legend-item"><span class="swatch" style="background:#20e889;"></span> Low (&lt;25)</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Fire Type Legend</div>
+        <div class="legend-item"><span class="swatch" style="background:#a855f7;"></span> Industrial (verified)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f97316;"></span> Mining (verified)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffd400;"></span> Agricultural Burning</div>
+        <div class="legend-item"><span class="swatch" style="background:#22d3ee;"></span> Forest / Wildfire</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Top 10 High-Risk Zones</div>
+        <div id="top10List"></div>
+      </div>
+    </aside>
+
+    <!-- CENTER -->
+    <main class="center">
+      <section class="map-header">
+        <div class="map-title">🛰️ AGNIRAKSHAK REGIONAL THERMAL RISK MAP</div>
+        <div class="map-subtitle" id="gridCountLabel">AI-BASED SPATIAL RISK ANALYSIS</div>
+      </section>
+
+      <section class="map-wrapper">
+        <div id="map"></div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-title">FIRE ACTIVITY TIMELINE — DAILY DETECTIONS</div>
+        <svg id="chart" viewBox="0 0 900 200" width="100%" height="200"></svg>
+      </section>
+    </main>
+
+    <!-- RIGHT: INTELLIGENCE -->
+    <aside class="intel-col">
+      <div class="intelligence-card">
+        <div class="intelligence-title">SELECTED GRID INTELLIGENCE</div>
+        <div class="selected-grid" id="selectedGrid">
+          <div class="grid-id">Select a grid on the map</div>
+          <div class="risk-label" style="border-color:#3a4a5a; color:#7890a8;">READY</div>
+        </div>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- FOOTER -->
+  <section class="footer">
+    <div>THERMOSCOPE / AGNIRAKSHAK • NASA FIRMS • AI FIRE RISK INTELLIGENCE</div>
+    <div>Historical satellite analysis for early fire-risk identification. Risk scores are model-based rankings, not confirmed fire causes.</div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

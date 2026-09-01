@@ -1,522 +1,526 @@
-import pandas as pd
+import warnings
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import MinMaxScaler
+
+
+warnings.filterwarnings("ignore")
+
 
 # ============================================================
-# THERMOSCOPE - STEP 4
-# EXPLAINABLE FIRE RISK SCORING + RISK EXPLANATION
-# USING SIH PROVIDED NASA FIRMS DATA
+# THERMOSCOPE - INDUSTRIAL FIRE RISK MODEL
 # ============================================================
 
-INPUT_FILE = "data/delhi_risk_features_live.csv"
-OUTPUT_FILE = "data/delhi_risk_predictions_live.csv"
+INPUT_FILE = Path("data/processed/grid_features.csv")
 
-print("=" * 70)
-print("THERMOSCOPE - EXPLAINABLE FIRE RISK SCORING")
-print("USING SIH PROVIDED NASA FIRMS DATA")
-print("=" * 70)
+OUTPUT_DIR = Path("data/processed")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+PREDICTION_FILE = OUTPUT_DIR / "risk_predictions.csv"
+TOP10_FILE = OUTPUT_DIR / "top10_high_risk.csv"
 
 
-# ------------------------------------------------------------
-# 1. Load engineered risk features
-# ------------------------------------------------------------
+# ============================================================
+# FEATURE GROUPS
+# ============================================================
 
-try:
+FEATURES = [
+    "total_detections",
+    "active_days",
+    "avg_frp",
+    "max_frp",
+    "median_frp",
+    "frp_std",
+    "avg_brightness",
+    "max_brightness",
+    "avg_confidence",
+
+    "satellite_count",
+    "active_months",
+    "active_years",
+    "years_with_activity",
+
+    "avg_yearly_detections",
+    "max_yearly_detections",
+    "yearly_detection_std",
+
+    "recurrence_ratio",
+    "persistent_months",
+    "avg_monthly_detections",
+    "max_monthly_detections",
+
+    "satellite_types",
+    "snpp_detections",
+    "noaa20_detections",
+    "noaa21_detections",
+    "multi_satellite_activity",
+
+    "detections_30d",
+    "active_days_30d",
+    "avg_frp_30d",
+    "max_frp_30d",
+
+    "detections_90d",
+    "active_days_90d",
+    "avg_frp_90d",
+    "max_frp_90d",
+
+    "seasonal_mean",
+    "seasonal_std",
+    "seasonality_strength",
+
+    "detections_per_active_day",
+    "recent_activity_ratio",
+    "frp_intensity_ratio",
+    "persistence_ratio",
+]
+
+
+# ============================================================
+# LOAD DATA
+# ============================================================
+
+def load_data():
+
+    print("=" * 70)
+    print("THERMOSCOPE - AI FIRE RISK PREDICTION")
+    print("=" * 70)
+
+    print(f"Input: {INPUT_FILE}")
+    print()
+
+    if not INPUT_FILE.exists():
+        raise FileNotFoundError(
+            f"Input file not found: {INPUT_FILE}"
+        )
+
     df = pd.read_csv(INPUT_FILE)
 
-except FileNotFoundError:
-    raise FileNotFoundError(
-        f"\nERROR: Input file not found:\n{INPUT_FILE}\n\n"
-        "Please run risk_features.py first."
+    print(f"Grid cells loaded: {len(df):,}")
+    print(f"Features available: {len(df.columns)}")
+
+    return df
+
+
+# ============================================================
+# PREPARE FEATURES
+# ============================================================
+
+def prepare_features(df):
+
+    print()
+    print("Preparing ML features...")
+
+    available_features = [
+        col for col in FEATURES
+        if col in df.columns
+    ]
+
+    missing_features = [
+        col for col in FEATURES
+        if col not in df.columns
+    ]
+
+    if missing_features:
+        print()
+        print("WARNING - Missing features:")
+        for col in missing_features:
+            print(f"  - {col}")
+
+    X = df[available_features].copy()
+
+    # Replace infinite values
+    X = X.replace(
+        [np.inf, -np.inf],
+        np.nan
     )
 
-print("\nLoaded grid cells:", len(df))
-
-
-# ------------------------------------------------------------
-# 2. Check required features
-# ------------------------------------------------------------
-
-required_columns = [
-    "grid_id",
-    "grid_lat",
-    "grid_lon",
-    "detection_count",
-    "active_days",
-    "avg_frp",
-    "max_frp",
-    "recurrence_score",
-    "frp_intensity",
-    "repeat_detection_score",
-    "activity_score"
-]
-
-missing_columns = [
-    column
-    for column in required_columns
-    if column not in df.columns
-]
-
-if missing_columns:
-
-    print("\nERROR: Missing required columns:")
-    print(missing_columns)
-
-    raise ValueError(
-        "Required risk features are missing. "
-        "Please check risk_features.py output."
+    # Fill missing values using median
+    X = X.fillna(
+        X.median(numeric_only=True)
     )
 
+    X = X.fillna(0)
 
-# ------------------------------------------------------------
-# 3. Clean numeric features
-# ------------------------------------------------------------
-
-numeric_columns = [
-    "detection_count",
-    "active_days",
-    "avg_frp",
-    "max_frp",
-    "recurrence_score",
-    "frp_intensity",
-    "repeat_detection_score",
-    "activity_score"
-]
-
-for column in numeric_columns:
-
-    df[column] = pd.to_numeric(
-        df[column],
-        errors="coerce"
+    print(
+        f"ML feature matrix: "
+        f"{X.shape[0]:,} rows x {X.shape[1]} features"
     )
 
-
-# Replace invalid / missing values
-
-df[numeric_columns] = (
-    df[numeric_columns]
-    .replace([np.inf, -np.inf], np.nan)
-    .fillna(0)
-)
+    return X, available_features
 
 
-# ------------------------------------------------------------
-# 4. Validate score ranges
-# ------------------------------------------------------------
+# ============================================================
+# BUILD UNSUPERVISED RISK TARGET
+# ============================================================
 
-score_columns = [
-    "recurrence_score",
-    "frp_intensity",
-    "repeat_detection_score",
-    "activity_score"
-]
+def build_risk_target(df):
 
-for column in score_columns:
+    """
+    There is currently no manually labelled industrial-fire
+    dataset in the project.
 
-    df[column] = (
-        df[column]
-        .clip(0, 1)
+    Therefore, the initial model uses an engineered
+    risk index as a pseudo-target.
+
+    This is NOT presented as classification accuracy.
+
+    Later, this can be replaced with verified labels from
+    industrial infrastructure / land-cover / satellite data.
+    """
+
+    print()
+    print("Building risk index...")
+
+    components = {}
+
+    # --------------------------------------------------------
+    # Historical recurrence
+    # --------------------------------------------------------
+
+    components["recurrence"] = (
+        df["recurrence_ratio"]
     )
 
+    # --------------------------------------------------------
+    # Persistence
+    # --------------------------------------------------------
 
-# ------------------------------------------------------------
-# 5. Explainable risk components
-# ------------------------------------------------------------
-#
-# Thermoscope risk model:
-#
-#   Recurrence / Persistence = 45%
-#   FRP Intensity            = 35%
-#   Repeat Detection         = 20%
-#
-# Each contribution is calculated separately so that the
-# final risk score can be explained to the user.
-#
-# Satellite agreement is NOT included because the current
-# SIH-provided dataset contains one satellite source.
-# ------------------------------------------------------------
-
-df["recurrence_contribution"] = (
-    0.45 * df["recurrence_score"]
-)
-
-df["frp_contribution"] = (
-    0.35 * df["frp_intensity"]
-)
-
-df["repeat_detection_contribution"] = (
-    0.20 * df["repeat_detection_score"]
-)
-
-
-# ------------------------------------------------------------
-# 6. Calculate explainable risk score
-# ------------------------------------------------------------
-
-df["risk_score"] = (
-    df["recurrence_contribution"]
-    + df["frp_contribution"]
-    + df["repeat_detection_contribution"]
-)
-
-
-# Keep score between 0 and 1
-
-df["risk_score"] = (
-    df["risk_score"]
-    .clip(0, 1)
-)
-
-
-# ------------------------------------------------------------
-# 7. Consistency check against Step 3 activity_score
-# ------------------------------------------------------------
-#
-# Step 3 already creates activity_score using the same
-# weighted components.
-#
-# We check whether Step 4 reproduces that score.
-# This is a validation check, NOT a model accuracy claim.
-# ------------------------------------------------------------
-
-df["score_difference"] = (
-    df["risk_score"] - df["activity_score"]
-).abs()
-
-
-# Floating-point tolerance
-
-CONSISTENCY_TOLERANCE = 0.000001
-
-df["score_consistent"] = (
-    df["score_difference"]
-    <= CONSISTENCY_TOLERANCE
-)
-
-
-inconsistent_count = (
-    (~df["score_consistent"])
-    .sum()
-)
-
-
-# ------------------------------------------------------------
-# 8. Convert risk score to percentage
-# ------------------------------------------------------------
-
-df["risk_percentage"] = (
-    df["risk_score"] * 100
-).round(2)
-
-
-# ------------------------------------------------------------
-# 9. Risk classification
-# ------------------------------------------------------------
-#
-# Score >= 0.75  → HIGH
-# Score >= 0.45  → MEDIUM
-# Score <  0.45  → LOW
-#
-# These are Thermoscope classification thresholds.
-# ------------------------------------------------------------
-
-def classify_risk(score):
-
-    if score >= 0.75:
-        return "HIGH"
-
-    elif score >= 0.45:
-        return "MEDIUM"
-
-    else:
-        return "LOW"
-
-
-df["risk_category"] = (
-    df["risk_score"]
-    .apply(classify_risk)
-)
-
-
-# ------------------------------------------------------------
-# 10. Risk priority
-# ------------------------------------------------------------
-#
-# Highest risk score gets priority 1.
-# Equal scores receive the same priority.
-# ------------------------------------------------------------
-
-df["risk_priority"] = (
-    df["risk_score"]
-    .rank(
-        ascending=False,
-        method="dense"
-    )
-    .astype(int)
-)
-
-
-# ------------------------------------------------------------
-# 11. Determine dominant risk factor
-# ------------------------------------------------------------
-#
-# The largest weighted contribution is used to explain
-# the primary factor influencing the risk score.
-# ------------------------------------------------------------
-
-def get_dominant_factor(row):
-
-    contributions = {
-        "Recurrence / Persistence": row["recurrence_contribution"],
-        "FRP Intensity": row["frp_contribution"],
-        "Repeat Detection": row["repeat_detection_contribution"]
-    }
-
-    return max(
-        contributions,
-        key=contributions.get
+    components["persistence"] = (
+        df["persistence_ratio"]
     )
 
+    # --------------------------------------------------------
+    # Recent activity
+    # --------------------------------------------------------
 
-df["dominant_factor"] = (
-    df.apply(
-        get_dominant_factor,
-        axis=1
+    components["recent_activity"] = (
+        df["recent_activity_ratio"]
     )
-)
 
+    # --------------------------------------------------------
+    # FRP intensity
+    # --------------------------------------------------------
 
-# ------------------------------------------------------------
-# 12. Generate human-readable risk explanation
-# ------------------------------------------------------------
+    components["frp_intensity"] = (
+        df["frp_intensity_ratio"]
+    )
 
-def generate_explanation(row):
+    # --------------------------------------------------------
+    # Multi satellite agreement
+    # --------------------------------------------------------
 
-    category = row["risk_category"]
+    satellite_score = (
+        df["multi_satellite_activity"]
+        / df["satellite_types"].replace(0, 1)
+    )
 
-    recurrence = row["recurrence_score"]
-    frp = row["frp_intensity"]
-    repeat = row["repeat_detection_score"]
+    components["satellite_agreement"] = (
+        satellite_score
+    )
 
-    dominant = row["dominant_factor"]
+    # --------------------------------------------------------
+    # Detection density
+    # --------------------------------------------------------
 
-    if category == "HIGH":
+    detection_score = np.log1p(
+        df["total_detections"]
+    )
 
-        explanation = (
-            f"HIGH risk driven primarily by {dominant}. "
-            f"Recurrence score: {recurrence:.2f}, "
-            f"FRP intensity: {frp:.2f}, "
-            f"repeat detection score: {repeat:.2f}."
+    components["detection_density"] = (
+        detection_score
+    )
+
+    # --------------------------------------------------------
+    # Normalize each component
+    # --------------------------------------------------------
+
+    normalized = pd.DataFrame(
+        index=df.index
+    )
+
+    scaler = MinMaxScaler()
+
+    for name, values in components.items():
+
+        values = (
+            pd.Series(values)
+            .replace(
+                [np.inf, -np.inf],
+                np.nan
+            )
+            .fillna(0)
+            .values
+            .reshape(-1, 1)
         )
 
-    elif category == "MEDIUM":
+        normalized[name] = scaler.fit_transform(
+            values
+        ).ravel()
 
-        explanation = (
-            f"MEDIUM risk with {dominant} as the strongest "
-            f"contributing factor. "
-            f"Recurrence score: {recurrence:.2f}, "
-            f"FRP intensity: {frp:.2f}, "
-            f"repeat detection score: {repeat:.2f}."
-        )
+    # --------------------------------------------------------
+    # Weighted risk index
+    # --------------------------------------------------------
 
-    else:
-
-        explanation = (
-            f"LOW risk based on the current observed fire "
-            f"activity. "
-            f"Recurrence score: {recurrence:.2f}, "
-            f"FRP intensity: {frp:.2f}, "
-            f"repeat detection score: {repeat:.2f}."
-        )
-
-    return explanation
-
-
-df["risk_explanation"] = (
-    df.apply(
-        generate_explanation,
-        axis=1
+    risk_index = (
+        normalized["recurrence"] * 0.22
+        + normalized["persistence"] * 0.20
+        + normalized["recent_activity"] * 0.18
+        + normalized["frp_intensity"] * 0.18
+        + normalized["satellite_agreement"] * 0.10
+        + normalized["detection_density"] * 0.12
     )
-)
+
+    return risk_index, normalized
 
 
-# ------------------------------------------------------------
-# 13. Sort highest risk first
-# ------------------------------------------------------------
+# ============================================================
+# TRAIN ML MODEL
+# ============================================================
 
-df = (
-    df.sort_values(
-        by="risk_score",
+def train_model(X, target):
+
+    print()
+    print("Training Random Forest model...")
+
+    model = RandomForestRegressor(
+        n_estimators=300,
+        max_depth=14,
+        min_samples_leaf=3,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    model.fit(
+        X,
+        target
+    )
+
+    print("Model training complete.")
+
+    return model
+
+
+# ============================================================
+# GENERATE PREDICTIONS
+# ============================================================
+
+def generate_predictions(
+    df,
+    X,
+    model
+):
+
+    print()
+    print("Generating risk predictions...")
+
+    predicted = model.predict(X)
+
+    # Normalize to 0-100
+    scaler = MinMaxScaler(
+        feature_range=(0, 100)
+    )
+
+    risk_score = scaler.fit_transform(
+        predicted.reshape(-1, 1)
+    ).ravel()
+
+    result = df[
+        [
+            "grid_id",
+            "latitude",
+            "longitude",
+            "total_detections",
+            "active_days",
+            "avg_frp",
+            "max_frp",
+            "recurrence_ratio",
+            "persistent_months",
+            "multi_satellite_activity",
+            "detections_30d",
+            "detections_90d",
+            "recent_activity_ratio",
+            "frp_intensity_ratio",
+            "persistence_ratio",
+        ]
+    ].copy()
+
+    result["risk_score"] = risk_score
+
+    # --------------------------------------------------------
+    # Risk categories
+    # --------------------------------------------------------
+
+    result["risk_level"] = pd.cut(
+        result["risk_score"],
+        bins=[
+            -np.inf,
+            25,
+            50,
+            75,
+            np.inf
+        ],
+        labels=[
+            "LOW",
+            "MODERATE",
+            "HIGH",
+            "CRITICAL"
+        ]
+    )
+
+    # Rank
+    result["risk_rank"] = (
+        result["risk_score"]
+        .rank(
+            ascending=False,
+            method="first"
+        )
+        .astype(int)
+    )
+
+    result = result.sort_values(
+        "risk_score",
         ascending=False
     )
-    .reset_index(drop=True)
-)
+
+    return result
 
 
-# ------------------------------------------------------------
-# 14. Save risk predictions
-# ------------------------------------------------------------
+# ============================================================
+# SAVE MODEL OUTPUTS
+# ============================================================
 
-df.to_csv(
-    OUTPUT_FILE,
-    index=False
-)
+def save_outputs(result):
 
+    print()
+    print("Saving prediction outputs...")
 
-# ------------------------------------------------------------
-# 15. Display risk results
-# ------------------------------------------------------------
-
-print("\n" + "-" * 70)
-print("RISK RESULTS")
-print("-" * 70)
-
-result_columns = [
-    "grid_id",
-    "risk_score",
-    "risk_percentage",
-    "risk_category",
-    "risk_priority",
-    "dominant_factor"
-]
-
-print(
-    df[result_columns]
-    .to_string(index=False)
-)
-
-
-# ------------------------------------------------------------
-# 16. Display contribution details
-# ------------------------------------------------------------
-
-print("\n" + "-" * 70)
-print("RISK CONTRIBUTIONS")
-print("-" * 70)
-
-contribution_columns = [
-    "grid_id",
-    "recurrence_contribution",
-    "frp_contribution",
-    "repeat_detection_contribution"
-]
-
-print(
-    df[contribution_columns]
-    .to_string(index=False)
-)
-
-
-# ------------------------------------------------------------
-# 17. Risk category summary
-# ------------------------------------------------------------
-
-print("\nRisk categories:")
-
-print(
-    df["risk_category"]
-    .value_counts()
-)
-
-
-# ------------------------------------------------------------
-# 18. Consistency validation
-# ------------------------------------------------------------
-
-print("\n" + "-" * 70)
-print("MODEL CONSISTENCY CHECK")
-print("-" * 70)
-
-print(
-    "Rows checked:",
-    len(df)
-)
-
-print(
-    "Consistent rows:",
-    int(df["score_consistent"].sum())
-)
-
-print(
-    "Inconsistent rows:",
-    int(inconsistent_count)
-)
-
-if inconsistent_count == 0:
-
-    print(
-        "STATUS: PASS - Step 4 risk score matches "
-        "Step 3 activity score."
+    result.to_csv(
+        PREDICTION_FILE,
+        index=False
     )
 
-else:
+    top10 = result.head(10).copy()
 
-    print(
-        "STATUS: WARNING - Some rows differ from "
-        "Step 3 activity score."
-    )
-
-
-# ------------------------------------------------------------
-# 19. Highest-risk grid
-# ------------------------------------------------------------
-
-if len(df) > 0:
-
-    print("\n" + "-" * 70)
-    print("HIGHEST-RISK GRID")
-    print("-" * 70)
-
-    highest_risk = df.iloc[0]
-
-    print(
-        "Grid ID:",
-        highest_risk["grid_id"]
+    top10.to_csv(
+        TOP10_FILE,
+        index=False
     )
 
     print(
-        "Risk Score:",
-        round(
-            highest_risk["risk_score"],
-            4
+        f"Saved: {PREDICTION_FILE}"
+    )
+
+    print(
+        f"Saved: {TOP10_FILE}"
+    )
+
+    return top10
+
+
+# ============================================================
+# DISPLAY TOP 10
+# ============================================================
+
+def display_top10(top10):
+
+    print()
+    print("=" * 70)
+    print("TOP 10 HIGH-RISK THERMAL ZONES")
+    print("=" * 70)
+
+    display_columns = [
+        "risk_rank",
+        "grid_id",
+        "latitude",
+        "longitude",
+        "risk_score",
+        "risk_level",
+        "total_detections",
+        "active_days",
+        "avg_frp",
+        "persistent_months",
+        "multi_satellite_activity",
+    ]
+
+    print(
+        top10[
+            display_columns
+        ].to_string(
+            index=False
         )
     )
 
+    print()
+    print("=" * 70)
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    df = load_data()
+
+    X, feature_names = prepare_features(
+        df
+    )
+
+    target, components = build_risk_target(
+        df
+    )
+
+    model = train_model(
+        X,
+        target
+    )
+
+    result = generate_predictions(
+        df,
+        X,
+        model
+    )
+
+    top10 = save_outputs(
+        result
+    )
+
+    display_top10(
+        top10
+    )
+
+    print()
     print(
-        "Risk Percentage:",
-        highest_risk["risk_percentage"],
-        "%"
+        f"ML features used: {len(feature_names)}"
     )
 
     print(
-        "Risk Category:",
-        highest_risk["risk_category"]
+        "Risk methodology: recurrence + persistence + "
+        "recent activity + FRP + satellite agreement + "
+        "historical detection density"
+    )
+
+    print()
+    print(
+        "IMPORTANT:"
     )
 
     print(
-        "Dominant Factor:",
-        highest_risk["dominant_factor"]
+        "This is a risk-ranking model, not a verified "
+        "industrial-fire classifier."
     )
 
     print(
-        "Explanation:",
-        highest_risk["risk_explanation"]
-    )
-
-else:
-
-    print(
-        "\nWARNING: No grid cells available."
+        "Verified industrial labels and land-cover/"
+        "industrial-infrastructure features can be added "
+        "in the next stage."
     )
 
 
-# ------------------------------------------------------------
-# 20. Output information
-# ------------------------------------------------------------
-
-print("\nSaved to:")
-print(OUTPUT_FILE)
-
-print("\n" + "=" * 70)
-print("STEP 4 COMPLETE")
-print("EXPLAINABLE RISK OUTPUT GENERATED")
-print("=" * 70)
+if __name__ == "__main__":
+    main()
