@@ -950,10 +950,41 @@ else:
 
 
 # ============================================================
-# STREAMLIT STATUS
+# HIDE STREAMLIT CHROME — seamless single frame
 # ============================================================
 
-st.caption(
+st.markdown(
+    """
+    <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer[data-testid="stFooter"] {visibility: hidden;}
+        .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 0rem !important;
+            padding-left: 0rem !important;
+            padding-right: 0rem !important;
+            max-width: 100% !important;
+        }
+        [data-testid="stAppViewContainer"] {
+            background-color: #080c14 !important;
+        }
+        .stDeployButton {display: none;}
+        div[data-testid="stToolbar"] {display: none;}
+        div[data-testid="stStatusWidget"] {display: none;}
+        section[data-testid="stSidebar"] {display: none;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ============================================================
+# BUILD CREDITS (moved from top captions to footer)
+# ============================================================
+
+credits_lines = []
+credits_lines.append(
     f"🔥 AgniRakshak — "
     f"{historical_grid_count:,} historical FIRMS grid cells · "
     f"{recent_grid_count:,} recent activity cells"
@@ -961,16 +992,19 @@ st.caption(
 
 if not fire_sites_df.empty:
     site_counts = fire_sites_df["fire_type"].value_counts().to_dict()
-    st.caption(
+    credits_lines.append(
         f"✓ {len(fire_sites_df):,} land-cover-verified, regionally-aggregated "
         f"fire-type sites (" + ", ".join(f"{v:,} {k}" for k, v in site_counts.items()) + ")"
     )
 
 if not risk_zones_df.empty:
-    st.caption(
+    credits_lines.append(
         f"✓ {len(risk_zones_df):,} regional risk zones "
         f"(aggregated from {historical_grid_count:,} raw grid cells)"
     )
+
+credits_html = "<br>".join(credits_lines)
+dashboard_html = dashboard_html.replace("{{CREDITS}}", credits_html)
 
 
 # ============================================================
@@ -979,6 +1013,6 @@ if not risk_zones_df.empty:
 
 st.components.v1.html(
     dashboard_html,
-    height=1900,
+    height=900,
     scrolling=True,
 )
