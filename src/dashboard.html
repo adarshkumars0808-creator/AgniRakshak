@@ -18,8 +18,8 @@
   <div class="nav-brand">
     <div class="nav-logo">🔥</div>
     <div>
-      <div class="nav-brand-name">THERMOSCOPE</div>
-      <div class="nav-brand-sub">Delhi NCR Fire Risk Intelligence &amp; Satellite Monitoring System</div>
+      <div class="nav-brand-name">AGNIRAKSHAK</div>
+      <div class="nav-brand-sub">AI-Enabled Fire Risk Intelligence &amp; Satellite Monitoring</div>
     </div>
   </div>
   <div class="nav-tabs">
@@ -30,8 +30,11 @@
     <button class="nav-tab" data-tab="reports">REPORTS</button>
     <button class="nav-tab" data-tab="about">ABOUT</button>
   </div>
-  <div class="nav-status">
-    <span class="status-dot-live"></span> LIVE &middot; System Online
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-status">
+      <span class="status-dot-live"></span> LIVE &middot; System Online
+    </div>
+    <div class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌙</div>
   </div>
 </nav>
 
@@ -42,24 +45,8 @@
 
 <div class="dashboard">
 
-  <!-- HEADER -->
-  <section class="top-header">
-    <div class="brand-section">
-      <div class="fire-logo">🔥</div>
-      <div>
-        <div class="brand-title">AGNIRAKSHAK</div>
-        <div class="brand-subtitle">
-          AI-ENABLED FIRE RISK INTELLIGENCE
-          <span class="separator">•</span>
-          NASA FIRMS SATELLITE MONITORING
-        </div>
-      </div>
-    </div>
-    <div class="pipeline-status" id="pipelineStatus">
-      <span class="status-dot"></span>
-      FIRMS DATA PIPELINE ACTIVE
-    </div>
-  </section>
+  <!-- HEADER (hidden — nav bar has branding) -->
+  <section class="top-header" style="display:none;"></section>
 
   <!-- INFO STRIP -->
   <section class="info-strip" id="infoStrip">
@@ -118,7 +105,6 @@
 
       <div class="side-block">
         <div class="side-title">Map Layers</div>
-        <div class="toggle-row">Heatmap <label class="switch"><input type="checkbox" id="lyrHeat" checked><span class="slider"></span></label></div>
         <div class="toggle-row">Risk Grid Markers <label class="switch"><input type="checkbox" id="lyrMarkers" checked><span class="slider"></span></label></div>
         <div class="toggle-row">Satellite Imagery <label class="switch"><input type="checkbox" id="lyrSatellite"><span class="slider"></span></label></div>
       </div>
@@ -200,7 +186,8 @@
 
   <!-- FOOTER -->
   <section class="footer">
-    <div>THERMOSCOPE / AGNIRAKSHAK • NASA FIRMS • AI FIRE RISK INTELLIGENCE</div>
+    <div class="credits" style="margin-bottom:14px;color:var(--text-secondary);font-size:11px;line-height:1.8;letter-spacing:0.5px;">{{CREDITS}}</div>
+    <div>AGNIRAKSHAK • NASA FIRMS • AI FIRE RISK INTELLIGENCE</div>
     <div>Historical satellite analysis for early fire-risk identification. Risk scores are model-based rankings, not confirmed fire causes.</div>
   </section>
 
@@ -223,7 +210,8 @@
   <section class="analytics-row">
     <div class="chart-card">
       <div class="chart-title">Risk Distribution</div>
-      <div class="chart-center-wrap"><svg id="chartRiskDist" width="260" height="220"></svg></div>
+      <div class="chart-center-wrap"><svg id="chartRiskDist" viewBox="0 0 280 280" width="100%"></svg></div>
+      <div id="legendRiskDist" class="chart-legend-bottom"></div>
     </div>
     <div class="chart-card">
       <div class="chart-title">Risk Trend (Last 7 Days)</div>
@@ -231,7 +219,8 @@
     </div>
     <div class="chart-card">
       <div class="chart-title">Fire Type Distribution</div>
-      <div class="chart-center-wrap"><svg id="chartFireType" width="260" height="220"></svg></div>
+      <div class="chart-center-wrap"><svg id="chartFireType" viewBox="0 0 280 280" width="100%"></svg></div>
+      <div id="legendFireType" class="chart-legend-bottom"></div>
     </div>
   </section>
 
@@ -245,7 +234,8 @@
     </div>
     <div class="chart-card" style="flex:1;">
       <div class="chart-title">Satellite Contribution</div>
-      <div class="chart-center-wrap"><svg id="chartSatellite" width="240" height="200"></svg></div>
+      <div class="chart-center-wrap"><svg id="chartSatellite" viewBox="0 0 260 260" width="100%"></svg></div>
+      <div id="legendSatellite" class="chart-legend-bottom"></div>
     </div>
   </section>
 </div>
@@ -374,7 +364,7 @@
   <section class="top-header">
     <div class="brand-section">
       <div>
-        <div class="brand-title" style="font-size:24px;">ℹ️ About Thermoscope / AgniRakshak</div>
+        <div class="brand-title" style="font-size:24px;">ℹ️ About AgniRakshak</div>
       </div>
     </div>
   </section>
@@ -383,7 +373,7 @@
     <div class="chart-card">
       <div class="chart-title">🎯 Project Overview</div>
       <div style="padding:16px;color:#94a6b8;font-size:12px;line-height:1.8;">
-        <p><strong style="color:#e2e8f0;">Thermoscope (AgniRakshak)</strong> is an AI-enabled geospatial system that automatically identifies, classifies, and monitors industrial fires and persistent thermal sources.</p>
+        <p><strong style="color:#e2e8f0;">AgniRakshak</strong> is an AI-enabled geospatial system that automatically identifies, classifies, and monitors industrial fires and persistent thermal sources.</p>
         <br>
         <p><strong style="color:#e2e8f0;">Data Sources:</strong></p>
         <ul style="padding-left:18px;">
