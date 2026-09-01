@@ -11,6 +11,35 @@
 </head>
 <body>
 
+<!-- ============================================================ -->
+<!-- TOP NAVIGATION BAR -->
+<!-- ============================================================ -->
+<nav class="topnav">
+  <div class="nav-brand">
+    <div class="nav-logo">🔥</div>
+    <div>
+      <div class="nav-brand-name">THERMOSCOPE</div>
+      <div class="nav-brand-sub">Delhi NCR Fire Risk Intelligence &amp; Satellite Monitoring System</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="overview">OVERVIEW</button>
+    <button class="nav-tab" data-tab="analytics">ANALYTICS</button>
+    <button class="nav-tab" data-tab="history">HISTORY</button>
+    <button class="nav-tab" data-tab="alerts">ALERTS</button>
+    <button class="nav-tab" data-tab="reports">REPORTS</button>
+    <button class="nav-tab" data-tab="about">ABOUT</button>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot-live"></span> LIVE &middot; System Online
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- OVERVIEW TAB — Original working dashboard layout -->
+<!-- ============================================================ -->
+<section class="tab-panel active" id="panel-overview">
+
 <div class="dashboard">
 
   <!-- HEADER -->
@@ -69,7 +98,7 @@
     </div>
   </section>
 
-  <!-- MAIN LAYOUT -->
+  <!-- MAIN LAYOUT — 3 columns: sidebar | center (map) | intel -->
   <section class="layout">
 
     <!-- SIDEBAR -->
@@ -106,7 +135,7 @@
         <label class="check-row"><input type="checkbox" class="type-toggle" value="MINING" checked><span class="chip chip-mining"></span> Mining</label>
         <label class="check-row"><input type="checkbox" class="type-toggle" value="AGRICULTURAL_BURNING" checked><span class="chip chip-agricultural"></span> Agricultural Burning</label>
         <label class="check-row"><input type="checkbox" class="type-toggle" value="FOREST_FIRE" checked><span class="chip chip-wildfire"></span> Forest / Wildfire</label>
-        <div class="hint">Every site here has been checked against real ESA WorldCover (10m) land cover — Industrial/Mining must actually sit on built-up or bare land, not just be near an OSM-tagged area. Nearby grid cells (within 8km) for the same Industrial/Mining site are merged into one marker. ~92% of the earlier proximity-only Industrial/Mining labels failed this check and are excluded here.</div>
+        <div class="hint">Every site checked against real ESA WorldCover (10m) land cover. Nearby grid cells (within 8km) merged into one marker.</div>
       </div>
 
       <div class="side-block">
@@ -139,7 +168,7 @@
       </div>
     </aside>
 
-    <!-- CENTER -->
+    <!-- CENTER: Map + Chart -->
     <main class="center">
       <section class="map-header">
         <div class="map-title">🛰️ AGNIRAKSHAK REGIONAL THERMAL RISK MAP</div>
@@ -156,7 +185,7 @@
       </section>
     </main>
 
-    <!-- RIGHT: INTELLIGENCE -->
+    <!-- RIGHT: Grid Intelligence -->
     <aside class="intel-col">
       <div class="intelligence-card">
         <div class="intelligence-title">SELECTED GRID INTELLIGENCE</div>
@@ -175,8 +204,214 @@
     <div>Historical satellite analysis for early fire-risk identification. Risk scores are model-based rankings, not confirmed fire causes.</div>
   </section>
 
-</div>
+</div><!-- /dashboard -->
+</section>
 
+<!-- ============================================================ -->
+<!-- ANALYTICS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-analytics">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📊 Analytics Dashboard</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">Risk Distribution</div>
+      <div class="chart-center-wrap"><svg id="chartRiskDist" width="260" height="220"></svg></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk Trend (Last 7 Days)</div>
+      <svg id="chartRiskTrend" viewBox="0 0 600 200" width="100%" height="200"></svg>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Fire Type Distribution</div>
+      <div class="chart-center-wrap"><svg id="chartFireType" width="260" height="220"></svg></div>
+    </div>
+  </section>
+
+  <section class="analytics-row" style="margin-top:18px;">
+    <div class="chart-card" style="flex:2;">
+      <div class="chart-title">Top 10 High-Risk Grids</div>
+      <table class="data-table" id="top10Table">
+        <thead><tr><th>#</th><th>Grid ID</th><th>Location</th><th>Risk Score</th><th>Risk Level</th><th>Avg FRP</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="chart-card" style="flex:1;">
+      <div class="chart-title">Satellite Contribution</div>
+      <div class="chart-center-wrap"><svg id="chartSatellite" width="240" height="200"></svg></div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- HISTORY TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-history">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📜 History Explorer</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="history-stats-row">
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Total Detections</div>
+      <div class="metric-value" id="hsTotal">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Active Days</div>
+      <div class="metric-value" id="hsActiveDays">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Avg FRP</div>
+      <div class="metric-value" id="hsAvgFrp">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Max FRP</div>
+      <div class="metric-value" id="hsMaxFrp">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">First Detection</div>
+      <div class="metric-value" id="hsFirst" style="font-size:14px;">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Last Detection</div>
+      <div class="metric-value" id="hsLast" style="font-size:14px;">—</div>
+    </div>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-title">Historical Fire Activity</div>
+    <div id="historyDateGrid" style="padding:12px;"></div>
+  </section>
+
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Daily Activity Chart</div>
+    <svg id="chartDailyActivity" viewBox="0 0 900 200" width="100%" height="200"></svg>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- ALERTS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-alerts">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">🚨 Alerts Center</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alerts-filter-bar">
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="critical" checked><span class="chip chip-critical"></span> Critical</label>
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="high" checked><span class="chip chip-high"></span> High</label>
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="medium" checked><span class="chip chip-moderate"></span> Medium</label>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-title">Active Alerts (<span id="alertCount">0</span>)</div>
+    <table class="data-table" id="alertsTable">
+      <thead><tr><th>Alert</th><th>Grid</th><th>Type</th><th>Severity</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- REPORTS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-reports">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📋 Reports</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">Generate Intelligence Report</div>
+      <div style="padding:12px;">
+        <select id="reportType" class="side-block" style="width:100%;background:#101820;border:1px solid #202b38;color:#f2f5f8;padding:8px;border-radius:5px;font-size:12px;">
+          <option>Daily Report</option>
+          <option>Weekly Report</option>
+          <option>Monthly Report</option>
+          <option>Incident Report</option>
+        </select>
+        <button id="btnGenerateReport" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#ff382f,#ff6b1a);border:none;border-radius:6px;color:white;font-weight:bold;cursor:pointer;">Generate Report</button>
+      </div>
+    </div>
+    <div class="chart-card" style="flex:2;">
+      <div class="chart-title">Report Preview</div>
+      <div id="reportPreview" style="padding:20px;color:#7890a8;font-size:12px;">Select report type and click Generate</div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- ABOUT TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-about">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">ℹ️ About Thermoscope / AgniRakshak</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">🎯 Project Overview</div>
+      <div style="padding:16px;color:#94a6b8;font-size:12px;line-height:1.8;">
+        <p><strong style="color:#e2e8f0;">Thermoscope (AgniRakshak)</strong> is an AI-enabled geospatial system that automatically identifies, classifies, and monitors industrial fires and persistent thermal sources.</p>
+        <br>
+        <p><strong style="color:#e2e8f0;">Data Sources:</strong></p>
+        <ul style="padding-left:18px;">
+          <li><strong>NASA FIRMS</strong> — VIIRS SNPP, VIIRS NOAA-20, MODIS</li>
+          <li><strong>ESA WorldCover</strong> — 10m land cover for site verification</li>
+          <li><strong>OpenStreetMap</strong> — Industrial facility geolocation</li>
+        </ul>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔬 Methodology</div>
+      <div style="padding:16px;color:#94a6b8;font-size:12px;line-height:1.8;">
+        <ul style="padding-left:18px;">
+          <li>5km FIRMS grid cells analyzed (2020–present)</li>
+          <li>ML-based risk scoring: FRP, recurrence, persistence, multi-satellite</li>
+          <li>Fire-type classification: Industrial, Agricultural, Forest/Wildfire</li>
+          <li>Land-cover verification via ESA WorldCover 10m</li>
+          <li>Regional zone aggregation for map display</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- SCRIPTS — Same CDN links as original -->
+<!-- ============================================================ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
