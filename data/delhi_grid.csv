@@ -1,4 +1,0 @@
-grid_id,grid_lat,grid_lon,detection_count,avg_frp,max_frp,min_frp,first_detection,last_detection,satellite_count,latitude_mean,longitude_mean,active_days,repeat_score
-28.74_76.93,28.74,76.93,2,1.105,1.62,0.59,2026-07-29,2026-07-30,1,28.744165,76.93517499999999,2,1.0
-28.46_76.8,28.46,76.8,1,4.16,4.16,4.16,2026-07-30,2026-07-30,1,28.46732,76.80379,1,1.0
-28.74_76.92,28.74,76.92,1,1.73,1.73,1.73,2026-07-30,2026-07-30,1,28.74503,76.92786,1,1.0

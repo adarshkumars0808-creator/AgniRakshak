@@ -1,0 +1,180 @@
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #080c12;
+    color: #f2f5f8;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body { min-height: 100vh; }
+
+.dashboard {
+    width: 100%;
+    max-width: 1700px;
+    margin: 0 auto;
+    padding: 30px 40px 50px 40px;
+}
+
+/* ========== HEADER ========== */
+.top-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    margin-bottom: 25px;
+}
+.brand-section { display: flex; align-items: center; gap: 22px; }
+.fire-logo {
+    width: 70px; height: 70px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 42px;
+    background: linear-gradient(145deg, #ff382f, #ff6b1a);
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(255, 65, 35, 0.35);
+}
+.brand-title { font-size: 38px; font-weight: 900; letter-spacing: 7px; color: #f4f6fa; }
+.brand-subtitle { margin-top: 8px; font-size: 11px; letter-spacing: 2px; color: #7890a8; }
+.separator { color: #ff4c43; margin: 0 8px; }
+.pipeline-status {
+    padding: 12px 24px; border: 1px solid #00d978; border-radius: 25px;
+    color: #3cff9a; font-size: 12px; font-weight: bold; letter-spacing: 1px;
+    background: rgba(0, 255, 120, 0.03); white-space: nowrap;
+}
+.status-dot {
+    display: inline-block; width: 7px; height: 7px; margin-right: 8px;
+    border-radius: 50%; background: #20e889; box-shadow: 0 0 10px #20e889;
+}
+
+/* ========== INFO STRIP ========== */
+.info-strip {
+    display: flex; flex-wrap: wrap; gap: 18px;
+    padding: 15px 18px; margin-bottom: 24px;
+    border-left: 3px solid #ff493d; border-top: 1px solid #54231f; border-bottom: 1px solid #54231f;
+    background: #170d0d; color: #ff8b6e;
+    font-family: monospace; font-size: 10px; letter-spacing: 0.7px;
+}
+
+/* ========== METRICS ========== */
+.metrics-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+.metric-card {
+    min-height: 110px; padding: 20px; background: #0e141c;
+    border: 1px solid #202b38; border-radius: 9px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+.metric-title { color: #dce5ef; font-size: 11.5px; font-weight: 600; letter-spacing: 0.5px; }
+.metric-value { margin-top: 10px; font-size: 28px; font-weight: 800; letter-spacing: 1px; color: #f4f7fb; font-family: monospace; }
+.metric-badge {
+    display: inline-block; margin-top: 9px; padding: 4px 9px; max-width: 100%;
+    border-radius: 12px; background: #123e2c; color: #49ef9a; font-size: 10.5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ========== LAYOUT ========== */
+.layout { display: grid; grid-template-columns: 250px 1fr 300px; gap: 18px; align-items: start; }
+.sidebar, .intel-col { position: sticky; top: 20px; }
+
+.side-block {
+    background: #0e141c; border: 1px solid #202b38; border-radius: 9px;
+    padding: 14px; margin-bottom: 14px;
+}
+.side-title { font-size: 10.5px; color: #7890a8; letter-spacing: 1.5px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; }
+.check-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; cursor: pointer; }
+.check-row input { accent-color: #ff493d; }
+.chip { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.chip-critical { background: #ff382f; }
+.chip-high { background: #ff6b1a; }
+.chip-moderate { background: #ffae42; }
+.chip-low { background: #20e889; }
+.chip-industrial { background: #a855f7; }
+.chip-mining { background: #f97316; }
+.chip-agricultural { background: #ffd400; }
+.chip-wildfire { background: #22d3ee; }
+.chip-unclassified { background: #5b6b7a; }
+
+.data-readout {
+    font-size: 10.5px; color: #49ef9a; background: #0f2419;
+    border: 1px solid #1e4a34; border-radius: 6px; padding: 8px 9px; line-height: 1.5;
+}
+
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 12px; color: #cfd8e2; }
+.switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; background: #202b38; border-radius: 20px; cursor: pointer; transition: .2s; }
+.slider::before { content: ""; position: absolute; height: 14px; width: 14px; left: 2px; top: 2px; background: #55677a; border-radius: 50%; transition: .2s; }
+.switch input:checked + .slider { background: #3a1a15; border: 1px solid #ff493d; }
+.switch input:checked + .slider::before { transform: translateX(16px); background: #ff493d; }
+
+input[type="date"] {
+    width: 100%; background: #101820; border: 1px solid #202b38; color: #f2f5f8;
+    padding: 7px; border-radius: 5px; font-size: 11px; font-family: monospace;
+}
+.hint { font-size: 9.5px; color: #4e6276; margin-top: 8px; line-height: 1.5; }
+
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; padding: 4px 0; color: #94a6b8; }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+
+#top10List { display: flex; flex-direction: column; gap: 6px; }
+.top10-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 8px; background: #101820; border: 1px solid #1b2631; border-radius: 5px;
+    font-size: 10.5px; cursor: pointer; transition: border-color .15s;
+}
+.top10-row:hover { border-color: #ff493d; }
+.top10-rank { color: #ff6b5e; font-weight: bold; font-family: monospace; }
+.top10-score { color: #f2f5f8; font-family: monospace; }
+
+/* ========== CENTER / MAP ========== */
+.map-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.map-title { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+.map-subtitle { color: #667b90; font-size: 10px; letter-spacing: 1.5px; }
+.map-wrapper {
+    width: 100%; height: 560px; margin-bottom: 20px;
+    border: 1px solid #1d2935; border-radius: 10px; overflow: hidden; background: #0b1118;
+}
+#map { width: 100%; height: 100%; background: #0b1118; }
+
+.chart-card { background: #0e141c; border: 1px solid #202b38; border-radius: 9px; padding: 16px; }
+.chart-title { font-size: 11px; color: #7890a8; letter-spacing: 1.2px; margin-bottom: 8px; }
+
+/* ========== INTELLIGENCE ========== */
+.intelligence-card { padding: 18px; background: #0d141c; border: 1px solid #202c38; border-radius: 10px; }
+.intelligence-title { margin-bottom: 16px; color: #dce6f0; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; }
+.selected-grid { padding: 16px; background: #101820; border-radius: 8px; }
+.grid-id { font-family: monospace; font-size: 17px; font-weight: bold; color: #ffffff; margin-bottom: 12px; word-break: break-all; }
+.risk-label {
+    display: inline-block; margin-bottom: 16px; padding: 5px 10px; border: 1px solid #00e78a;
+    border-radius: 4px; color: #00ed91; font-family: monospace; font-size: 10px; font-weight: bold;
+}
+.intel-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1b2631; color: #71859a; font-size: 11.5px; }
+.intel-row:last-child { border-bottom: none; }
+.intel-row strong { color: #e5edf5; font-family: monospace; }
+.intel-reason { margin-top: 12px; padding: 10px; background: #0b1118; border: 1px solid #1b2631; border-radius: 6px; color: #94a6b8; font-size: 10.5px; line-height: 1.5; }
+.type-label {
+    display: inline-block; margin: 8px 0 4px; padding: 4px 10px; border-radius: 4px;
+    font-family: monospace; font-size: 9.5px; font-weight: bold; letter-spacing: 0.5px;
+}
+
+/* Leaflet popup theme override */
+.leaflet-popup-content-wrapper { background: #0e141c; color: #f2f5f8; border: 1px solid #202b38; }
+.leaflet-popup-tip { background: #0e141c; }
+
+/* ========== FOOTER ========== */
+.footer { margin-top: 30px; padding-top: 18px; border-top: 1px solid #202b35; color: #4e6276; font-size: 10px; line-height: 1.8; letter-spacing: 0.8px; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1300px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar, .intel-col { position: static; }
+    .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+    .dashboard { padding: 20px; }
+    .metrics-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .brand-title { font-size: 27px; }
+    .info-strip { flex-direction: column; }
+    .map-header { flex-direction: column; gap: 8px; }
+}
