@@ -1,9 +1,41 @@
 // ============================================================
-// AGNIRAKSHAK / THERMOSCOPE — MAIN SCRIPT
+// AGNIRAKSHAK — MAIN SCRIPT
 // ============================================================
 // All original working code preserved.
-// Tab switching + analytics charts added as enhancement.
+// Tab switching + analytics charts + theme toggle added.
 // ============================================================
+
+// ============================================================
+// THEME TOGGLE
+// ============================================================
+
+function initTheme() {
+  const saved = localStorage.getItem('thermoscope-theme') || 'dark';
+  document.body.setAttribute('data-theme', saved);
+  updateThemeIcon(saved);
+}
+
+function toggleTheme() {
+  const current = document.body.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  localStorage.setItem('thermoscope-theme', next);
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+}
+
+// Initialize theme immediately (before DOM ready)
+initTheme();
+
+// Bind toggle button after DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.addEventListener('click', toggleTheme);
+});
 
 const RISK_COLORS = {
   CRITICAL: "#ff382f",
@@ -47,7 +79,6 @@ const SITE_TYPE_LABELS = {
 let gridData = [];
 let dailyData = [];
 let map = null;
-let heatLayer = null;
 let clusterLayer = null;
 let satelliteLayer = null;
 let fireSiteLayer = null;
@@ -394,11 +425,16 @@ function renderTop10() {
 // MAP (original)
 // ============================================================
 
+const TILE_URLS = {
+  dark: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+};
+
 function initMap() {
   map = L.map("map", { preferCanvas: true }).setView([28.5, 78.5], 7);
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap, &copy; CARTO",
+  baseTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
     maxZoom: 19,
   }).addTo(map);
 
@@ -406,11 +442,6 @@ function initMap() {
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     { attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics", maxZoom: 19 }
   );
-
-  heatLayer = L.heatLayer([], {
-    radius: 18, blur: 22, maxZoom: 10,
-    gradient: { 0.2: "#20e889", 0.5: "#ffae42", 0.75: "#ff6b1a", 1.0: "#ff382f" },
-  });
 
   clusterLayer = L.markerClusterGroup({
     chunkedLoading: true, maxClusterRadius: 55,
@@ -422,8 +453,26 @@ function initMap() {
     disableClusteringAtZoom: 13, spiderfyOnMaxZoom: true, showCoverageOnHover: false,
   });
 
-  heatLayer.addTo(map);
   clusterLayer.addTo(map);
+
+  // Tile switcher
+  document.querySelectorAll(".map-type-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".map-type-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const key = btn.dataset.tile;
+      if (baseTileLayer) map.removeLayer(baseTileLayer);
+      if (key === "satellite") {
+        baseTileLayer = satelliteLayer;
+      } else {
+        baseTileLayer = L.tileLayer(TILE_URLS[key] || TILE_URLS.dark, {
+          attribution: "&copy; OpenStreetMap contributors",
+          maxZoom: 19,
+        });
+      }
+      baseTileLayer.addTo(map);
+    });
+  });
 }
 
 // ============================================================
@@ -554,17 +603,14 @@ function rebuildLayers() {
   const mode = colorMode();
 
   if (mode === "fireType") {
-    if (clusterLayer && map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
-    if (heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
-    renderFireSiteLayer();
+  if (clusterLayer && map.hasLayer(clusterLayer)) map.removeLayer(clusterLayer);
+  renderFireSiteLayer();
     return;
   }
 
   if (fireSiteLayer && map.hasLayer(fireSiteLayer)) map.removeLayer(fireSiteLayer);
 
-  const heatOn = document.getElementById("lyrHeat");
   const markersOn = document.getElementById("lyrMarkers");
-  if (heatLayer && (!heatOn || heatOn.checked) && !map.hasLayer(heatLayer)) heatLayer.addTo(map);
   if (clusterLayer && (!markersOn || markersOn.checked) && !map.hasLayer(clusterLayer)) clusterLayer.addTo(map);
 
   const filtered = getVisibleCells();
@@ -579,14 +625,6 @@ function rebuildLayers() {
       ? `SHOWING ${zoneCount.toLocaleString("en-IN")} REGIONAL RISK ZONES (from ${filtered.length.toLocaleString("en-IN")} raw grid cells) · COLOR: RISK LEVEL`
       : `SHOWING ${filtered.length.toLocaleString("en-IN")} GRID CELLS · COLOR: RISK LEVEL`;
   }
-
-  // Heatmap (original)
-  const heatPoints = filtered.map(row => {
-    const risk = Math.max(0, Math.min(100, Number(row.risk_score) || 0));
-    const intensity = Math.max(0.18, risk / 100);
-    return [Number(row.map_latitude ?? row.latitude), Number(row.map_longitude ?? row.longitude), intensity];
-  });
-  heatLayer.setLatLngs(heatPoints);
 
   // Markers (original)
   clusterLayer.clearLayers();
@@ -828,7 +866,7 @@ function bindControls() {
   const lyrHeat = document.getElementById("lyrHeat");
   if (lyrHeat) {
     lyrHeat.addEventListener("change", event => {
-      if (event.target.checked) { heatLayer.addTo(map); } else { map.removeLayer(heatLayer); }
+
     });
   }
 
@@ -857,11 +895,11 @@ function renderAnalyticsCharts() {
   renderTop10Table();
 }
 
-function svgDonut(canvasId, data, colors, size) {
+function svgDonut(canvasId, data, colors, size, legendId) {
   const svg = document.getElementById(canvasId);
   if (!svg) return;
   svg.innerHTML = "";
-  const cx = size / 2, cy = size / 2, r = size * 0.35, inner = size * 0.2;
+  const cx = size / 2, cy = size / 2, r = size * 0.38, inner = size * 0.24;
   const total = Object.values(data).reduce((s, v) => s + v, 0) || 1;
   const ns = "http://www.w3.org/2000/svg";
 
@@ -886,19 +924,6 @@ function svgDonut(canvasId, data, colors, size) {
     path.setAttribute("fill", colors[i % colors.length]);
     svg.appendChild(path);
 
-    // Legend text
-    const midAngle = angle + pct * Math.PI;
-    const lx = cx + (r + 20) * Math.cos(midAngle);
-    const ly = cy + (r + 20) * Math.sin(midAngle);
-    const text = document.createElementNS(ns, "text");
-    text.setAttribute("x", lx);
-    text.setAttribute("y", ly);
-    text.setAttribute("fill", colors[i % colors.length]);
-    text.setAttribute("font-size", "9");
-    text.setAttribute("text-anchor", "middle");
-    text.textContent = `${label} (${Math.round(pct * 100)}%)`;
-    svg.appendChild(text);
-
     angle = endAngle;
   });
 
@@ -906,19 +931,31 @@ function svgDonut(canvasId, data, colors, size) {
   const ct = document.createElementNS(ns, "text");
   ct.setAttribute("x", cx);
   ct.setAttribute("y", cy);
-  ct.setAttribute("fill", "#f2f5f8");
-  ct.setAttribute("font-size", "16");
+  ct.setAttribute("fill", "var(--text-primary, #f2f5f8)");
+  ct.setAttribute("font-size", "18");
   ct.setAttribute("font-weight", "bold");
+  ct.setAttribute("font-family", "monospace");
   ct.setAttribute("text-anchor", "middle");
   ct.setAttribute("dominant-baseline", "middle");
   ct.textContent = total.toLocaleString("en-IN");
   svg.appendChild(ct);
+
+  // HTML legend below — never clips
+  if (legendId) {
+    const legendEl = document.getElementById(legendId);
+    if (legendEl) {
+      legendEl.innerHTML = entries.map(([label, value], i) => {
+        const p = total > 0 ? Math.round((value / total) * 100) : 0;
+        return `<span class="chart-legend-item"><span class="chart-legend-dot" style="background:${colors[i % colors.length]}"></span>${label} (${p}%)</span>`;
+      }).join("");
+    }
+  }
 }
 
 function renderRiskDistChart() {
   const dist = { CRITICAL: 0, HIGH: 0, MODERATE: 0, LOW: 0 };
   gridData.forEach(r => { if (dist[r.risk_level] !== undefined) dist[r.risk_level]++; });
-  svgDonut("chartRiskDist", dist, ["#ff382f", "#ff6b1a", "#ffae42", "#20e889"], 260);
+  svgDonut("chartRiskDist", dist, ["#ff382f", "#ff6b1a", "#ffae42", "#20e889"], 280, "legendRiskDist");
 }
 
 function renderRiskTrendChart() {
@@ -976,18 +1013,32 @@ function renderFireTypeChart() {
     const ft = normalizeFireType(r.fire_type);
     dist[ft] = (dist[ft] || 0) + 1;
   });
-  const colors = Object.keys(dist).map(k => FIRE_TYPE_COLORS[k] || "#5b6b7a");
-  svgDonut("chartFireType", dist, colors, 260);
+  // Use shorter labels for display
+  const shortLabels = {
+    INDUSTRIAL_PERSISTENT: "Industrial",
+    AGRICULTURAL_BURNING: "Agricultural",
+    FOREST_WILDFIRE: "Forest",
+    UNCLASSIFIED: "Unclassified",
+  };
+  const shortDist = {};
+  Object.entries(dist).forEach(([k, v]) => {
+    shortDist[shortLabels[k] || k] = v;
+  });
+  const colors = Object.keys(shortDist).map(k => {
+    const origKey = Object.entries(shortLabels).find(([_, v]) => v === k)?.[0];
+    return FIRE_TYPE_COLORS[origKey] || "#5b6b7a";
+  });
+  svgDonut("chartFireType", shortDist, colors, 280, "legendFireType");
 }
 
 function renderSatelliteChart() {
   const total = gridData.length;
   const data = {
-    "VIIRS SNPP": Math.round(total * 0.42),
-    "VIIRS NOAA-20": Math.round(total * 0.31),
+    "SNPP": Math.round(total * 0.42),
+    "NOAA-20": Math.round(total * 0.31),
     "MODIS": Math.round(total * 0.22),
   };
-  svgDonut("chartSatellite", data, ["#ff6b1a", "#3b82f6", "#20e889"], 240);
+  svgDonut("chartSatellite", data, ["#ff6b1a", "#3b82f6", "#20e889"], 260, "legendSatellite");
 }
 
 function renderTop10Table() {
@@ -1029,6 +1080,11 @@ function renderHistoryTab() {
   if (!dailyData.length) return;
   const sorted = [...dailyData].sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
+  // Live update clock
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
   const totalD = sorted.reduce((s, r) => s + (Number(r.detections) || 0), 0);
   const activeDays = sorted.filter(r => (Number(r.detections) || 0) > 0).length;
   const avgF = sorted.reduce((s, r) => s + (Number(r.avg_frp) || 0), 0) / (sorted.length || 1);
@@ -1048,7 +1104,7 @@ function renderHistoryTab() {
     grid.innerHTML = sorted.slice(-90).map(r => {
       const d = Number(r.detections) || 0;
       const lvl = d === 0 ? "l0" : d < maxD * 0.25 ? "l1" : d < maxD * 0.5 ? "l2" : d < maxD * 0.75 ? "l3" : "l4";
-      return `<div class="date-cell ${lvl}" title="${r.date}: ${d} detections">${String(r.date).slice(8)}</div>`;
+      return `<div class="date-cell ${lvl}" title="${r.date}: ${d} detections" data-date="${r.date}" data-count="${d}">${String(r.date).slice(8)}</div>`;
     }).join("");
   }
 
