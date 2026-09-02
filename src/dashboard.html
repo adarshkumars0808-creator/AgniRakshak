@@ -26,12 +26,12 @@
     <button class="nav-tab active" data-tab="overview">OVERVIEW</button>
     <button class="nav-tab" data-tab="analytics">ANALYTICS</button>
     <button class="nav-tab" data-tab="history">HISTORY</button>
-    <button class="nav-tab" data-tab="alerts">ALERTS</button>
+    <button class="nav-tab" data-tab="alerts">ALERTS <span class="alert-badge" id="alertBadge" style="display:none;">0</span></button>
     <button class="nav-tab" data-tab="reports">REPORTS</button>
     <button class="nav-tab" data-tab="about">ABOUT</button>
   </div>
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="nav-status">
+    <div class="nav-status" id="nrtReadout">
       <span class="status-dot-live"></span> LIVE &middot; System Online
     </div>
     <div class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌙</div>
@@ -107,6 +107,8 @@
         <div class="side-title">Map Layers</div>
         <div class="toggle-row">Risk Grid Markers <label class="switch"><input type="checkbox" id="lyrMarkers" checked><span class="slider"></span></label></div>
         <div class="toggle-row">Satellite Imagery <label class="switch"><input type="checkbox" id="lyrSatellite"><span class="slider"></span></label></div>
+        <div class="toggle-row">🔴 Live NRT Detections <label class="switch"><input type="checkbox" id="lyrNrt"><span class="slider"></span></label></div>
+        <div class="toggle-row">🏆 Top 10 High-Risk Zones <label class="switch"><input type="checkbox" id="lyrTop10" checked><span class="slider"></span></label></div>
       </div>
 
       <div class="side-block">
@@ -130,6 +132,11 @@
         <div style="height:6px;"></div>
         <input type="date" id="dateTo">
         <div class="hint">Controls the chart below only — the risk map reflects the full historical model.</div>
+        <div class="side-block" style="margin-top:10px;">
+          <div class="side-title">Live NRT Monitor</div>
+          <div id="nrtReadout" style="font-size:11px;color:#94a6b8;line-height:1.5;">Loading…</div>
+          <div class="hint">Auto-refreshes every 5 min. Requires fetch_nrt.py cron.</div>
+        </div>
       </div>
 
       <div class="side-block">
@@ -313,9 +320,8 @@
   </section>
 
   <section class="chart-card">
-    <div class="chart-title">Active Alerts (<span id="alertCount">0</span>)</div>
-    <table class="data-table" id="alertsTable">
-      <thead><tr><th>Alert</th><th>Grid</th><th>Type</th><th>Severity</th><th>Status</th></tr></thead>
+    <div class="chart-title">Active Alerts (<span id="alertCount">0</span>)</div>        <table class="data-table" id="alertsTable">
+      <thead><tr><th>Alert</th><th>Grid</th><th>Type</th><th>Severity</th><th>Status</th><th>Time</th></tr></thead>
       <tbody></tbody>
     </table>
   </section>

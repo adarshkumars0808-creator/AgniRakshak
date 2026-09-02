@@ -697,3 +697,280 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
   .history-stats-row { grid-template-columns: repeat(1, 1fr); }
   .nav-brand-sub { display: none; }
 }
+
+/* ============================================================
+   NRT LIVE DETECTION MARKERS
+   ============================================================ */
+
+.nrt-pulse-marker {
+  animation: nrt-pulse 2s ease-in-out infinite;
+  cursor: pointer !important;
+}
+
+.nrt-ring-pulse {
+  animation: nrt-ring-breathe 2.5s ease-in-out infinite;
+}
+
+@keyframes nrt-pulse {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+
+@keyframes nrt-ring-breathe {
+  0%, 100% { opacity: 0.1; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(1.6); }
+}
+
+/* LIVE badge on map */
+.nrt-live-badge-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.nrt-live-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #ff2d2d;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 0 10px rgba(255, 45, 45, 0.5);
+  animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 45, 45, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(255, 45, 45, 0.8); }
+}
+
+[data-theme="light"] .nrt-live-badge {
+  background: #dc2626;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.45);
+}
+
+/* NRT tooltip styling */
+.nrt-tooltip {
+  background: #0e141c !important;
+  border: 1px solid #ff493d !important;
+  border-radius: 6px !important;
+  color: #f1f5f9 !important;
+  font-size: 11px !important;
+  padding: 5px 10px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+}
+
+.nrt-tooltip::before {
+  border-top-color: #ff493d !important;
+}
+
+[data-theme="light"] .nrt-tooltip {
+  background: #fff !important;
+  border-color: #dc2626 !important;
+  color: #1e293b !important;
+}
+
+/* ============================================================
+   TOP 10 MAP MARKERS
+   ============================================================ */
+
+.top10-marker {
+  cursor: pointer !important;
+  transition: transform 0.2s;
+}
+
+.top10-marker:hover {
+  transform: scale(1.2);
+}
+
+.top10-ring {
+  animation: top10-breathe 3s ease-in-out infinite;
+}
+
+@keyframes top10-breathe {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50% { opacity: 0.2; transform: scale(1.4); }
+}
+
+.top10-rank-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.top10-rank-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.top10-tooltip {
+  background: #0e141c !important;
+  border: 1px solid #00e5ff !important;
+  border-radius: 6px !important;
+  color: #f1f5f9 !important;
+  font-size: 11px !important;
+  padding: 5px 10px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+.top10-tooltip::before {
+  border-top-color: #00e5ff !important;
+}
+
+[data-theme="light"] .top10-tooltip {
+  background: #fff !important;
+  border-color: #0288d1 !important;
+  color: #1e293b !important;
+}
+
+/* ============================================================
+   ALERT BADGE (nav bar)
+   ============================================================ */
+
+.alert-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: #ff382f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: 0 0 8px rgba(255, 56, 47, 0.5);
+  animation: badge-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes badge-glow {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 56, 47, 0.4); }
+  50% { box-shadow: 0 0 14px rgba(255, 56, 47, 0.7); }
+}
+
+[data-theme="light"] .alert-badge {
+  background: #dc2626;
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+}
+
+/* ============================================================
+   ALERT SEVERITY CHIPS (alerts tab table)
+   ============================================================ */
+
+.alert-severity {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.alert-severity.critical {
+  background: rgba(255, 56, 47, 0.15);
+  color: #ff382f;
+  border: 1px solid rgba(255, 56, 47, 0.3);
+}
+
+.alert-severity.high {
+  background: rgba(255, 107, 26, 0.15);
+  color: #ff6b1a;
+  border: 1px solid rgba(255, 107, 26, 0.3);
+}
+
+.alert-severity.medium {
+  background: rgba(255, 174, 66, 0.15);
+  color: #ffae42;
+  border: 1px solid rgba(255, 174, 66, 0.3);
+}
+
+[data-theme="light"] .alert-severity.critical {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+[data-theme="light"] .alert-severity.high {
+  background: #fff7ed;
+  color: #ea580c;
+  border-color: #fed7aa;
+}
+[data-theme="light"] .alert-severity.medium {
+  background: #fffbeb;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+/* ============================================================
+   NRT READOUT (sidebar)
+   ============================================================ */
+
+#nrtReadout {
+  padding: 6px 0;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   NOTIFICATION TOAST (optional JS show/hide)
+   ============================================================ */
+
+.nrt-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  background: #0e141c;
+  border: 1px solid #ff382f;
+  border-left: 4px solid #ff382f;
+  border-radius: 8px;
+  padding: 14px 20px;
+  color: #f1f5f9;
+  font-size: 12px;
+  line-height: 1.6;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  max-width: 380px;
+  animation: toast-slide 0.35s ease-out;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.nrt-toast.hide {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+@keyframes toast-slide {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nrt-toast .toast-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #ff382f;
+  margin-bottom: 4px;
+}
+
+[data-theme="light"] .nrt-toast {
+  background: #ffffff;
+  color: #1e293b;
+  border-color: #dc2626;
+  border-left-color: #dc2626;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .nrt-toast .toast-title {
+  color: #dc2626;
+}
