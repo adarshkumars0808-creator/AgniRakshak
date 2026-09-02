@@ -78,13 +78,19 @@ const SITE_TYPE_LABELS = {
 
 let gridData = [];
 let dailyData = [];
+let nrtData = [];
+let alertsData = [];
 let map = null;
 let clusterLayer = null;
 let satelliteLayer = null;
 let fireSiteLayer = null;
+let nrtLayer = null;
+let top10Layer = null;
 let fireSiteData = [];
 let riskZoneData = [];
 let markerByGrid = {};
+let nrtAutoRefreshTimer = null;
+const NRT_AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
 // ============================================================
 // UTILITIES (original)
@@ -211,6 +217,8 @@ async function init() {
     dailyData = window.THERMOSCOPE_DATA.dailyData || [];
     fireSiteData = window.THERMOSCOPE_DATA.fireSiteData || [];
     riskZoneData = window.THERMOSCOPE_DATA.riskZoneData || [];
+    nrtData = window.THERMOSCOPE_DATA.nrtData || [];
+    alertsData = window.THERMOSCOPE_DATA.alertsData || [];
   }
   // === STANDALONE MODE ===
   else {
@@ -371,6 +379,20 @@ async function init() {
 
   // Tab switching (new)
   initTabs();
+
+  // NRT live layer
+  initNrtLayer();
+  renderNrtLayer();
+  startNrtAutoRefresh();
+
+  // Alert badge in nav
+  updateAlertBadge();
+
+  // NRT status readout
+  updateNrtReadout();
+
+  // Top 10 map markers (after map is initialized)
+  renderTop10OnMap();
 }
 
 // ============================================================
@@ -389,12 +411,14 @@ function renderMetrics() {
   const mCritical = document.getElementById("mCritical");
   const mHigh = document.getElementById("mHigh");
   const mAvgFrp = document.getElementById("mAvgFrp");
+  const mNrtCount = document.getElementById("mNrtCount");
 
   if (mTotalCells) mTotalCells.textContent = num(total);
   if (mTotalDetections) mTotalDetections.textContent = num(totalDetections);
   if (mCritical) mCritical.textContent = num(critical);
   if (mHigh) mHigh.textContent = num(high);
   if (mAvgFrp) mAvgFrp.textContent = num(avgFrp, 2);
+  if (mNrtCount) mNrtCount.textContent = num(nrtData.length);
 }
 
 // ============================================================
@@ -407,7 +431,7 @@ function renderTop10() {
   if (!element) return;
 
   element.innerHTML = top10.map((row, index) => `
-    <div class="top10-row" data-grid="${row.grid_id}">
+    <div class="top10-row" data-grid="${row.grid_id}" data-rank="${index + 1}">
       <span>
         <span class="top10-rank">#${index + 1}</span>
         ${row.grid_id}
@@ -417,8 +441,125 @@ function renderTop10() {
   `).join("");
 
   element.querySelectorAll(".top10-row").forEach(row => {
-    row.addEventListener("click", () => flyToGrid(row.dataset.grid));
+    row.addEventListener("click", () => {
+      flyToGrid(row.dataset.grid);
+    });
   });
+
+}
+
+// ============================================================
+// TOP 10 MAP MARKERS
+// ============================================================
+
+const TOP10_RANK_COLORS = [
+  "#00e5ff", "#18ffff", "#40c4ff", "#448aff", "#536dfe",
+  "#7c4dff", "#e040fb", "#ff4081", "#ff5252", "#ff6e40",
+];
+
+function renderTop10OnMap() {
+  if (!map) return;
+  if (!top10Layer) top10Layer = L.layerGroup();
+  top10Layer.clearLayers();
+
+  const top10 = [...gridData]
+    .sort((a, b) => Number(b.risk_score) - Number(a.risk_score))
+    .slice(0, 10);
+
+  top10.forEach((row, index) => {
+    const lat = Number(row.map_latitude ?? row.latitude);
+    const lon = Number(row.map_longitude ?? row.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const rank = index + 1;
+    const score = Number(row.risk_score) || 0;
+    const riskLevel = String(row.risk_level || "HIGH").toUpperCase();
+    const color = TOP10_RANK_COLORS[index] || "#ffae42";
+    const fireType = FIRE_TYPE_LABELS[normalizeFireType(row.fire_type)] || row.fire_type || "";
+    const radius = 18 - index; // #1=18, #10=9
+
+    // Outer glow ring
+    const ring = L.circleMarker([lat, lon], {
+      radius: radius + 10,
+      color: color,
+      weight: 1,
+      fillColor: color,
+      fillOpacity: 0.08,
+      className: "top10-ring",
+      interactive: false,
+    });
+    top10Layer.addLayer(ring);
+
+    // Main marker
+    const marker = L.circleMarker([lat, lon], {
+      radius,
+      color: color,
+      weight: 3,
+      fillColor: color,
+      fillOpacity: 0.8,
+      className: "top10-marker",
+    });
+
+    // Rank badge via divIcon
+    const rankIcon = L.divIcon({
+      className: "top10-rank-icon",
+      html: `<span class="top10-rank-badge" style="background:${color};">#${rank}</span>`,
+      iconSize: [32, 18],
+      iconAnchor: [16, radius + 20],
+    });
+    const rankMarker = L.marker([lat, lon], { icon: rankIcon, interactive: false });
+    top10Layer.addLayer(rankMarker);
+
+    // Popup
+    marker.bindPopup(`
+      <div style="min-width:240px;font-family:Arial,sans-serif;line-height:1.6;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">${rank}</span>
+          <b style="font-size:14px;">Top ${rank} High-Risk Zone</b>
+        </div>
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <b>Grid:</b> <code style="background:#1a2533;padding:1px 5px;border-radius:3px;">${row.grid_id}</code><br>
+        <b>Risk Score:</b> <span style="font-size:16px;color:${color};font-weight:700;">${score.toFixed(1)}</span><br>
+        <b>Risk Level:</b> ${riskLevel}<br>
+        <b>Total Detections:</b> ${Number(row.total_detections).toLocaleString("en-IN")}<br>
+        <b>Avg FRP:</b> ${Number(row.avg_frp).toFixed(2)} MW<br>
+        <b>Max FRP:</b> ${Number(row.max_frp).toFixed(2)} MW<br>
+        ${fireType ? `<b>Fire Type:</b> ${fireType}<br>` : ""}
+        <b>Coords:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}
+      </div>
+    `);
+
+    // Click → fly + show intel
+    marker.on("click", () => {
+      map.flyTo([lat, lon], 12, { animate: true, duration: 0.8 });
+      showGridIntel(row);
+    });
+
+    // Tooltip
+    marker.bindTooltip(
+      `<b>#${rank}</b> &middot; ${score.toFixed(1)} &middot; ${riskLevel} &middot; ${row.grid_id}`,
+      { direction: "top", offset: [0, -radius - 10], className: "top10-tooltip" }
+    );
+
+    top10Layer.addLayer(marker);
+  });
+
+  // Add to map if toggle is on
+  const toggle = document.getElementById("lyrTop10");
+  if (toggle && toggle.checked && !map.hasLayer(top10Layer)) {
+    top10Layer.addTo(map);
+  }
+}
+
+function toggleTop10Layer() {
+  if (!map || !top10Layer) return;
+  const toggle = document.getElementById("lyrTop10");
+  if (!toggle) return;
+  if (toggle.checked) {
+    top10Layer.addTo(map);
+  } else {
+    map.removeLayer(top10Layer);
+  }
 }
 
 // ============================================================
@@ -877,6 +1018,16 @@ function bindControls() {
     });
   }
 
+  const lyrNrt = document.getElementById("lyrNrt");
+  if (lyrNrt) {
+    lyrNrt.addEventListener("change", toggleNrtLayer);
+  }
+
+  const lyrTop10 = document.getElementById("lyrTop10");
+  if (lyrTop10) {
+    lyrTop10.addEventListener("change", toggleTop10Layer);
+  }
+
   const dateFrom = document.getElementById("dateFrom");
   const dateTo = document.getElementById("dateTo");
   if (dateFrom) dateFrom.addEventListener("change", renderChart);
@@ -1161,29 +1312,53 @@ function renderHistoryTab() {
 // ============================================================
 
 function renderAlertsTab() {
-  const alerts = [];
+  // === ENGINE ALERTS (from alert_engine.py) ===
+  // These are real alerts generated by comparing NRT data
+  // against the historical risk model.
+  const engineAlerts = (alertsData || []).map(a => ({
+    alert: a.description || a.alert_type || "Unknown alert",
+    grid: a.grid_id || "",
+    type: FIRE_TYPE_LABELS[normalizeFireType(a.fire_type)] || a.fire_type || "",
+    severity: (a.severity || "medium").toLowerCase(),
+    status: a.status || "ACTIVE",
+    timestamp: a.timestamp || "",
+    nrtFrp: a.nrt_max_frp || 0,
+    histRisk: a.historical_risk_score || 0,
+    latitude: a.latitude || 0,
+    longitude: a.longitude || 0,
+    source: "engine",
+  }));
 
+  // === FALLBACK: derive alerts from grid data ===
+  const derivedAlerts = [];
   gridData.forEach(r => {
     if (r.risk_level === "CRITICAL" && r.detections_30d > 5) {
-      alerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active" });
+      derivedAlerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active", source: "derived" });
     } else if (r.risk_level === "HIGH" && r.recurrence_ratio > 0.6) {
-      alerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active" });
+      derivedAlerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active", source: "derived" });
     } else if (r.risk_level === "HIGH" && r.detections_30d > r.detections_90d / 3) {
-      alerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring" });
+      derivedAlerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring", source: "derived" });
     }
   });
 
-  const limited = alerts.slice(0, 50);
-  document.getElementById("alertCount").textContent = limited.length;
+  // Merge: engine alerts first, then derived (dedup by grid_id)
+  const seenGrids = new Set(engineAlerts.map(a => a.grid));
+  const mergedAlerts = [
+    ...engineAlerts,
+    ...derivedAlerts.filter(a => !seenGrids.has(a.grid)),
+  ].slice(0, 100);
+
+  document.getElementById("alertCount").textContent = mergedAlerts.length;
   const tbody = document.querySelector("#alertsTable tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = limited.map(a => `<tr>
+  tbody.innerHTML = mergedAlerts.map(a => `<tr>
     <td>${a.alert}</td>
     <td style="font-family:monospace;font-size:10px;">${a.grid}</td>
     <td style="font-size:10px;">${a.type}</td>
     <td><span class="alert-severity ${a.severity}">${a.severity.toUpperCase()}</span></td>
     <td style="color:#7890a8;font-size:10px;">${a.status}</td>
+    ${a.timestamp ? `<td style="font-family:monospace;font-size:9px;color:#64748b;">${a.timestamp}</td>` : ""}
   </tr>`).join("");
 
   // Filter
@@ -1226,6 +1401,241 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// ============================================================
+// NRT LIVE LAYER
+// ============================================================
+
+function initNrtLayer() {
+  if (!map) return;
+  nrtLayer = L.layerGroup();
+  // Don't add to map by default — user toggles it on
+}
+
+function renderNrtLayer() {
+  if (!nrtLayer || !map) return;
+  nrtLayer.clearLayers();
+
+  if (!nrtData.length) {
+    console.log("No NRT data loaded.");
+    return;
+  }
+
+  console.log("Rendering NRT detections:", nrtData.length);
+
+  nrtData.forEach(det => {
+    const lat = Number(det.latitude);
+    const lon = Number(det.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const frp = Number(det.frp) || 0;
+    const severity = String(det.nrt_severity || "normal");
+    const sensor = det.sensor || det.nrt_source || "";
+    const acqDate = det.acq_date || "";
+    const confidence = Number(det.confidence) || 0;
+    const gridId = det.grid_id || "";
+
+    // --- BIGGER markers + pulsing outer ring for visibility ---
+    let color, innerColor, radius, weight;
+    if (severity === "critical") {
+      color = "#ff2d2d"; innerColor = "#ff5555"; radius = 14; weight = 3;
+    } else if (severity === "high") {
+      color = "#ff6b1a"; innerColor = "#ff8c42"; radius = 12; weight = 2;
+    } else if (severity === "elevated") {
+      color = "#ffae42"; innerColor = "#ffc766"; radius = 10; weight = 2;
+    } else {
+      color = "#ff493d"; innerColor = "#ff7070"; radius = 9; weight = 1;
+    }
+
+    // Outer pulsing ring (larger, semi-transparent)
+    const ring = L.circleMarker([lat, lon], {
+      radius: radius + 6,
+      color: color,
+      weight: 1.5,
+      fillColor: color,
+      fillOpacity: 0.12,
+      className: "nrt-ring-pulse",
+      interactive: false,
+    });
+    nrtLayer.addLayer(ring);
+
+    // Inner solid marker (clickable)
+    const marker = L.circleMarker([lat, lon], {
+      radius,
+      color: color,
+      weight,
+      fillColor: innerColor,
+      fillOpacity: 0.75,
+      className: "nrt-pulse-marker",
+    });
+
+    // --- LIVE badge icon via divIcon ---
+    const liveIcon = L.divIcon({
+      className: "nrt-live-badge-icon",
+      html: `<span class="nrt-live-badge">LIVE</span>`,
+      iconSize: [36, 16],
+      iconAnchor: [18, -radius - 4],
+    });
+    const liveMarker = L.marker([lat, lon], { icon: liveIcon, interactive: false });
+    nrtLayer.addLayer(liveMarker);
+
+    // --- Interactive popup with grid link ---
+    marker.bindPopup(`
+      <div style="min-width:230px;font-family:Arial,sans-serif;line-height:1.6;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;color:#fff;background:${color};letter-spacing:0.5px;">LIVE</span>
+          <b style="color:${color};">NRT Detection</b>
+        </div>
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <b>FRP:</b> <span style="font-size:14px;color:${color};">${frp.toFixed(1)} MW</span><br>
+        <b>Severity:</b> ${severity.toUpperCase()}<br>
+        <b>Sensor:</b> ${sensor}<br>
+        <b>Confidence:</b> ${confidence}<br>
+        <b>Time:</b> ${acqDate}<br>
+        <b>Coords:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
+        ${gridId ? `<b>Grid:</b> <code style="background:#1a2533;padding:1px 5px;border-radius:3px;">${gridId}</code><br>` : ""}
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <span style="color:#94a6b8;font-size:10px;">Click to zoom &middot; Hover for quick info</span>
+      </div>
+    `);
+
+    // --- Click: fly to detection + highlight ---
+    marker.on("click", () => {
+      map.flyTo([lat, lon], 13, { animate: true, duration: 0.8 });
+      showNrtIntel(det);
+    });
+
+    // --- Tooltip on hover ---
+    marker.bindTooltip(
+      `<b>LIVE</b> &middot; ${frp.toFixed(0)} MW &middot; ${severity.toUpperCase()} &middot; ${sensor}`,
+      { direction: "top", offset: [0, -radius - 8], className: "nrt-tooltip" }
+    );
+
+    nrtLayer.addLayer(marker);
+  });
+
+  if (!map.hasLayer(nrtLayer)) {
+    const nrtToggle = document.getElementById("lyrNrt");
+    if (nrtToggle && nrtToggle.checked) {
+      nrtLayer.addTo(map);
+    }
+  }
+}
+
+function toggleNrtLayer() {
+  if (!map || !nrtLayer) return;
+  const nrtToggle = document.getElementById("lyrNrt");
+  if (!nrtToggle) return;
+
+  if (nrtToggle.checked) {
+    nrtLayer.addTo(map);
+  } else {
+    map.removeLayer(nrtLayer);
+  }
+}
+
+// ============================================================
+// NRT INTEL PANEL (right sidebar)
+// ============================================================
+
+function showNrtIntel(det) {
+  const el = document.getElementById("selectedGrid");
+  if (!el) return;
+
+  const frp = Number(det.frp) || 0;
+  const severity = String(det.nrt_severity || "normal").toUpperCase();
+  const sensor = det.sensor || det.nrt_source || "";
+  const acqDate = det.acq_date || "";
+  const confidence = Number(det.confidence) || 0;
+  const gridId = det.grid_id || "";
+  const lat = Number(det.latitude);
+  const lon = Number(det.longitude);
+  const ageHrs = Number(det.age_hours);
+  const ageStr = Number.isFinite(ageHrs) ? `${ageHrs.toFixed(1)}h ago` : "";
+
+  const sevColors = { CRITICAL: "#ff2d2d", HIGH: "#ff6b1a", ELEVATED: "#ffae42", NORMAL: "#ff493d" };
+  const sevColor = sevColors[severity] || "#ff493d";
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <span class="nrt-live-badge" style="font-size:11px;">LIVE</span>
+      <div class="grid-id" style="font-size:15px;">NRT Detection</div>
+    </div>
+    <div class="risk-label" style="border-color:${sevColor};color:${sevColor};font-size:13px;">
+      ${severity} SEVERITY
+    </div>
+    <div class="intel-row"><span>FRP</span><strong style="font-size:16px;color:${sevColor};">${frp.toFixed(1)} MW</strong></div>
+    <div class="intel-row"><span>Sensor</span><strong>${sensor}</strong></div>
+    <div class="intel-row"><span>Confidence</span><strong>${confidence}</strong></div>
+    <div class="intel-row"><span>Time</span><strong>${acqDate}</strong></div>
+    ${ageStr ? `<div class="intel-row"><span>Age</span><strong>${ageStr}</strong></div>` : ""}
+    <div class="intel-row"><span>Latitude</span><strong>${lat.toFixed(6)}</strong></div>
+    <div class="intel-row"><span>Longitude</span><strong>${lon.toFixed(6)}</strong></div>
+    ${gridId ? `<div class="intel-row"><span>Grid Cell</span><strong style="font-family:monospace;font-size:11px;">${gridId}</strong></div>` : ""}
+  `;
+}
+
+// ============================================================
+// NRT AUTO-REFRESH
+// ============================================================
+// In Streamlit mode the data is baked into the page.
+// This timer triggers a page reload to pick up fresh data
+// from a cron-triggered fetch_nrt.py + alert_engine.py run.
+// ============================================================
+
+function startNrtAutoRefresh() {
+  if (nrtAutoRefreshTimer) clearInterval(nrtAutoRefreshTimer);
+  nrtAutoRefreshTimer = setInterval(() => {
+    console.log("[NRT] Auto-refresh: reloading dashboard data...");
+    // In Streamlit mode, trigger a rerun via Streamlit's
+    // component message. In standalone mode, just reload.
+    if (window.THERMOSCOPE_DATA) {
+      window.parent.postMessage({ type: "streamlit:rerun" }, "*");
+    }
+  }, NRT_AUTO_REFRESH_MS);
+  console.log(`[NRT] Auto-refresh every ${NRT_AUTO_REFRESH_MS / 1000}s`);
+}
+
+function stopNrtAutoRefresh() {
+  if (nrtAutoRefreshTimer) {
+    clearInterval(nrtAutoRefreshTimer);
+    nrtAutoRefreshTimer = null;
+  }
+}
+
+// ============================================================
+// NRT STATUS READOUT
+// ============================================================
+
+function updateNrtReadout() {
+  const el = document.getElementById("nrtReadout");
+  if (!el) return;
+  const count = nrtData.length;
+  if (count === 0) {
+    el.innerHTML = `<span style="color:#64748b;">No NRT data yet — run fetch_nrt.py</span>`;
+  } else {
+    const ts = window.THERMOSCOPE_DATA?.nrtTimestamp || "";
+    el.innerHTML = `<span style="color:#ff6b5e;">● ${count.toLocaleString("en-IN")} live detections</span>${ts ? ` · fetched ${ts}` : ""}`;
+  }
+}
+
+// ============================================================
+// ALERT BADGE IN NAV
+// ============================================================
+
+function updateAlertBadge() {
+  const badge = document.getElementById("alertBadge");
+  const alertsTab = document.querySelector(".nav-tab[data-tab='alerts']");
+  if (!badge || !alertsTab) return;
+
+  const count = alertsData.length;
+  if (count > 0) {
+    badge.textContent = count > 99 ? "99+" : count;
+    badge.style.display = "inline-flex";
+  } else {
+    badge.style.display = "none";
+  }
+}
 
 // ============================================================
 // START (original)
