@@ -1047,6 +1047,8 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
   right: 28px;
   width: 380px;
   height: 520px;
+  max-height: calc(100vh - 130px);
+  min-height: 320px;
   background: #0e141c;
   border: 1px solid #1e2d3d;
   border-radius: 16px;
@@ -1057,6 +1059,17 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
   animation: chatbot-slide-up 0.3s ease-out;
   will-change: transform, opacity;
+}
+@media (max-width: 480px) {
+  .chatbot-panel {
+    width: calc(100vw - 24px);
+    right: 12px;
+    bottom: 84px;
+  }
+  .chatbot-fab {
+    right: 14px;
+    bottom: 18px;
+  }
 }
 
 @keyframes chatbot-slide-up {
