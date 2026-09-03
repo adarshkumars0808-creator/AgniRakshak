@@ -209,6 +209,10 @@ function initTabs() {
       if (btn.dataset.tab === "alerts") {
         setTimeout(renderAlertsTab, 100);
       }
+      // Render forecast when forecast tab shown
+      if (btn.dataset.tab === "forecast") {
+        setTimeout(renderForecastTab, 100);
+      }
     });
   });
 }
@@ -390,6 +394,144 @@ function initIntro() {
 }
 
 // ============================================================
+// SATELLITE EVIDENCE VIEWER
+// ============================================================
+
+let satEvidenceMap = null;
+
+function gibsEvidenceDate(offsetDays) {
+  var d = new Date();
+  d.setDate(d.getDate() - (offsetDays || 1));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function gibsWmsUrl(lat, lon, dateStr, span, w, h) {
+  var minLon = lon - span, maxLon = lon + span;
+  var minLat = lat - span, maxLat = lat + span;
+  return 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi'
+    + '?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
+    + '&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor'
+    + '&TIME=' + dateStr
+    + '&BBOX=' + minLon + ',' + minLat + ',' + maxLon + ',' + maxLat
+    + '&SRS=EPSG:4326&WIDTH=' + w + '&HEIGHT=' + h + '&FORMAT=image/jpeg';
+}
+
+function showSatelliteEvidence(lat, lon, label) {
+  var modal = document.getElementById('satEvidenceModal');
+  var coordsEl = document.getElementById('satEvidenceCoords');
+  var loadingEl = document.getElementById('satEvidenceLoading');
+  var timestampEl = document.getElementById('satEvidenceTimestamp');
+  var mapEl = document.getElementById('satEvidenceMap');
+  if (!modal || !mapEl) return;
+
+  if (coordsEl) coordsEl.textContent = lat.toFixed(5) + ', ' + lon.toFixed(5);
+  if (loadingEl) loadingEl.style.display = 'flex';
+  if (timestampEl) timestampEl.textContent = '';
+  modal.style.display = 'flex';
+  if (satEvidenceMap) { satEvidenceMap.remove(); satEvidenceMap = null; }
+
+  // Dates to try: yesterday, 2d ago, 3d ago
+  var dates = [
+    { d: gibsEvidenceDate(1), lbl: 'Yesterday', hrs: 24 },
+    { d: gibsEvidenceDate(2), lbl: '2 days ago', hrs: 48 },
+    { d: gibsEvidenceDate(3), lbl: '3 days ago', hrs: 72 },
+  ];
+  var span = 0.25; // ~28km box
+
+  function tryDate(idx) {
+    if (idx >= dates.length) {
+      // All GIBS failed — show Esri fallback via Leaflet
+      if (loadingEl) loadingEl.style.display = 'none';
+      if (timestampEl) timestampEl.textContent = '\u26a0\ufe0f GIBS unavailable \u00b7 Esri reference imagery (not real-time)';
+      satEvidenceMap = L.map(mapEl, { center: [lat,lon], zoom: 13, zoomControl: true, attributionControl: true, dragging: true, scrollWheelZoom: true });
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri (fallback)', maxZoom: 19 }).addTo(satEvidenceMap);
+      addEvidenceMarkers(lat, lon);
+      return;
+    }
+    var url = gibsWmsUrl(lat, lon, dates[idx].d, span, 800, 800);
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      // GIBS returned a valid image — display it
+      if (loadingEl) loadingEl.style.display = 'none';
+      var dateText = '🛰️ NASA GIBS · Acquired: ' + dates[idx].d + ' (~' + dates[idx].hrs + 'h ago)';
+      if (timestampEl) timestampEl.textContent = dateText;
+      // Also update sidebar date info below the button
+      var dateInfo = document.getElementById('satEvidenceDateInfo');
+      if (dateInfo) dateInfo.textContent = '🛰️ Latest satellite: ' + dates[idx].d + ' (' + dates[idx].lbl + ')';
+      mapEl.innerHTML = '';
+      mapEl.style.background = '#0b1118';
+      mapEl.style.display = 'flex';
+      mapEl.style.alignItems = 'center';
+      mapEl.style.justifyContent = 'center';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
+      img.alt = 'GIBS Satellite Image — ' + dates[idx].d;
+      mapEl.appendChild(img);
+      // Add crosshair overlay
+      var crosshair = document.createElement('div');
+      crosshair.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:10;';
+      crosshair.innerHTML = '<div style="width:24px;height:24px;border:2px solid #ff382f;border-radius:50%;box-shadow:0 0 12px rgba(255,56,47,0.5);animation:satPulse 1.5s infinite;"></div><div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:rgba(14,20,28,0.9);border:1px solid #22d3ee;border-radius:4px;padding:2px 6px;color:#e2e8f0;font-size:9px;font-family:monospace;white-space:nowrap;">' + lat.toFixed(5) + ', ' + lon.toFixed(5) + '</div>';
+      mapEl.style.position = 'relative';
+      mapEl.appendChild(crosshair);
+    };
+    img.onerror = function() {
+      // This date failed, try next
+      tryDate(idx + 1);
+    };
+    img.src = url;
+  }
+
+  tryDate(0);
+}
+
+function addEvidenceMarkers(lat, lon) {
+  if (!satEvidenceMap) return;
+  var fireIcon = L.divIcon({ className: '', html: '<div style="width:22px;height:22px;background:#ff382f;border:3px solid #fff;border-radius:50%;box-shadow:0 0 18px rgba(255,56,47,0.7);animation:satPulse 1.5s infinite;"></div><style>@keyframes satPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}</style>', iconSize: [22,22], iconAnchor: [11,11] });
+  L.marker([lat, lon], { icon: fireIcon }).addTo(satEvidenceMap);
+}
+
+function closeSatelliteEvidence() {
+  var modal = document.getElementById('satEvidenceModal');
+  if (modal) modal.style.display = 'none';
+  if (satEvidenceMap) { satEvidenceMap.remove(); satEvidenceMap = null; }
+}
+
+function downloadSatelliteImage() {
+  var container = document.getElementById('satEvidenceMapContainer');
+  if (!container) return;
+  var btn = document.getElementById('satEvidenceDownload');
+  if (btn) { btn.textContent = '⏳ Capturing...'; btn.disabled = true; }
+
+  html2canvas(container, {
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#0b1118',
+    scale: 2,
+  }).then(function(canvas) {
+    var link = document.createElement('a');
+    link.download = 'AgniRakshak_Evidence_' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    if (btn) { btn.textContent = '✅ Downloaded!'; setTimeout(function() { btn.textContent = '⬇️ Download'; btn.disabled = false; }, 2000); }
+  }).catch(function(err) {
+    console.error('Download failed:', err);
+    if (btn) { btn.textContent = '❌ Failed'; setTimeout(function() { btn.textContent = '⬇️ Download'; btn.disabled = false; }, 2000); }
+  });
+}
+
+// Wire up modal close + download buttons
+document.addEventListener('DOMContentLoaded', function() {
+  var closeBtn = document.getElementById('satEvidenceClose');
+  var backdrop = document.getElementById('satEvidenceBackdrop');
+  var dlBtn = document.getElementById('satEvidenceDownload');
+  if (closeBtn) closeBtn.addEventListener('click', closeSatelliteEvidence);
+  if (backdrop) backdrop.addEventListener('click', closeSatelliteEvidence);
+  if (dlBtn) dlBtn.addEventListener('click', downloadSatelliteImage);
+});
+
+// ============================================================
 // INIT (original — preserved exactly)
 // ============================================================
 
@@ -511,6 +653,25 @@ async function init() {
     return true;
   });
 
+  // ==========================================================
+  // GEOGRAPHIC FILTER — remove grids in Nepal/China/Tibet
+  // Our bounding box (74.5-85E, 23.5-31.5N) spills into Nepal & Tibet.
+  // Keep only grids within India's approximate boundaries.
+  // ==========================================================
+  function isInIndia(lat, lon) {
+    // Tibet/China: everything above 30N is outside India in our study area
+    if (lat >= 30) return false;
+    // Nepal region: between 27N-30N, only Indian territory is west of ~80E
+    if (lat >= 27 && lon >= 80) return false;
+    // Far east: beyond 84.5E is Nepal/Bangladesh territory
+    if (lon >= 84.5) return false;
+    return true;
+  }
+  const beforeGeoFilter = gridData.length;
+  gridData = gridData.filter(row => isInIndia(row.latitude, row.longitude));
+  riskZoneData = riskZoneData.filter(row => isInIndia(row.latitude, row.longitude));
+  const removedByGeo = beforeGeoFilter - gridData.length;
+  if (removedByGeo > 0) console.log("Removed " + removedByGeo + " grids outside India (Nepal/China)");
   console.log("Original prediction rows:", originalCount);
   console.log("Actual FIRMS active grids:", gridData.length);
 
@@ -554,6 +715,9 @@ async function init() {
     row.total_detections = Number(row.total_detections) || 0;
     row.n_grids_merged = Number(row.n_grids_merged) || 1;
   });
+
+  // Filter fire sites outside India
+  fireSiteData = fireSiteData.filter(row => isInIndia(row.latitude, row.longitude));
 
   // ==========================================================
   // RENDER (original)
@@ -926,6 +1090,8 @@ function showSiteIntel(row) {
     <div class="intel-row"><span>Grid Cells Merged</span><strong>${row.n_grids_merged}</strong></div>
     ${row.risk_score ? `<div class="intel-row"><span>Risk Score</span><strong>${Number(row.risk_score).toFixed(1)}</strong></div>` : ""}
     <div class="intel-reason">${row.verification_reason || ""}</div>
+    <button class="sat-evidence-btn" onclick="showSatelliteEvidence(${Number(row.latitude)},${Number(row.longitude)},'${title}')">🛰️ Satellite Evidence</button>
+    <div id="satEvidenceDateInfo" style="font-size:9px;color:#64748b;margin-top:5px;text-align:center;"></div>
   `;
 }
 
@@ -1081,6 +1247,8 @@ function showRiskZoneIntel(zone) {
     <div class="intel-row"><span>Total Detections</span><strong>${num(zone.total_detections)}</strong></div>
     <div class="intel-row"><span>Avg FRP</span><strong>${zone.avg_frp != null ? Number(zone.avg_frp).toFixed(2) + " MW" : "—"}</strong></div>
     <div class="intel-row"><span>Grid Cells Merged</span><strong>${zone.n_grids_merged}</strong></div>
+    <button class="sat-evidence-btn" onclick="showSatelliteEvidence(${zLat},${zLon},'${zoneId}')">🛰️ Satellite Evidence</button>
+    <div id="satEvidenceDateInfo" style="font-size:9px;color:#64748b;margin-top:5px;text-align:center;"></div>
   `;
 }
 
@@ -1137,6 +1305,8 @@ function showGridIntel(row) {
     <div class="intel-row"><span>Detections (30d)</span><strong>${num(row.detections_30d)}</strong></div>
     <div class="intel-row"><span>Detections (90d)</span><strong>${num(row.detections_90d)}</strong></div>
     <div class="intel-reason">${reason}</div>
+    <button class="sat-evidence-btn" onclick="showSatelliteEvidence(${gLat},${gLon},'${row.display_site_name || row.grid_id}')">🛰️ Satellite Evidence</button>
+    <div id="satEvidenceDateInfo" style="font-size:9px;color:#64748b;margin-top:5px;text-align:center;"></div>
   `;
 }
 
@@ -1570,13 +1740,14 @@ function computeAlerts() {
   // === ENGINE ALERTS (from alert_engine.py) ===
   // These are real alerts generated by comparing NRT data
   // against the historical risk model.
+  var nowStr = new Date().toISOString().slice(0,19).replace('T',' ');
   const engineAlerts = (alertsData || []).map(a => ({
     alert: a.description || a.alert_type || "Unknown alert",
     grid: a.grid_id || "",
     type: FIRE_TYPE_LABELS[normalizeFireType(a.fire_type)] || a.fire_type || "",
     severity: (a.severity || "medium").toLowerCase(),
     status: a.status || "ACTIVE",
-    timestamp: a.timestamp || "",
+    timestamp: a.timestamp || nowStr,
     nrtFrp: a.nrt_max_frp || 0,
     histRisk: a.historical_risk_score || 0,
     latitude: a.latitude || 0,
@@ -1588,11 +1759,11 @@ function computeAlerts() {
   const derivedAlerts = [];
   gridData.forEach(r => {
     if (r.risk_level === "CRITICAL" && r.detections_30d > 5) {
-      derivedAlerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active", source: "derived" });
+      derivedAlerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active", timestamp: nowStr, source: "derived" });
     } else if (r.risk_level === "HIGH" && r.recurrence_ratio > 0.6) {
-      derivedAlerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active", source: "derived" });
+      derivedAlerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active", timestamp: nowStr, source: "derived" });
     } else if (r.risk_level === "HIGH" && r.detections_30d > r.detections_90d / 3) {
-      derivedAlerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring", source: "derived" });
+      derivedAlerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring", timestamp: nowStr, source: "derived" });
     }
   });
 
@@ -1617,7 +1788,7 @@ function renderAlertsTab() {
     <td style="font-size:10px;">${a.type}</td>
     <td><span class="alert-severity ${a.severity}">${a.severity.toUpperCase()}</span></td>
     <td style="color:#7890a8;font-size:10px;">${a.status}</td>
-    ${a.timestamp ? `<td style="font-family:monospace;font-size:9px;color:#64748b;">${a.timestamp}</td>` : ""}
+    <td style="font-family:monospace;font-size:9px;color:#64748b;">${a.timestamp || nowStr}</td>
   </tr>`).join("");
 
   // Filter
@@ -1784,7 +1955,7 @@ function buildReportHtml(type) {
   // ---- Executive summary ----
   const summaryP = incident
     ? `This incident report centers on <b>${esc(incident.display_site_name || incident.grid_id)}</b> (${Number(incident.latitude).toFixed(4)}, ${Number(incident.longitude).toFixed(4)}), the most severe active thermal site in the monitoring region. It carries a model risk score of <b>${Number(incident.risk_score).toFixed(1)}/100</b> (${repPill(incident.risk_level)}) and is classified as <b>${FIRE_TYPE_LABELS[normalizeFireType(incident.fire_type)] || "Unclassified"}</b>, with ${num(incident.detections_30d)} thermal detections in the last 30 days.`
-    : `This ${esc(meta.desc.toLowerCase())} covers ${num(activeGrids)} active 5 km grid cells across Delhi NCR + Uttar Pradesh. Since 2020, FIRMS recorded ${num(totalDetections)} thermal anomalies; ${num(riskDist.CRITICAL)} cells (${pctOf(riskDist.CRITICAL, activeGrids)}%) are rated <b>CRITICAL</b> and ${num(riskDist.HIGH)} (${pctOf(riskDist.HIGH, activeGrids)}%) <b>HIGH</b>. ${periodRows.length ? `${num(periodDetections)} detections fell inside the ${meta.lookbackDays}-day report window${changePct !== null ? ` — ${Math.abs(changePct)}% ${changePct >= 0 ? "higher" : "lower"} than the preceding window` : ""}.` : "No daily activity series is available for the report window."} ${alerts.length ? `${alerts.length} active alert${alerts.length > 1 ? "s" : ""}${criticalAlerts ? ` (including ${criticalAlerts} critical)` : ""} require attention.` : "No active alerts currently."}`;
+    : `This ${esc(meta.desc.toLowerCase())} covers ${num(activeGrids)} active 5 km grid cells across North India. Since 2020, FIRMS recorded ${num(totalDetections)} thermal anomalies; ${num(riskDist.CRITICAL)} cells (${pctOf(riskDist.CRITICAL, activeGrids)}%) are rated <b>CRITICAL</b> and ${num(riskDist.HIGH)} (${pctOf(riskDist.HIGH, activeGrids)}%) <b>HIGH</b>. ${periodRows.length ? `${num(periodDetections)} detections fell inside the ${meta.lookbackDays}-day report window${changePct !== null ? ` — ${Math.abs(changePct)}% ${changePct >= 0 ? "higher" : "lower"} than the preceding window` : ""}.` : "No daily activity series is available for the report window."} ${alerts.length ? `${alerts.length} active alert${alerts.length > 1 ? "s" : ""}${criticalAlerts ? ` (including ${criticalAlerts} critical)` : ""} require attention.` : "No active alerts currently."}`;
 
   // ---- Section: Incident deep-dive ----
   let incidentHtml = "";
@@ -1873,7 +2044,7 @@ function buildReportHtml(type) {
 
   // ---- Assemble ----
   const sections = [];
-  sections.push(`<div style="padding:14px 16px;background:linear-gradient(135deg,${meta.accent}26,transparent 70%);border-left:4px solid ${meta.accent};border-radius:8px;"><h1>🔥 ${esc(type)}</h1><div class="ar-sub">${esc(meta.desc)} — Region: Delhi NCR + Uttar Pradesh</div></div>`);
+  sections.push(`<div style="padding:14px 16px;background:linear-gradient(135deg,${meta.accent}26,transparent 70%);border-left:4px solid ${meta.accent};border-radius:8px;"><h1>🔥 ${esc(type)}</h1><div class="ar-sub">${esc(meta.desc)} — Region: North India</div></div>`);
   sections.push(`<div class="ar-meta"><span>Generated: <b>${esc(generatedAt)}</b></span><span>Report Type: <b>${esc(type)}</b></span><span>Data: <b>NASA FIRMS · ESA WorldCover · OSM</b></span>${nrtLatest ? `<span>Latest NRT pass: <b>${esc(nrtLatest)}</b></span>` : ""}<span>Model: <b>RandomForest risk score (0–100)</b></span></div>`);
   sections.push(`<h2>Key Indicators</h2><div class="ar-kpis">${kpiCard("Active Grid Cells", num(activeGrids), "5 km FIRMS cells")}${kpiCard("Total Detections", num(totalDetections), "2020 → present")}${kpiCard("Critical Cells", num(riskDist.CRITICAL), "risk score ≥ 75", "#ff382f")}${kpiCard("Active Alerts", num(alerts.length), `${criticalAlerts} critical`, "#ff6b1a")}${kpiCard("Live NRT Detections", num(nrtCount), nrtMaxFrp ? `max FRP ${Number(nrtMaxFrp).toFixed(1)} MW` : "no live pass", "#3b82f6")}${kpiCard("Avg FRP", `${Number(avgFrp).toFixed(2)} MW`, `max ${Number(maxFrp).toFixed(1)} MW`)}</div>`);
   sections.push(`<h2>Executive Summary</h2><p style="margin-top:8px;">${summaryP}</p>`);
@@ -2107,27 +2278,23 @@ function initNrtFetchButton() {
 
   btn.addEventListener("click", () => {
     btn.classList.add("fetching");
-    btn.textContent = "⏳ Running...";
+    btn.textContent = "⏳ Updating...";
     if (status) {
       status.style.display = "block";
-      status.textContent = "Run: python src/fetch_nrt.py && python src/alert_engine.py";
+      status.textContent = "Fetching recent FIRMS data, updating grids & alerts...";
       status.style.color = "#ffae42";
     }
 
-    // Signal parent Streamlit to trigger the hidden fetch button
-    window.parent.postMessage({ type: "thermoscope:fetchNrt" }, "*");
-
-    // Auto-reload after 5 seconds to pick up new data
-    setTimeout(() => {
-      btn.classList.remove("fetching");
-      btn.textContent = "🔄 Fetch Live Data";
-      if (status) {
-        status.textContent = "Refreshing...";
-        status.style.color = "#20e889";
-      }
-      // Reload the parent to pick up fresh CSV data
+    // Trigger auto_update.py via Streamlit query param
+    // This fetches new data, updates historical, recomputes grids, and refreshes
+    try {
+      var url = new URL(window.parent.location.href);
+      url.searchParams.set('refresh', '1');
+      window.parent.location.href = url.toString();
+    } catch(e) {
+      // Fallback: simple reload
       window.parent.location.reload();
-    }, 5000);
+    }
   });
 }
 
@@ -2186,6 +2353,8 @@ function showNrtIntel(det) {
     <div class="intel-row"><span>Longitude</span><strong>${lon.toFixed(6)}</strong></div>
     ${gridId ? `<div class="intel-row"><span>Grid Cell</span><strong style="font-family:monospace;font-size:11px;">${gridId}</strong></div>` : ""}
     ${ftReason ? `<div class="intel-reason" style="margin-top:8px;">${ftReason}</div>` : ""}
+    <button class="sat-evidence-btn" onclick="showSatelliteEvidence(${lat},${lon},'NRT Detection')">🛰️ Satellite Evidence</button>
+    <div id="satEvidenceDateInfo" style="font-size:9px;color:#64748b;margin-top:5px;text-align:center;"></div>
   `;
 }
 
@@ -2665,7 +2834,7 @@ const GEO_KNOWLEDGE = {
     forest_fire_india: "India loses ~35,000 hectares of forest annually to fires. Uttarakhand, MP, Chhattisgarh are worst affected.",
     coal_mine_fires: "Jharia coal mine fires in Jharkhand have been burning for 100+ years. 70+ fires active.",
     industrial_india: "India has 200+ critically polluted industrial clusters identified by CPCB.",
-    satellite_coverage: "Thermoscope monitors Delhi NCR + UP using VIIRS satellites (S-NPP, NOAA-20, NOAA-21) with 375m resolution.",
+    satellite_coverage: "Thermoscope monitors North India using VIIRS satellites (S-NPP, NOAA-20, NOAA-21) with 375m resolution.",
   }
 };
 
@@ -3014,7 +3183,7 @@ function generateAboutResponse() {
   text += `• 📊 Historical data (2020-present) se patterns analyze karta hai\n`;
   text += `• 🗺️ Regional risk zones map pe dikhata hai\n`;
   text += `• 📡 Live NRT (Near Real-Time) monitoring karta hai\n\n`;
-  text += `<strong>Coverage:</strong> Delhi NCR + Uttar Pradesh + surrounding states\n`;
+  text += `<strong>Coverage:</strong> North India + surrounding states\n`;
   text += `<strong>Data:</strong> ${gridData.length.toLocaleString("en-IN")} grid cells | ${gridData.reduce((s,r) => s + (Number(r.total_detections)||0), 0).toLocaleString("en-IN")} total FIRMS detections\n\n`;
   text += `<em>Main aapke har sawaal ka jawab de sakta hoon — fire, risk, safety, geography, kuch bhi puchho!</em>`;
   return text.replace(/\n/g, "<br>");
@@ -3053,12 +3222,12 @@ function generateGeoResponse(query) {
     text += `Major Districts: ${foundState.majorDistricts.join(", ")}\n\n`;
     text += `🔥 <strong>Fire Situation:</strong>\n${foundState.fireNote}\n\n`;
     // Count fires in this state's approximate lat/lon range
-    text += `📊 Thermoscope monitoring: Delhi NCR + UP region covers parts of this state.`;
+    text += `📊 Thermoscope monitoring: North India region covers parts of this state.`;
     return text.replace(/\n/g, "<br>");
   }
   // General geography question
   let text = `🌍 <strong>Geographic Fire Information</strong>\n\n`;
-  text += `Thermoscope Delhi NCR + UP region monitor karta hai. Yahan major fire-prone states hain:\n\n`;
+  text += `Thermoscope North India region monitor karta hai. Yahan major fire-prone states hain:\n\n`;
   text += `• 🌾 <strong>Punjab/Haryana</strong> — Stubble burning (Oct-Nov)\n`;
   text += `• 🏭 <strong>UP (Kanpur, Varanasi)</strong> — Industrial emissions\n`;
   text += `• 🌲 <strong>Uttarakhand/HP</strong> — Forest fires (Mar-Jun)\n`;
@@ -3104,7 +3273,7 @@ function generateAboutSatelliteResponse() {
   text += `• Live monitoring: Last 24-48 hours NRT<br>`;
   text += `• Grid system: 0.05° cells (~5km) for spatial analysis<br>`;
   text += `• ML model: Random Forest for risk prediction<br><br>`;
-  text += `<em>3 satellites milke poore Delhi NCR + UP cover karte hain!</em>`;
+  text += `<em>3 satellites milke poore North India cover karte hain!</em>`;
   return text;
 }
 
@@ -3641,9 +3810,249 @@ function selectFireForChat(fireData) {
   }, 500);
 }
 
+// FORECAST TAB RENDERING
+
+function renderForecastTab() {
+  console.log("renderForecastTab called");
+  // Try main data first, then separate _FC_DATA variable
+  var fd = (window.THERMOSCOPE_DATA && window.THERMOSCOPE_DATA.forecastData && Object.keys(window.THERMOSCOPE_DATA.forecastData).length > 0)
+    ? window.THERMOSCOPE_DATA.forecastData
+    : (window._FC_DATA && Object.keys(window._FC_DATA).length > 0) ? window._FC_DATA : null;
+  console.log("forecastData source:", fd ? "FOUND" : "MISSING");
+  if (!fd || !fd.summary) { console.warn("Forecast data not loaded yet, retrying..."); setTimeout(renderForecastTab, 300); return; }
+  var s = fd.summary; var ri = s.readiness_index;
+  var se = document.getElementById('readinessScore');
+  var le = document.getElementById('readinessLevel');
+  var fe = document.getElementById('readinessFill');
+  if(se){se.textContent=ri.score;se.style.color=ri.color;}
+  if(le){le.textContent=ri.level;le.style.color=ri.color;}
+  if(fe){fe.style.width=ri.score+'%';fe.style.background=ri.color;}
+  fcS('fcCurrentYear',s.current_total_detections.toLocaleString('en-IN'));
+  fcS('fcCurrentDet',s.current_year+' detections (partial)');
+  fcS('fcPredicted',s.predicted_total_detections.toLocaleString('en-IN'));
+  fcS('fcPredictedDet',s.next_year+' predicted');
+  var te={GROWING:'📈',STABLE:'➡️',DECLINING:'📉'};
+  fcS('fcTrend',(te[s.trend]||'')+' '+s.trend);
+  fcS('fcTrendPct',(s.trend_pct>0?'+':'')+s.trend_pct+'% YoY');
+  fcML('peakMonthsList',s.peak_months,true); fcML('lowMonthsList',s.low_months,false);
+  fcBarChart(fd.monthly_patterns); fcHeat(fd.monthly_heatmap); fcTrend(fd.yearly_trend);
+  fcSeason(fd.seasonal_by_year); fcGrid(fd.grid_forecasts);
+  fcRenderTypeSection(fd); fcRenderTypeBarChart(fd);
+  fcRenderDistricts(fd); fcRenderAlerts(fd);
+}
+function fcS(id,t){var e=document.getElementById(id);if(e)e.textContent=t;}
+function fcML(cid,months,isPeak){
+  var el=document.getElementById(cid);if(!el||!months)return;
+  el.innerHTML=months.map(function(m,i){
+    var bg=isPeak?'rgba(255,'+(73-i*20)+','+(61-i*20)+',0.15)':'rgba(32,232,137,0.12)';
+    var tc=isPeak?'#ff6b5e':'#20e889';var ic=isPeak?'🔥':'🌿';
+    return'<div class=forecast-month-item><span class=forecast-month-name>'+ic+' '+m.month+'</span><span class=forecast-month-intensity style=background:'+bg+';color:'+tc+';>'+m.intensity+'%</span></div>';
+  }).join('');
+}
+function fcBarChart(p) {
+  var el=document.getElementById('chartForecastMonthly');if(!el||!p)return;
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var mx=Math.max.apply(null,p.map(function(x){return x.intensity_pct;}));
+  var h='<div class="fc-bars"><div class="fc-bars-axis">';
+  for(var i=4;i>=0;i--){h+='<span>'+Math.round(mx*i/4)+'%</span>';}
+  h+='</div><div class="fc-bars-body"><div class="fc-bars-grid">';
+  for(var i=0;i<4;i++){h+='<div class="fc-bars-gridline"></div>';}
+  h+='</div>';
+  p.forEach(function(v,i){
+    var pct=(v.intensity_pct/mx)*100;
+    var c=v.intensity_pct>50?'#ff493d':v.intensity_pct>20?'#ffae42':'#20e889';
+    h+='<div class="fc-bar-col"><div class="fc-bar-val">'+Math.round(v.intensity_pct)+'%</div>';
+    h+='<div class="fc-bar-track"><div class="fc-bar-fill" style="height:'+pct+'%;background:'+c+'"></div></div>';
+    h+='<div class="fc-bar-month">'+mo[i]+'</div>';
+    h+='<div class="fc-bar-avg">'+Math.round(v.avg_detections).toLocaleString('en-IN')+'</div></div>';
+  });
+  h+='</div></div>';el.innerHTML=h;
+}
+function fcHeat(hm) {
+  var el=document.getElementById('forecastHeatmap');if(!el||!hm)return;
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var h='<table class=forecast-heatmap><thead><tr><th></th>';mo.forEach(function(m){h+='<th>'+m+'</th>';});h+='</tr></thead><tbody>';
+  hm.forEach(function(r){h+='<tr><td class=year-label>'+r.year+'</td>';
+    for(var m=1;m<=12;m++){var v=r[String(m)]||0;var raw=r['raw_'+m]||0;var pct=Math.round(v);
+      var cr=Math.round(255*v/100);var cg=Math.round(100*(1-v/100));var cb=Math.round(60*(1-v/100));
+      var bg='rgba('+cr+','+cg+','+cb+','+(0.15+v/100*0.6)+')';var fg=v>50?'#fff':'var(--text-secondary)';
+      h+='<td style=background:'+bg+';color:'+fg+'; title='+mo[m-1]+' '+r.year+': '+raw.toLocaleString('en-IN')+'>'+pct+'</td>';}
+    h+='</tr>';});h+='</tbody></table>';el.innerHTML=h;
+}
+function fcTrend(tr) {
+  var el=document.getElementById('chartForecastTrend');if(!el||!tr||!tr.years||!tr.years.length)return;
+  var yrs=tr.years;
+  var mx=Math.max.apply(null,yrs.map(function(y){return y.detections;}));
+  var tc={GROWING:'#ff382f',STABLE:'#20e889',DECLINING:'#22d3ee'};
+  var h='<div class="fc-trend">';
+  h+='<div class="fc-trend-label" style="color:'+(tc[tr.trend]||'#94a3b8')+'">'+tr.trend+': '+(tr.slope>0?'+':'')+Math.round(tr.slope).toLocaleString('en-IN')+'/yr</div>';
+  h+='<div class="fc-trend-chart">';
+  for(var i=0;i<4;i++){h+='<div class="fc-trend-gridline"><span>'+Math.round(mx*(3-i)/3).toLocaleString('en-IN')+'</span></div>';}
+  h+='<svg class="fc-trend-svg" preserveAspectRatio="none" viewBox="0 0 100 100">';
+  h+='<defs><linearGradient id="trendAreaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff493d" stop-opacity="0.3"/><stop offset="100%" stop-color="#ff493d" stop-opacity="0"/></linearGradient></defs>';
+  var pts=yrs.map(function(yr,idx){return{pct:yr.detections/mx*100,year:yr.year,det:yr.detections,idx:idx};});
+  h+='<polygon points="0,100 '+pts.map(function(p){return p.idx/(pts.length-1)*100+','+(100-p.pct);}).join(' ')+' 100,100" fill="url(#trendAreaGrad)"/>';
+  h+='<polyline points="'+pts.map(function(p){return p.idx/(pts.length-1)*100+','+(100-p.pct);}).join(' ')+'" fill="none" stroke="#ff493d" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';
+  pts.forEach(function(p){h+='<circle cx="'+(p.idx/(pts.length-1)*100)+'" cy="'+(100-p.pct)+'" r="1.5" fill="#ff493d" stroke="#0e141c" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
+  h+='</svg>';
+  h+='<div class="fc-trend-labels">';
+  pts.forEach(function(p){h+='<div class="fc-trend-point"><div class="fc-trend-val">'+p.det.toLocaleString('en-IN')+'</div><div class="fc-trend-yr">'+p.year+'</div></div>';});
+  h+='</div></div></div>';el.innerHTML=h;
+}
+function fcSeason(sd) {
+  var el=document.getElementById('chartSeasonalStack');var lg=document.getElementById('legendSeasonal');
+  if(!el||!sd)return;
+  var yrs=Object.keys(sd).sort();var sn=['pre_monsoon','monsoon','post_monsoon','winter'];
+  var sc={pre_monsoon:'#ff493d',monsoon:'#22d3ee',post_monsoon:'#ffae42',winter:'#a855f7'};
+  var sl={pre_monsoon:'Pre-Monsoon',monsoon:'Monsoon',post_monsoon:'Post-Monsoon',winter:'Winter'};
+  var mT=0;
+  yrs.forEach(function(y){var t=sn.reduce(function(s,k){return s+(sd[y][k]||0);},0);if(t>mT)mT=t;});
+  var h='<div class="fc-seasonal"><div class="fc-seasonal-labels">';
+  for(var i=3;i>=0;i--){h+='<span>'+Math.round(mT*i/3).toLocaleString('en-IN')+'</span>';}
+  h+='</div><div class="fc-seasonal-body">';
+  yrs.forEach(function(y){
+    h+='<div class="fc-season-col"><div class="fc-season-stack">';
+    sn.forEach(function(k){var v=sd[y][k]||0;var pct=(v/mT)*100;h+='<div class="fc-season-seg" style="height:'+pct+'%;background:'+sc[k]+'" title="'+sl[k]+': '+v.toLocaleString('en-IN')+'"></div>';});
+    h+='</div><div class="fc-season-yr">'+y+'</div></div>';
+  });
+  h+='</div></div>';el.innerHTML=h;
+  if(lg)lg.innerHTML=sn.map(function(k){return'<span class="chart-legend-item"><span class="chart-legend-dot" style="background:'+sc[k]+'"></span>'+sl[k]+'</span>';}).join('');
+}
+function fcGrid(fcs) {
+  var tb=document.querySelector('#forecastGridTable tbody');if(!tb||!fcs)return;
+  var tc={INDUSTRIAL_PERSISTENT:'#a855f7',AGRICULTURAL_BURNING:'#ffd400',FOREST_WILDFIRE:'#22d3ee',MINING:'#f97316',UNKNOWN:'#5b6b7a'};
+  var tl={INDUSTRIAL_PERSISTENT:'Industrial',AGRICULTURAL_BURNING:'Agricultural',FOREST_WILDFIRE:'Wildfire',MINING:'Mining',UNKNOWN:'Unclassified'};
+  tb.innerHTML=fcs.slice(0,20).map(function(f,i){
+    var c=tc[f.fire_type]||'#5b6b7a',lb=tl[f.fire_type]||f.fire_type,st=f.season_totals;
+    var rc=f.risk_score>80?'#ff382f':f.risk_score>50?'#ffae42':'#20e889';
+    return'<tr style=cursor:pointer onclick=flyToForecast('+f.lat+','+f.lon+')>'+
+    '<td style=font-weight:700>'+(i+1)+'</td>'+
+    '<td><code style=background:var(--bg-map);padding:2px 6px;border-radius:3px;font-size:10px>'+f.grid_id+'</code></td>'+
+    '<td style=font-weight:600>'+(f.site_name||f.grid_id)+'</td>'+
+    '<td><span style=background:'+c+'22;color:'+c+';padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700>'+lb+'</span></td>'+
+    '<td style=font-weight:700;font-family:monospace;color:'+rc+'>'+f.risk_score+'</td>'+
+    '<td style=font-weight:700>🔥 '+f.peak_month+'</td>'+
+    '<td style=font-family:monospace>'+st.pre_monsoon+'</td>'+
+    '<td style=font-family:monospace;color:#22d3ee>'+st.monsoon+'</td>'+
+    '<td style=font-family:monospace;color:#ffae42>'+st.post_monsoon+'</td>'+
+    '<td style=font-family:monospace;color:#a855f7>'+st.winter+'</td></tr>';
+  }).join('');
+}
+function flyToForecast(lat,lon){if(map)map.flyTo([lat,lon],12,{animate:true,duration:0.8});}
+
+
+// ============================================================
+// FORECAST: Fire Type Tabs + Readiness Cards
+// ============================================================
+function fcRenderTypeSection(fd) {
+  if (!fd || !fd.by_type) return;
+  var bt = fd.by_type;
+  var readiness = bt.readiness;
+  var typeTotals = bt.type_totals;
+  var tabs = document.getElementById('fcTypeTabs');
+  var cards = document.getElementById('fcTypeReadinessCards');
+  if (!tabs || !cards) return;
+  var typeKeys = Object.keys(readiness);
+  var typeLabels = {INDUSTRIAL_PERSISTENT:'\u{1F3ED} Industrial',AGRICULTURAL_BURNING:'\u{1F33E} Agricultural',FOREST_WILDFIRE:'\u{1F332} Forest',UNCLASSIFIED:'\u2753 Unclassified'};
+  var typeColors = {INDUSTRIAL_PERSISTENT:'#a855f7',AGRICULTURAL_BURNING:'#ffd400',FOREST_WILDFIRE:'#22d3ee',UNCLASSIFIED:'#5b6b7a'};
+  var h = '<button class="fc-type-tab active" data-type="all" onclick="fcFilterType(\'all\')">All Types</button>';
+  typeKeys.forEach(function(k){
+    h += '<button class="fc-type-tab" data-type="'+k+'" onclick="fcFilterType(\''+k+'\')">'+(typeLabels[k]||k)+'</button>';
+  });
+  tabs.innerHTML = h;
+  h = '';
+  typeKeys.forEach(function(k){
+    var r = readiness[k]; var tt = typeTotals[k] || {}; var label = typeLabels[k] || k;
+    h += '<div class="fc-type-card" data-type="'+k+'" style="border-left:4px solid '+r.color+'">';
+    h += '<div class="fc-type-card-header"><span class="fc-type-card-label">'+label+'</span>';
+    h += '<span class="fc-type-card-score" style="color:'+r.color+'">'+r.score+'</span></div>';
+    h += '<div class="fc-type-card-level" style="color:'+r.color+'">'+r.level+'</div>';
+    h += '<div class="fc-type-card-bar"><div class="fc-type-card-fill" style="width:'+r.score+'%;background:'+r.color+'"></div></div>';
+    h += '<div class="fc-type-card-stats">'+(tt.detections||0).toLocaleString('en-IN')+' detections \u00b7 '+(tt.grids||0)+' grids</div></div>';
+  });
+  cards.innerHTML = h;
+}
+function fcFilterType(type) {
+  document.querySelectorAll('.fc-type-tab').forEach(function(t){t.classList.toggle('active',t.dataset.type===type);});
+  document.querySelectorAll('.fc-type-card').forEach(function(c){c.style.display=(type==='all'||c.dataset.type===type)?'':'none';});
+}
+function fcRenderTypeBarChart(fd) {
+  var el=document.getElementById('fcTypeBarChart');if(!el||!fd||!fd.by_type)return;
+  var readiness=fd.by_type.readiness;
+  var typeLabels={INDUSTRIAL_PERSISTENT:'Industrial',AGRICULTURAL_BURNING:'Agricultural',FOREST_WILDFIRE:'Forest',UNCLASSIFIED:'Unclassified'};
+  var typeColors={INDUSTRIAL_PERSISTENT:'#a855f7',AGRICULTURAL_BURNING:'#ffd400',FOREST_WILDFIRE:'#22d3ee',UNCLASSIFIED:'#5b6b7a'};
+  var h='<div class="fc-bars"><div class="fc-bars-axis">';
+  for(var i=4;i>=0;i--){h+='<span>'+Math.round(100*i/4)+'%</span>';}
+  h+='</div><div class="fc-bars-body"><div class="fc-bars-grid">';
+  for(var i=0;i<4;i++){h+='<div class="fc-bars-gridline"></div>';}
+  h+='</div>';
+  Object.keys(readiness).forEach(function(k){
+    var r=readiness[k];var c=typeColors[k]||'#5b6b7a';
+    h+='<div class="fc-bar-col"><div class="fc-bar-val">'+r.score+'%</div>';
+    h+='<div class="fc-bar-track"><div class="fc-bar-fill" style="height:'+r.score+'%;background:'+c+'"></div></div>';
+    h+='<div class="fc-bar-month">'+(typeLabels[k]||k)+'</div>';
+    h+='<div class="fc-bar-avg">'+r.level+'</div></div>';
+  });
+  h+='</div></div>';el.innerHTML=h;
+}
+function fcRenderDistricts(fd) {
+  var el=document.getElementById('fcDistrictCards');if(!el||!fd||!fd.districts)return;
+  var typeColors={INDUSTRIAL_PERSISTENT:'#a855f7',AGRICULTURAL_BURNING:'#ffd400',FOREST_WILDFIRE:'#22d3ee',UNCLASSIFIED:'#5b6b7a'};
+  var typeShort={INDUSTRIAL_PERSISTENT:'Industrial',AGRICULTURAL_BURNING:'Agri',FOREST_WILDFIRE:'Forest',UNCLASSIFIED:'Unclass.'};
+  var h='';
+  fd.districts.forEach(function(d){
+    var r=d.readiness;var tc=typeColors[d.top_fire_type]||'#5b6b7a';var tl=typeShort[d.top_fire_type]||d.top_fire_type;
+    h+='<div class="fc-district-card" style="border-top:3px solid '+r.color+'">';
+    h+='<div class="fc-district-header"><div class="fc-district-name">'+d.district+'</div>';
+    h+='<div class="fc-district-state">'+d.state+'</div></div>';
+    h+='<div class="fc-district-score" style="color:'+r.color+'">'+r.score+'<span class="fc-district-score-label">'+r.level+'</span></div>';
+    h+='<div class="fc-district-bar"><div style="width:'+r.score+'%;background:'+r.color+'"></div></div>';
+    h+='<div class="fc-district-meta"><span>\u{1F4CA} '+d.n_grids+' grids</span>';
+    h+='<span>\u{1F525} '+d.total_detections.toLocaleString('en-IN')+' det.</span>';
+    h+='<span style="color:'+tc+'">'+tl+'</span></div>';
+    h+='<div class="fc-district-meta"><span>\u{1F4C5} Peak: '+d.peak_month+'</span>';
+    h+='<span>\u26A1 Avg Risk: '+d.avg_risk+'</span></div>';
+    if(d.fire_type_dist&&Object.keys(d.fire_type_dist).length>0){
+      var total=Object.values(d.fire_type_dist).reduce(function(a,b){return a+b;},0);
+      h+='<div class="fc-district-typebar">';
+      Object.keys(d.fire_type_dist).forEach(function(ft){
+        var pct=(d.fire_type_dist[ft]/total*100);var c=typeColors[ft]||'#5b6b7a';
+        if(pct>5)h+='<div style="width:'+pct+'%;background:'+c+'" title="'+ft+': '+d.fire_type_dist[ft]+'"></div>';
+      });
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+function fcRenderAlerts(fd) {
+  var el=document.getElementById('fcAlertEscalation');if(!el||!fd||!fd.escalation_alerts)return;
+  var alerts=fd.escalation_alerts;
+  if(alerts.length===0){el.innerHTML='<div style="text-align:center;color:var(--text-dim);padding:30px">\u2705 No threshold breaches detected.</div>';return;}
+  var critical=alerts.filter(function(a){return a.severity==='CRITICAL';}).length;
+  var high=alerts.filter(function(a){return a.severity==='HIGH';}).length;
+  var h='<div class="fc-alert-summary">';
+  if(critical>0)h+='<div class="fc-alert-count fc-alert-critical">\u{1F534} '+critical+' CRITICAL</div>';
+  if(high>0)h+='<div class="fc-alert-count fc-alert-high">\u{1F7E0} '+high+' HIGH</div>';
+  h+='<div class="fc-alert-count fc-alert-total">\u{1F4CB} '+alerts.length+' Total Alerts</div></div>';
+  alerts.forEach(function(a){
+    h+='<div class="fc-alert-card" style="border-left:4px solid '+a.color+'">';
+    h+='<div class="fc-alert-header"><span class="fc-alert-icon">'+a.icon+'</span>';
+    h+='<span class="fc-alert-title">'+a.title+'</span>';
+    h+='<span class="fc-alert-severity" style="background:'+a.color+'">'+a.severity+'</span></div>';
+    h+='<div class="fc-alert-desc">'+a.description+'</div>';
+    if(a.actions&&a.actions.length>0){h+='<div class="fc-alert-actions"><strong>Recommended Actions:</strong><ul>';a.actions.forEach(function(act){h+='<li>'+act+'</li>';});h+='</ul></div>';}
+    if(a.agencies&&a.agencies.length>0){h+='<div class="fc-alert-agencies">';a.agencies.forEach(function(ag){h+='<span class="fc-alert-agency">'+ag+'</span>';});h+='</div>';}
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
 // ============================================================
 // START (original)
 // ============================================================
 
 init();
 initChatbot();
+// Render forecast on load (after a small delay for DOM readiness)
+setTimeout(renderForecastTab, 500);
