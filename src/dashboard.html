@@ -346,13 +346,19 @@
     <div class="chart-card">
       <div class="chart-title">Generate Intelligence Report</div>
       <div style="padding:12px;">
-        <select id="reportType" class="side-block" style="width:100%;background:#101820;border:1px solid #202b38;color:#f2f5f8;padding:8px;border-radius:5px;font-size:12px;">
+        <label for="reportType" style="display:block;font-size:11px;color:#7890a8;margin-bottom:6px;letter-spacing:0.5px;">REPORT TYPE</label>
+        <select id="reportType" style="width:100%;background:#101820;border:1px solid #202b38;color:#f2f5f8;padding:8px;border-radius:5px;font-size:12px;">
           <option>Daily Report</option>
           <option>Weekly Report</option>
           <option>Monthly Report</option>
           <option>Incident Report</option>
         </select>
-        <button id="btnGenerateReport" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#ff382f,#ff6b1a);border:none;border-radius:6px;color:white;font-weight:bold;cursor:pointer;">Generate Report</button>
+        <button id="btnGenerateReport" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#ff382f,#ff6b1a);border:none;border-radius:6px;color:white;font-weight:bold;cursor:pointer;">⚡ Generate Report</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="btnPrintReport" disabled title="Print or save as PDF" style="flex:1;padding:8px;background:#101820;border:1px solid #2a3a4a;border-radius:6px;color:#e2e8f0;font-size:11px;font-weight:600;cursor:pointer;">🖨️ Print / PDF</button>
+          <button id="btnDownloadReport" disabled title="Download standalone HTML report" style="flex:1;padding:8px;background:#101820;border:1px solid #2a3a4a;border-radius:6px;color:#e2e8f0;font-size:11px;font-weight:600;cursor:pointer;">⬇️ Download</button>
+        </div>
+        <div class="hint" style="margin-top:8px;">Reports are generated live from the dashboard data. Print/PDF export uses a clean printable layout.</div>
       </div>
     </div>
     <div class="chart-card" style="flex:2;">
