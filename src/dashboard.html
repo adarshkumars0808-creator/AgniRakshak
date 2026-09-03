@@ -439,66 +439,58 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="script.js"></script>
 <script>
-// Keep chatbot fixed at viewport bottom-right despite iframe scrolling
+// AgniRakshak AI chatbot — always floats on screen.
+// The FAB + panel use pure position:fixed (see style.css), so they stay
+// anchored to the viewport bottom-right no matter how the dashboard
+// scrolls. Dragging the panel by its header moves it anywhere on screen
+// and remembers the position; no scroll math is needed here.
 (function() {
-  function fixChatbotPosition() {
-    var fab = document.getElementById('chatbotFab');
-    var panel = document.getElementById('chatbotPanel');
-    var scrollY = window.scrollY || document.documentElement.scrollTop;
-    var viewH = window.innerHeight;
-    if (fab) {
-      fab.style.position = 'absolute';
-      fab.style.top = (scrollY + viewH - 84) + 'px';
-      fab.style.right = '28px';
-      fab.style.left = 'auto';
-    }
-    if (panel && panel.style.display !== 'none' && !panel.dataset.dragging) {
-      panel.style.position = 'absolute';
-      panel.style.top = (scrollY + viewH - 616) + 'px';
-      panel.style.right = '28px';
-      panel.style.left = 'auto';
-    }
-  }
-  window.addEventListener('scroll', fixChatbotPosition, { passive: true });
-  window.addEventListener('resize', fixChatbotPosition);
-  setTimeout(fixChatbotPosition, 300);
-  setTimeout(fixChatbotPosition, 1000);
-
-  // DRAG FUNCTIONALITY — grab header to move chatbox anywhere
   var panel = document.getElementById('chatbotPanel');
   var header = panel ? panel.querySelector('.chatbot-header') : null;
-  if (header) {
-    var isDragging = false, startX, startY, origTop, origRight;
-    header.addEventListener('mousedown', function(e) {
-      if (e.target.closest('.chatbot-header-btn')) return; // don't drag on buttons
-      isDragging = true;
-      panel.dataset.dragging = '1';
-      var rect = panel.getBoundingClientRect();
-      startX = e.clientX;
-      startY = e.clientY;
-      origTop = rect.top;
-      origRight = window.innerWidth - rect.right;
-      panel.style.transition = 'none';
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', function(e) {
-      if (!isDragging) return;
-      var dx = e.clientX - startX;
-      var dy = e.clientY - startY;
-      var newTop = Math.max(0, Math.min(window.innerHeight - 60, origTop + dy));
-      var newRight = Math.max(0, Math.min(window.innerWidth - 100, origRight - dx));
-      panel.style.top = newTop + 'px';
-      panel.style.right = newRight + 'px';
-      panel.style.left = 'auto';
-      panel.style.bottom = 'auto';
-    });
-    document.addEventListener('mouseup', function() {
-      if (isDragging) {
-        isDragging = false;
-        panel.style.transition = '';
-      }
-    });
+  if (!panel || !header) return;
+
+  var isDragging = false, startX, startY, origBottom, origRight;
+
+  header.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.chatbot-header-btn')) return; // don't drag on buttons
+    isDragging = true;
+    panel.dataset.dragging = '1';
+    var rect = panel.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    origBottom = window.innerHeight - rect.bottom;
+    origRight = window.innerWidth - rect.right;
+    panel.style.transition = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    var dx = e.clientX - startX;
+    var dy = e.clientY - startY;
+    // Clamp so the panel always stays fully on screen (position:fixed).
+    // The limits account for the panel's own size so it can't be
+    // dragged past the edge of narrow viewports.
+    var panelW = panel.offsetWidth || 380;
+    var panelH = panel.offsetHeight || 520;
+    var maxRight = Math.max(8, window.innerWidth - panelW - 8);
+    var maxBottom = Math.max(8, window.innerHeight - panelH - 8);
+    var newRight = Math.max(8, Math.min(maxRight, origRight - dx));
+    var newBottom = Math.max(8, Math.min(maxBottom, origBottom - dy));
+    panel.style.right = newRight + 'px';
+    panel.style.bottom = newBottom + 'px';
+    panel.style.top = 'auto';
+    panel.style.left = 'auto';
+  });
+
+  function stopDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    delete panel.dataset.dragging;
+    panel.style.transition = '';
   }
+  document.addEventListener('mouseup', stopDrag);
+  window.addEventListener('blur', stopDrag); // safety if released outside the window
 })();
 </script>
 
