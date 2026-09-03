@@ -1096,6 +1096,63 @@ st.markdown(
         div[data-testid="stStatusWidget"] {display: none;}
         section[data-testid="stSidebar"] {display: none;}
     </style>
+    <script>
+    // Kill ONLY the outer Streamlit scrollbar, not the inner iframe content
+    (function() {
+      function killOuterScroll() {
+        // Target ONLY Streamlit wrapper elements — NOT body/html, NOT iframe contents
+        var targets = [
+          document.querySelector('[data-testid="stApp"]'),
+          document.querySelector('.main .block-container'),
+          document.querySelector('section.main'),
+          document.querySelector('[data-testid="stAppViewContainer"]')
+        ];
+        targets.forEach(function(el) {
+          if (!el) return;
+          el.style.overflow = 'hidden';
+          el.style.height = '100vh';
+          el.style.maxHeight = '100vh';
+        });
+        // Targeted scrollbar kill — only Streamlit containers, NOT * wildcard
+        var css = document.getElementById('kill-outer-scroll');
+        if (!css) {
+          css = document.createElement('style');
+          css.id = 'kill-outer-scroll';
+          css.textContent = '
+            [data-testid="stApp"]::-webkit-scrollbar, 
+            [data-testid="stApp"] > div::-webkit-scrollbar,
+            .main .block-container::-webkit-scrollbar,
+            section.main::-webkit-scrollbar,
+            [data-testid="stAppViewContainer"]::-webkit-scrollbar {
+              display: none !important; 
+              width: 0 !important; 
+              height: 0 !important;
+            }
+            [data-testid="stApp"], 
+            [data-testid="stApp"] > div,
+            .main .block-container,
+            section.main,
+            [data-testid="stAppViewContainer"] {
+              scrollbar-width: none !important;
+              -ms-overflow-style: none !important;
+            }
+          ';
+          document.head.appendChild(css);
+        }
+      }
+      killOuterScroll();
+      setTimeout(killOuterScroll, 500);
+      setTimeout(killOuterScroll, 1500);
+      setTimeout(killOuterScroll, 3000);
+      var observer = new MutationObserver(function() {
+        var app = document.querySelector('[data-testid="stApp"]');
+        if (app && app.scrollHeight > app.clientHeight + 50) {
+          killOuterScroll();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
     """,
     unsafe_allow_html=True,
 )
@@ -1127,6 +1184,7 @@ if not risk_zones_df.empty:
 
 credits_html = "<br>".join(credits_lines)
 dashboard_html = dashboard_html.replace("{{CREDITS}}", credits_html)
+
 
 
 # ============================================================

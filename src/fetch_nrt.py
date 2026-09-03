@@ -280,6 +280,131 @@ def assign_grid_cells(df, grid_size=0.05):
 
 
 # ============================================================
+# FIRE TYPE CLASSIFICATION FOR NRT
+# ============================================================
+
+FIRE_TYPE_FILE = OUTPUT_DIR / "fire_type_predictions.csv"
+
+
+def classify_nrt_fire_type(df):
+    """
+    Classify each NRT detection's fire type by:
+    1. Looking up grid_id in historical fire_type_predictions.csv
+    2. Falling back to heuristics (month + FRP) if no match
+    """
+
+    # Load historical fire type classifications
+    ft_lookup = {}
+    if FIRE_TYPE_FILE.exists():
+        try:
+            ft_df = pd.read_csv(
+                FIRE_TYPE_FILE,
+                usecols=[
+                    "grid_id", "fire_type",
+                    "fire_type_confidence",
+                ],
+                low_memory=False,
+            )
+            for _, row in ft_df.iterrows():
+                gid = str(row["grid_id"]).strip()
+                if gid:
+                    ft_lookup[gid] = {
+                        "fire_type": str(
+                            row.get(
+                                "fire_type",
+                                "UNCLASSIFIED"
+                            )
+                        ).upper().strip(),
+                        "fire_type_confidence": float(
+                            row.get(
+                                "fire_type_confidence", 0
+                            )
+                        ),
+                    }
+            print(
+                f"  Loaded {len(ft_lookup):,} "
+                f"historical fire type mappings"
+            )
+        except Exception as exc:
+            print(f"  [WARN] Could not load fire types: {exc}")
+
+    # Classify each detection
+    fire_types = []
+    fire_confidences = []
+    fire_reasons = []
+
+    for _, row in df.iterrows():
+        gid = str(row.get("grid_id", "")).strip()
+        frp = float(row.get("frp", 0) or 0)
+        acq_date = row.get("acq_date")
+
+        # Try historical lookup first
+        if gid in ft_lookup:
+            info = ft_lookup[gid]
+            fire_types.append(info["fire_type"])
+            fire_confidences.append(
+                info["fire_type_confidence"]
+            )
+            fire_reasons.append(
+                f"Matched historical grid {gid}"
+            )
+            continue
+
+        # Heuristic fallback based on month + FRP
+        month = None
+        if (
+            hasattr(acq_date, "month")
+            and acq_date is not None
+        ):
+            month = acq_date.month
+
+        # Industrial: very high FRP (>80 MW)
+        if frp >= 80:
+            fire_types.append("INDUSTRIAL_PERSISTENT")
+            fire_confidences.append(0.45)
+            fire_reasons.append(
+                f"High FRP ({frp:.0f} MW) — likely "
+                f"industrial source"
+            )
+            continue
+
+        # Agricultural: stubble burning months
+        # (Apr-May, Oct-Nov) with moderate FRP
+        if month in [4, 5, 10, 11] and frp >= 10:
+            fire_types.append("AGRICULTURAL_BURNING")
+            fire_confidences.append(0.40)
+            fire_reasons.append(
+                f"Detected in month {month} "
+                f"(stubble season), FRP {frp:.0f} MW"
+            )
+            continue
+
+        # Forest: dry season months
+        # (Mar-Jun) with low-medium FRP
+        if month in [3, 4, 5, 6] and frp < 80:
+            fire_types.append("FOREST_WILDFIRE")
+            fire_confidences.append(0.35)
+            fire_reasons.append(
+                f"Dry season month {month}, "
+                f"FRP {frp:.0f} MW"
+            )
+            continue
+
+        # Default
+        fire_types.append("UNCLASSIFIED")
+        fire_confidences.append(0.0)
+        fire_reasons.append(
+            "No historical match or heuristic rule"
+        )
+
+    df["fire_type"] = fire_types
+    df["fire_type_confidence"] = fire_confidences
+    df["fire_type_reason"] = fire_reasons
+
+    return df
+
+
+# ============================================================
 # MAIN FETCH + SAVE
 # ============================================================
 
@@ -321,6 +446,9 @@ def fetch_and_save():
     # Standardize
     merged = standardize_nrt(merged)
     merged = assign_grid_cells(merged)
+
+    # Classify fire type for each detection
+    merged = classify_nrt_fire_type(merged)
 
     # Remove invalid
     merged = merged.dropna(
@@ -386,6 +514,15 @@ def fetch_and_save():
         print("Sensor distribution:")
         print(
             merged["sensor"]
+            .value_counts()
+            .to_string()
+        )
+
+    if "fire_type" in merged.columns:
+        print()
+        print("Fire type distribution:")
+        print(
+            merged["fire_type"]
             .value_counts()
             .to_string()
         )
