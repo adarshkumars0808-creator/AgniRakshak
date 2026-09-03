@@ -26,6 +26,13 @@ function toggleTheme() {
 function updateThemeIcon(theme) {
   const btn = document.getElementById('themeToggle');
   if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+  // Intro screen theme button (SVG icon)
+  const introBtn = document.getElementById('introThemeToggle');
+  if (introBtn) {
+    introBtn.innerHTML = theme === 'dark'
+      ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7"/></svg>';
+  }
 }
 
 // Initialize theme immediately (before DOM ready)
@@ -207,6 +214,182 @@ function initTabs() {
 }
 
 // ============================================================
+// INTRO / LANDING SCREEN (premium load page)
+// ============================================================
+
+function populateIntroMetrics() {
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  const totalDetections = gridData.reduce((sum, row) => sum + (row.total_detections || 0), 0);
+  const activeCells = gridData.length;
+  const highCrit = gridData.filter(row => row.risk_level === "CRITICAL" || row.risk_level === "HIGH");
+  const criticalCells = gridData.filter(row => row.risk_level === "CRITICAL").length;
+
+  set("introMetric1", totalDetections.toLocaleString("en-IN"));
+  set("introMetric2", activeCells.toLocaleString("en-IN"));
+  set("introMetric3", highCrit.length.toLocaleString("en-IN"));
+  set("introMetric4", criticalCells.toLocaleString("en-IN"));
+
+  // Trend deltas — last 30 days vs previous 30 days, from real daily activity.
+  // Negative = activity is falling (good for fire risk) → shown in green.
+  const sorted = dailyData
+    .map(r => ({ date: String(r.date || ""), detections: Number(r.detections) || 0, avgFrp: Number(r.avg_frp) || 0 }))
+    .filter(r => r.date)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const trendPct = (pick) => {
+    const n = sorted.length;
+    if (n < 40) return null;
+    let cur = 0, prev = 0;
+    for (let i = n - 30; i < n; i++) cur += pick(sorted[i]);
+    for (let i = n - 60; i < n - 30; i++) prev += pick(sorted[i]);
+    if (!prev) return null;
+    return Math.round(((cur - prev) / prev) * 100);
+  };
+
+  const detTrend = trendPct(r => r.detections);
+  const frpTrend = trendPct(r => r.detections * r.avgFrp); // total fire intensity
+  const nrtLive = nrtData.length;
+
+  const fmtTrend = (el, val) => {
+    if (!el) return;
+    if (val === null) { el.textContent = "—"; el.className = "intro-metric-delta"; return; }
+    el.textContent = (val >= 0 ? "+" : "−") + Math.abs(val) + "%";
+    el.className = "intro-metric-delta " + (val >= 0 ? "up" : "down");
+  };
+
+  fmtTrend(document.getElementById("introMetric1Delta"), detTrend);
+  const delta2 = document.getElementById("introMetric2Delta");
+  if (delta2) {
+    delta2.textContent = nrtLive ? nrtLive + " live now" : "—";
+    delta2.className = "intro-metric-delta";
+  }
+  fmtTrend(document.getElementById("introMetric3Delta"), frpTrend);
+}
+
+const TRANSITION_DURATION_MS = 2400;
+let introTransitionActive = false;
+
+function resetTransitionSteps() {
+  document.querySelectorAll("#transitionSteps .transition-step").forEach(s => {
+    s.classList.remove("active", "done");
+  });
+}
+
+function updateTransitionSteps(pct) {
+  const steps = document.querySelectorAll("#transitionSteps .transition-step");
+  const n = steps.length;
+  steps.forEach((s, i) => {
+    const activeStart = (i / n) * 100;
+    const completeAt = ((i + 1) / n) * 100;
+    s.classList.toggle("active", pct >= activeStart && pct < completeAt);
+    s.classList.toggle("done", pct >= completeAt);
+  });
+}
+
+function enterDashboard(tab) {
+  if (introTransitionActive) return; // guard against double clicks
+  introTransitionActive = true;
+
+  if (!tab) tab = "overview";
+
+  // 1. Hide the intro instantly — the opaque overlay covers everything
+  const intro = document.getElementById("introScreen");
+  if (intro) {
+    intro.classList.add("hidden");
+    intro.style.display = "none";
+  }
+
+  // 2. Show the overlay IMMEDIATELY (no fade-in) so the dashboard never
+  //    flashes — it is fully opaque from the very first frame.
+  const overlay = document.getElementById("transitionOverlay");
+  const fill = document.getElementById("transitionBarFill");
+  const pctEl = document.getElementById("transitionPct");
+  if (!overlay || !fill) { introTransitionActive = false; return; }
+  resetTransitionSteps();
+  fill.style.width = "0%";
+  if (pctEl) pctEl.textContent = "0%";
+  overlay.classList.remove("done");
+  overlay.style.display = "flex";
+  overlay.classList.add("show");
+
+  // 3. Switch to the target tab underneath (hidden behind the opaque
+  //    overlay), so the dashboard is fully rendered by reveal time.
+  const tabBtn = document.querySelector('.nav-tab[data-tab="' + tab + '"]');
+  if (tabBtn) {
+    tabBtn.click(); // reuses initTabs() logic (map resize, chart render, etc.)
+  } else {
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    const panel = document.getElementById("panel-" + tab);
+    if (panel) panel.classList.add("active");
+  }
+
+  // 4. Animate the progress bar (ease-out) + live % counter + checklist
+  const start = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - start) / TRANSITION_DURATION_MS);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const pct = Math.round(eased * 100);
+    fill.style.width = pct + "%";
+    if (pctEl) pctEl.textContent = pct + "%";
+    updateTransitionSteps(pct);
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      finishTransition(overlay);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function finishTransition(overlay) {
+  // Reveal: lift the active panel into place as the overlay fades out
+  const active = document.querySelector(".tab-panel.active");
+  if (active) {
+    active.classList.remove("panel-enter");
+    void active.offsetWidth; // restart the animation
+    active.classList.add("panel-enter");
+  }
+  overlay.classList.add("done");
+  setTimeout(() => {
+    overlay.style.display = "none";
+    introTransitionActive = false;
+    window.scrollTo(0, 0);
+  }, 500);
+}
+
+function scrollIntroTo(id) {
+  const intro = document.getElementById("introScreen");
+  const target = document.getElementById(id);
+  if (!intro || !target) return;
+  intro.scrollTo({ top: target.offsetTop - 12, behavior: "smooth" });
+}
+
+function initIntro() {
+  const open = document.getElementById("introOpenDashboard");
+  if (open) open.addEventListener("click", () => enterDashboard("overview"));
+  const start = document.getElementById("introGetStarted");
+  if (start) start.addEventListener("click", () => enterDashboard("overview"));
+  const learn = document.getElementById("introLearnMore");
+  if (learn) learn.addEventListener("click", () => scrollIntroTo("introFeatures"));
+  document.querySelectorAll("[data-intro-link]").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (link.dataset.introLink === "overview") {
+        scrollIntroTo("introFeatures");
+      } else {
+        enterDashboard(link.dataset.introLink);
+      }
+    });
+  });
+  const introTheme = document.getElementById("introThemeToggle");
+  if (introTheme) introTheme.addEventListener("click", toggleTheme);
+}
+
+// ============================================================
 // INIT (original — preserved exactly)
 // ============================================================
 
@@ -272,6 +455,13 @@ async function init() {
           "data/processed/risk_zones.csv",
         ]);
       } catch (error) { console.warn("risk_zones.csv unavailable.", error); riskZoneData = []; }
+
+      try {
+        nrtData = await loadCSVWithFallback([
+          "../data/processed/nrt_detections.csv",
+          "data/processed/nrt_detections.csv",
+        ]);
+      } catch (error) { console.warn("nrt_detections.csv unavailable.", error); nrtData = []; }
 
     } catch (error) {
       const element = document.getElementById("dataReadout");
@@ -396,6 +586,10 @@ async function init() {
 
   // Top 10 map markers (after map is initialized)
   renderTop10OnMap();
+
+  // Premium intro screen — live metrics + enter-dashboard wiring
+  populateIntroMetrics();
+  initIntro();
 }
 
 // ============================================================

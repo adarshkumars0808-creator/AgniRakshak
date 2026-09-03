@@ -12,6 +12,193 @@
 <body>
 
 <!-- ============================================================ -->
+<!-- PREMIUM INTRO / LANDING SCREEN (shows on load) -->
+<!-- ============================================================ -->
+<div id="introScreen" class="intro-screen" role="banner">
+  <div class="intro-glow" aria-hidden="true"></div>
+  <div class="intro-glow intro-glow-blue" aria-hidden="true"></div>
+
+  <!-- INTRO NAV -->
+  <nav class="intro-nav">
+    <div class="intro-brand">
+      <div class="intro-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+          <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="intro-brand-name">THERMOSCOPE</span>
+    </div>
+
+    <div class="intro-nav-links">
+      <a href="#" data-intro-link="overview">Features</a>
+      <a href="#" data-intro-link="about">About</a>
+    </div>
+
+    <div class="intro-nav-right">
+      <div class="intro-live-badge"><span class="intro-live-dot"></span> LIVE</div>
+      <button class="intro-theme-btn" id="introThemeToggle" title="Toggle Dark/Light Mode" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+      <button class="intro-cta-btn" id="introGetStarted">Get Started&nbsp;&rarr;</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="intro-hero">
+    <div class="intro-hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="4" width="19" height="16" rx="2.5"/>
+        <path d="M6.5 9.5l4 2.5-4 2.5"/>
+        <path d="M12.5 14.5h5"/>
+        <path d="M17 4.5l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" fill="#fdba74" stroke="none"/>
+      </svg>
+    </div>
+    <h1 class="intro-title">Delhi NCR <span class="intro-grad-text">Thermal Fire Risk</span><br/>Intelligence</h1>
+    <p class="intro-subtitle">Real-time satellite-based fire risk monitoring, anomaly detection, and predictive analytics powered by FIRMS satellite data across the Delhi National Capital Region.</p>
+    <div class="intro-actions">
+      <button class="intro-btn intro-btn-primary" id="introOpenDashboard">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.2"/>
+          <path d="M3 12h18M12 2.8c2.6 2.6 3.9 5.8 3.9 9.2s-1.3 6.6-3.9 9.2c-2.6-2.6-3.9-5.8-3.9-9.2S9.4 5.4 12 2.8z"/>
+        </svg>
+        Open Dashboard&nbsp;&rarr;
+      </button>
+      <button class="intro-btn intro-btn-secondary" id="introLearnMore">Learn More&nbsp;&rarr;</button>
+    </div>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="intro-metrics">
+    <div class="intro-metric-card">
+      <div class="intro-metric-value" id="introMetric1">—</div>
+      <div class="intro-metric-label">Total Detections</div>
+      <div class="intro-metric-delta" id="introMetric1Delta" title="Detection volume trend: last 30 days vs previous 30 days">…</div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-value" id="introMetric2">—</div>
+      <div class="intro-metric-label">Active Grid Cells</div>
+      <div class="intro-metric-delta" id="introMetric2Delta" title="Live satellite detections right now (NRT)">…</div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-value" id="introMetric3">—</div>
+      <div class="intro-metric-label">High Risk Zones</div>
+      <div class="intro-metric-delta" id="introMetric3Delta" title="Fire intensity trend (total FRP): last 30 days vs previous 30 days">…</div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-value" id="introMetric4">—</div>
+      <div class="intro-metric-label">Predicted (24h)</div>
+      <div class="intro-metric-delta" id="introMetric4Delta">Next 24h</div>
+    </div>
+  </div>
+
+  <!-- FEATURES SECTION -->
+  <section class="intro-section" id="introFeatures">
+    <div class="intro-section-label">CAPABILITIES</div>
+    <h2 class="intro-section-title">Built for <span class="intro-grad-text">real-time vigilance</span></h2>
+    <p class="intro-section-sub">From raw satellite pixels to verified, actionable fire-risk intelligence — the full pipeline runs automatically.</p>
+
+    <div class="intro-features-grid">
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">🛰️</div>
+        <div class="intro-feature-title">Live Satellite Monitoring</div>
+        <div class="intro-feature-text">Near-real-time NASA FIRMS thermal detections with 5-minute auto-refresh, severity classification, and pulsing live markers on the map.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">🧠</div>
+        <div class="intro-feature-title">ML Risk Scoring</div>
+        <div class="intro-feature-text">Random-Forest risk model ranks 26,000+ grid cells 0–100 using recurrence, persistence, FRP intensity, and multi-satellite agreement.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">🔥</div>
+        <div class="intro-feature-title">Fire-Type Classification</div>
+        <div class="intro-feature-text">Automatically labels sources as Industrial, Mining, Agricultural Burning, or Forest/Wildfire with confidence scores.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">✅</div>
+        <div class="intro-feature-title">Real-GIS Verification</div>
+        <div class="intro-feature-text">Every site is cross-checked against ESA WorldCover 10m land cover and OSM facility geolocation — kills ~92% of false labels.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">🚨</div>
+        <div class="intro-feature-title">Smart Alert Engine</div>
+        <div class="intro-feature-text">Four anomaly rules (new critical zones, escalation, persistence, elevated activity) with cooldown dedup so you never get spammed.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon">📊</div>
+        <div class="intro-feature-title">Intelligence Reports</div>
+        <div class="intro-feature-text">One-click daily, weekly, monthly, and incident reports — KPIs, trends, hot zones, and auto recommendations, exportable to PDF.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="intro-section" id="introHow">
+    <div class="intro-section-label">HOW IT WORKS</div>
+    <h2 class="intro-section-title">From satellite pixel to <span class="intro-grad-text">actionable risk</span></h2>
+
+    <div class="intro-steps">
+      <div class="intro-step">
+        <div class="intro-step-num">01</div>
+        <div class="intro-step-title">Ingest</div>
+        <div class="intro-step-text">Historical + live NASA FIRMS detections across Delhi NCR &amp; Uttar Pradesh, 2020 → present.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">02</div>
+        <div class="intro-step-title">Analyze</div>
+        <div class="intro-step-text">5km grid feature engineering — recurrence, persistence, seasonality, satellite agreement.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">03</div>
+        <div class="intro-step-title">Model</div>
+        <div class="intro-step-text">ML risk ranking 0–100, fire-type classification, and land-cover verification per site.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">04</div>
+        <div class="intro-step-title">Monitor</div>
+        <div class="intro-step-text">Live NRT layer, anomaly alert engine, and one-click intelligence reports.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA SOURCES -->
+  <section class="intro-section intro-sources">
+    <div class="intro-section-label">DATA SOURCES</div>
+    <div class="intro-source-row">
+      <div class="intro-source-item">
+        <div class="intro-source-name">NASA FIRMS</div>
+        <div class="intro-source-detail">VIIRS SNPP · NOAA-20 · NOAA-21 · MODIS</div>
+      </div>
+      <div class="intro-source-item">
+        <div class="intro-source-name">ESA WorldCover</div>
+        <div class="intro-source-detail">10m land-cover verification</div>
+      </div>
+      <div class="intro-source-item">
+        <div class="intro-source-name">OpenStreetMap</div>
+        <div class="intro-source-detail">Industrial &amp; facility geolocation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="intro-footer">
+    <div class="intro-footer-brand">
+      <div class="intro-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+          <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="intro-brand-name">THERMOSCOPE</span>
+    </div>
+    <div class="intro-footer-tag">AgniRakshak — AI-enabled fire risk intelligence &amp; satellite monitoring</div>
+    <div class="intro-footer-note">Risk scores are model-based rankings for early identification, not confirmed fire causes. Data: NASA FIRMS · ESA WorldCover · OpenStreetMap.</div>
+  </footer>
+</div>
+
+<!-- ============================================================ -->
 <!-- TOP NAVIGATION BAR -->
 <!-- ============================================================ -->
 <nav class="topnav">
@@ -411,6 +598,30 @@
   </section>
 </div>
 </section>
+
+<!-- ============================================================ -->
+<!-- PREMIUM TRANSITION OVERLAY (intro → dashboard loading bar) -->
+<!-- ============================================================ -->
+<div id="transitionOverlay" class="transition-overlay" aria-hidden="true">
+  <div class="transition-logo">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+      <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+    </svg>
+  </div>
+  <div class="transition-name">THERMOSCOPE</div>
+  <div class="transition-sub">INITIALIZING DASHBOARD</div>
+  <div class="transition-bar-row">
+    <div class="transition-bar"><div class="transition-bar-fill" id="transitionBarFill"></div></div>
+    <div class="transition-pct" id="transitionPct">0%</div>
+  </div>
+  <div class="transition-steps" id="transitionSteps">
+    <div class="transition-step" data-step="0"><span class="ts-icon"></span><span>Loading risk model</span></div>
+    <div class="transition-step" data-step="1"><span class="ts-icon"></span><span>Rendering satellite map</span></div>
+    <div class="transition-step" data-step="2"><span class="ts-icon"></span><span>Syncing live NRT detections</span></div>
+    <div class="transition-step" data-step="3"><span class="ts-icon"></span><span>Preparing alerts &amp; intelligence</span></div>
+  </div>
+</div>
 
 <!-- ============================================================ -->
 <!-- XAI CHATBOT WIDGET (before scripts so DOM is ready) -->
