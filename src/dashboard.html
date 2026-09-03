@@ -135,7 +135,8 @@
         <div class="side-block" style="margin-top:10px;">
           <div class="side-title">Live NRT Monitor</div>
           <div id="nrtReadout" style="font-size:11px;color:#94a6b8;line-height:1.5;">Loading…</div>
-          <div class="hint">Auto-refreshes every 5 min. Requires fetch_nrt.py cron.</div>
+          <button id="btnFetchNrt" class="nrt-fetch-btn">🔄 Fetch Live Data</button>
+          <div id="nrtFetchStatus" style="font-size:10px;color:#94a6b8;margin-top:4px;display:none;"></div>
         </div>
       </div>
 
@@ -406,6 +407,30 @@
 </section>
 
 <!-- ============================================================ -->
+<!-- XAI CHATBOT WIDGET (before scripts so DOM is ready) -->
+<!-- ============================================================ -->
+<div id="chatbotFab" class="chatbot-fab" title="AgniRakshak AI Assistant">🤖</div>
+
+<div id="chatbotPanel" class="chatbot-panel" style="display:none;">
+  <div class="chatbot-header">
+    <div class="chatbot-header-left">
+      <span class="chatbot-header-icon">🤖</span>
+      <span class="chatbot-header-title">AgniRakshak AI</span>
+      <span id="chatbotSelectedFire" class="chatbot-selected-fire" style="display:none;"></span>
+    </div>
+    <div class="chatbot-header-actions">
+      <button id="chatbotMinimize" class="chatbot-header-btn" title="Minimize">—</button>
+      <button id="chatbotClose" class="chatbot-header-btn chatbot-close-btn" title="Close">✕</button>
+    </div>
+  </div>
+  <div id="chatbotMessages" class="chatbot-messages"></div>
+  <div class="chatbot-input-area">
+    <input id="chatbotInput" class="chatbot-input" type="text" placeholder="Ask about fire risk, precautions..." />
+    <button id="chatbotSend" class="chatbot-send-btn">➤</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- SCRIPTS — Same CDN links as original -->
 <!-- ============================================================ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -413,5 +438,69 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="script.js"></script>
+<script>
+// Keep chatbot fixed at viewport bottom-right despite iframe scrolling
+(function() {
+  function fixChatbotPosition() {
+    var fab = document.getElementById('chatbotFab');
+    var panel = document.getElementById('chatbotPanel');
+    var scrollY = window.scrollY || document.documentElement.scrollTop;
+    var viewH = window.innerHeight;
+    if (fab) {
+      fab.style.position = 'absolute';
+      fab.style.top = (scrollY + viewH - 84) + 'px';
+      fab.style.right = '28px';
+      fab.style.left = 'auto';
+    }
+    if (panel && panel.style.display !== 'none' && !panel.dataset.dragging) {
+      panel.style.position = 'absolute';
+      panel.style.top = (scrollY + viewH - 616) + 'px';
+      panel.style.right = '28px';
+      panel.style.left = 'auto';
+    }
+  }
+  window.addEventListener('scroll', fixChatbotPosition, { passive: true });
+  window.addEventListener('resize', fixChatbotPosition);
+  setTimeout(fixChatbotPosition, 300);
+  setTimeout(fixChatbotPosition, 1000);
+
+  // DRAG FUNCTIONALITY — grab header to move chatbox anywhere
+  var panel = document.getElementById('chatbotPanel');
+  var header = panel ? panel.querySelector('.chatbot-header') : null;
+  if (header) {
+    var isDragging = false, startX, startY, origTop, origRight;
+    header.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.chatbot-header-btn')) return; // don't drag on buttons
+      isDragging = true;
+      panel.dataset.dragging = '1';
+      var rect = panel.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      origTop = rect.top;
+      origRight = window.innerWidth - rect.right;
+      panel.style.transition = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      var newTop = Math.max(0, Math.min(window.innerHeight - 60, origTop + dy));
+      var newRight = Math.max(0, Math.min(window.innerWidth - 100, origRight - dx));
+      panel.style.top = newTop + 'px';
+      panel.style.right = newRight + 'px';
+      panel.style.left = 'auto';
+      panel.style.bottom = 'auto';
+    });
+    document.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        panel.style.transition = '';
+      }
+    });
+  }
+})();
+</script>
+
 </body>
 </html>
