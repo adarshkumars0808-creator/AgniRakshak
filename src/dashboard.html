@@ -56,7 +56,7 @@
         <path d="M17 4.5l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" fill="#fdba74" stroke="none"/>
       </svg>
     </div>
-    <h1 class="intro-title">Delhi NCR <span class="intro-grad-text">Thermal Fire Risk</span><br/>Intelligence</h1>
+    <h1 class="intro-title"><span class="intro-grad-text">Thermal Fire Risk</span><br/>Intelligence</h1>
     <p class="intro-subtitle">Real-time satellite-based fire risk monitoring, anomaly detection, and predictive analytics powered by FIRMS satellite data across the Delhi National Capital Region.</p>
     <div class="intro-actions">
       <button class="intro-btn intro-btn-primary" id="introOpenDashboard">
@@ -143,7 +143,7 @@
       <div class="intro-step">
         <div class="intro-step-num">01</div>
         <div class="intro-step-title">Ingest</div>
-        <div class="intro-step-text">Historical + live NASA FIRMS detections across Delhi NCR &amp; Uttar Pradesh, 2020 → present.</div>
+        <div class="intro-step-text">Historical + live NASA FIRMS detections across North India, 2020 → present.</div>
       </div>
       <div class="intro-step">
         <div class="intro-step-num">02</div>
@@ -213,6 +213,7 @@
     <button class="nav-tab active" data-tab="overview">OVERVIEW</button>
     <button class="nav-tab" data-tab="analytics">ANALYTICS</button>
     <button class="nav-tab" data-tab="history">HISTORY</button>
+    <button class="nav-tab" data-tab="forecast">FORECAST</button>
     <button class="nav-tab" data-tab="alerts">ALERTS <span class="alert-badge" id="alertBadge" style="display:none;">0</span></button>
     <button class="nav-tab" data-tab="reports">REPORTS</button>
     <button class="nav-tab" data-tab="about">ABOUT</button>
@@ -238,7 +239,7 @@
   <!-- INFO STRIP -->
   <section class="info-strip" id="infoStrip">
     <div>▲ AGNIRAKSHAK — NASA FIRMS THERMAL ANOMALY MONITORING</div>
-    <div>▲ AI RISK RANKING — DELHI NCR + UTTAR PRADESH</div>
+    <div>▲ AI RISK RANKING — NORTH INDIA</div>
     <div>▲ HISTORICAL SATELLITE ANALYSIS: 2020 – PRESENT</div>
     <div>▲ RISK SCORE = ML THERMAL-RISK RANKING (0–100)</div>
   </section>
@@ -248,7 +249,7 @@
     <div class="metric-card">
       <div class="metric-title">TOTAL GRID CELLS</div>
       <div class="metric-value" id="mTotalCells">—</div>
-      <div class="metric-badge">Delhi NCR + UP, 5km grid</div>
+      <div class="metric-badge">North India, 5km grid</div>
     </div>
     <div class="metric-card">
       <div class="metric-title">FIRMS DETECTIONS (ALL-TIME)</div>
@@ -324,6 +325,7 @@
           <div id="nrtReadout" style="font-size:11px;color:#94a6b8;line-height:1.5;">Loading…</div>
           <button id="btnFetchNrt" class="nrt-fetch-btn">🔄 Fetch Live Data</button>
           <div id="nrtFetchStatus" style="font-size:10px;color:#94a6b8;margin-top:4px;display:none;"></div>
+          <div style="font-size:9px;color:#64748b;margin-top:6px;line-height:1.4;">Auto-updates: fetches recent FIRMS data, cleans old NRT (>24h), updates grid features & risk predictions.</div>
         </div>
       </div>
 
@@ -489,6 +491,118 @@
 </section>
 
 <!-- ============================================================ -->
+<!-- FORECAST TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-forecast">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">🔮 Fire Season Forecast</div>
+        <div class="brand-subtitle">PREDICTIVE ANALYSIS FROM 6 YEARS OF FIRMS DATA</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Readiness Index + Summary Cards -->
+  <section class="forecast-summary" id="forecastSummary">
+    <div class="forecast-readiness-card" id="readinessCard">
+      <div class="forecast-readiness-label">FIRE SEASON READINESS INDEX</div>
+      <div class="forecast-readiness-score" id="readinessScore">—</div>
+      <div class="forecast-readiness-level" id="readinessLevel">—</div>
+      <div class="forecast-readiness-bar"><div class="forecast-readiness-fill" id="readinessFill"></div></div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Current Year (2026)</div>
+      <div class="forecast-metric-value" id="fcCurrentYear">—</div>
+      <div class="forecast-metric-sub" id="fcCurrentDet">— detections</div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Predicted 2027</div>
+      <div class="forecast-metric-value" id="fcPredicted">—</div>
+      <div class="forecast-metric-sub" id="fcPredictedDet">— detections</div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Year Trend</div>
+      <div class="forecast-metric-value" id="fcTrend">—</div>
+      <div class="forecast-metric-sub" id="fcTrendPct">—</div>
+    </div>
+  </section>
+
+  <!-- Peak / Low Months -->
+  <section class="forecast-row">
+    <div class="chart-card">
+      <div class="chart-title">🔥 Peak Fire Months</div>
+      <div id="peakMonthsList" class="forecast-month-list"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🌧️ Low Activity Months</div>
+      <div id="lowMonthsList" class="forecast-month-list"></div>
+    </div>
+  </section>
+
+  <!-- Monthly Intensity Bar Chart -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Monthly Fire Intensity (6-Year Average)</div>
+    <div id="chartForecastMonthly" class="fc-chart-container" style="min-height:250px"></div>
+  </section>
+
+  <!-- Year x Month Heatmap -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Year × Month Detection Heatmap (2020–2026)</div>
+    <div id="forecastHeatmap" class="forecast-heatmap-container"></div>
+  </section>
+
+  <!-- Yearly Trend Line -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Year-over-Year Detection Trend</div>
+    <div id="chartForecastTrend" class="fc-chart-container" style="min-height:220px"></div>
+  </section>
+
+  <!-- Seasonal Breakdown -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Seasonal Fire Activity by Year</div>
+    <div id="chartSeasonalStack" class="fc-chart-container" style="min-height:250px"></div>
+    <div class="chart-legend-bottom" id="legendSeasonal"></div>
+  </section>
+
+  <!-- Top Grid Forecasts Table -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Top 20 Grid Cell Forecasts — Peak Month & Season Totals</div>
+    <table class="data-table" id="forecastGridTable">
+      <thead><tr>
+        <th>#</th><th>Grid ID</th><th>Site</th><th>Fire Type</th><th>Risk</th>
+        <th>Peak Month</th><th>Pre-Monsoon</th><th>Monsoon</th><th>Post-Monsoon</th><th>Winter</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ========== FIRE-TYPE FORECAST SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🔥 Fire Type Breakdown — Individual Readiness Scores</div>
+    <div id="fcTypeTabs" class="fc-type-tabs">
+      <button class="fc-type-tab active" data-type="all" onclick="fcFilterType('all')">All Types</button>
+    </div>
+    <div id="fcTypeReadinessCards" class="fc-type-readiness-grid"></div>
+    <div id="fcTypeBarChart" class="fc-chart-container" style="min-height:220px; margin-top:12px;"></div>
+  </section>
+
+  <!-- ========== DISTRICT FORECAST SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🗺️ District-Level Fire Forecast</div>
+    <div id="fcDistrictCards" class="fc-district-grid"></div>
+  </section>
+
+  <!-- ========== ALERT ESCALATION SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🚨 Alert Escalation — Threshold Breaches</div>
+    <div id="fcAlertEscalation" class="fc-alert-list"></div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
 <!-- ALERTS TAB -->
 <!-- ============================================================ -->
 <section class="tab-panel" id="panel-alerts">
@@ -624,6 +738,37 @@
 </div>
 
 <!-- ============================================================ -->
+<!-- SATELLITE EVIDENCE MODAL -->
+<!-- ============================================================ -->
+<div id="satEvidenceModal" class="sat-evidence-modal" style="display:none;">
+  <div class="sat-evidence-backdrop" id="satEvidenceBackdrop"></div>
+  <div class="sat-evidence-dialog">
+    <div class="sat-evidence-header">
+      <div class="sat-evidence-header-left">
+        <span>🛰️</span>
+        <span class="sat-evidence-title">Satellite Evidence</span>
+        <span id="satEvidenceCoords" class="sat-evidence-coords"></span>
+      </div>
+      <div class="sat-evidence-header-actions">
+        <button id="satEvidenceDownload" class="sat-evidence-dl-btn">⬇️ Download</button>
+        <button id="satEvidenceClose" class="sat-evidence-close-btn">✕</button>
+      </div>
+    </div>
+    <div id="satEvidenceMapContainer" class="sat-evidence-map-container">
+      <div id="satEvidenceMap" class="sat-evidence-map"></div>
+      <div class="sat-evidence-loading" id="satEvidenceLoading">
+        <div class="sat-evidence-spinner"></div>
+        <span>Loading satellite imagery...</span>
+      </div>
+      <div class="sat-evidence-watermark">
+        <span>🔥 AgniRakshak — Satellite Evidence</span>
+        <span id="satEvidenceTimestamp"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- XAI CHATBOT WIDGET (before scripts so DOM is ready) -->
 <!-- ============================================================ -->
 <div id="chatbotFab" class="chatbot-fab" title="AgniRakshak AI Assistant">🤖</div>
@@ -654,6 +799,7 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="script.js"></script>
 <script>
 // AgniRakshak AI chatbot — always floats on screen.

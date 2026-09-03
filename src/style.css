@@ -710,6 +710,368 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
 }
 
 /* ============================================================
+   SATELLITE EVIDENCE MODAL
+   ============================================================ */
+
+.sat-evidence-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #0ea5e9, #22d3ee);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.sat-evidence-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(34,211,238,0.35);
+}
+
+.sat-evidence-btn:active {
+  transform: scale(0.97);
+}
+
+.sat-evidence-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sat-evidence-backdrop {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+}
+
+.sat-evidence-dialog {
+  position: relative;
+  width: 620px;
+  max-width: 95vw;
+  background: #0e141c;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: satModalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes satModalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.sat-evidence-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #0a1018;
+  border-bottom: 1px solid #1e293b;
+}
+
+.sat-evidence-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.sat-evidence-title {
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.5px;
+}
+
+.sat-evidence-coords {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  color: #94a6b8;
+  background: rgba(34,211,238,0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(34,211,238,0.15);
+}
+
+.sat-evidence-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sat-evidence-dl-btn {
+  padding: 5px 12px;
+  background: linear-gradient(135deg, #10b981, #22d3ee);
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sat-evidence-dl-btn:hover {
+  box-shadow: 0 3px 10px rgba(16,185,129,0.35);
+}
+
+.sat-evidence-close-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid #2a3a4a;
+  border-radius: 6px;
+  color: #94a6b8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sat-evidence-close-btn:hover {
+  background: rgba(255,73,61,0.15);
+  border-color: #ff493d;
+  color: #ff493d;
+}
+
+.sat-evidence-map-container {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  background: #0b1118;
+}
+
+.sat-evidence-map {
+  width: 100%;
+  height: 100%;
+}
+
+.sat-evidence-loading {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #94a6b8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  z-index: 10;
+}
+
+.sat-evidence-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #1e293b;
+  border-top-color: #22d3ee;
+  border-radius: 50%;
+  animation: satSpin 0.8s linear infinite;
+}
+
+@keyframes satSpin {
+  to { transform: rotate(360deg); }
+}
+
+.sat-evidence-watermark {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  z-index: 5;
+}
+
+
+/* ============================================================
+   FORECAST TAB
+   ============================================================ */
+
+.forecast-summary {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.forecast-readiness-card {
+  padding: 22px;
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.forecast-readiness-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.forecast-readiness-score {
+  font-size: 48px;
+  font-weight: 900;
+  font-family: 'SF Mono', monospace;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.forecast-readiness-level {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.forecast-readiness-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-map);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.forecast-readiness-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease-out;
+}
+
+.forecast-metric-card {
+  padding: 18px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 9px;
+  text-align: center;
+}
+
+.forecast-metric-title {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.forecast-metric-value {
+  margin-top: 10px;
+  font-size: 26px;
+  font-weight: 800;
+  font-family: 'SF Mono', monospace;
+  color: var(--text-primary);
+}
+
+.forecast-metric-sub {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.forecast-row {
+  display: flex;
+  gap: 18px;
+}
+
+.forecast-row .chart-card { flex: 1; min-width: 0; }
+
+.forecast-month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.forecast-month-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.forecast-month-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.forecast-month-intensity {
+  font-family: 'SF Mono', monospace;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* Heatmap */
+.forecast-heatmap-container {
+  overflow-x: auto;
+  padding: 10px 0;
+}
+
+.forecast-heatmap {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+}
+
+.forecast-heatmap th {
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.forecast-heatmap td {
+  padding: 8px 10px;
+  text-align: center;
+  font-family: 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+  transition: transform 0.15s;
+}
+
+.forecast-heatmap td:hover {
+  transform: scale(1.08);
+  z-index: 2;
+}
+
+.forecast-heatmap .year-label {
+  font-weight: 800;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  text-align: right;
+  padding-right: 12px;
+}
+
+[data-theme="light"] .forecast-readiness-card { border-color: #ea580c; }
+[data-theme="light"] .forecast-metric-card { background: #f8fafc; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 
@@ -2154,3 +2516,89 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
 @media (prefers-reduced-motion: reduce) {
   .transition-logo, .transition-bar-fill, .transition-step .ts-icon::after, .panel-enter { animation: none; }
 }
+
+/* ===== Forecast Chart Styles (HTML/CSS versions) ===== */
+.fc-chart-container { width: 100%; padding: 10px 0; }
+
+/* Bar Chart */
+.fc-bars { display: flex; gap: 8px; height: 240px; padding: 0 10px; }
+.fc-bars-axis { display: flex; flex-direction: column; justify-content: space-between; width: 40px; text-align: right; font-size: 10px; color: var(--text-dim); padding: 0 6px 24px 0; }
+.fc-bars-body { flex: 1; position: relative; display: flex; align-items: flex-end; gap: 4px; padding-bottom: 40px; }
+.fc-bars-grid { position: absolute; top: 0; left: 0; right: 0; bottom: 40px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.fc-bars-gridline { width: 100%; height: 0; border-top: 1px dashed var(--border-subtle); opacity: 0.4; }
+.fc-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; z-index: 1; }
+.fc-bar-val { font-size: 10px; font-weight: 700; color: var(--text-primary); }
+.fc-bar-track { width: 100%; max-width: 50px; height: 160px; background: var(--bg-card); border-radius: 4px; overflow: hidden; display: flex; align-items: flex-end; position: relative; }
+.fc-bar-fill { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); min-height: 2px; }
+.fc-bar-month { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.fc-bar-avg { font-size: 9px; color: var(--text-dim); font-family: monospace; }
+
+/* Trend Chart */
+.fc-trend { padding: 10px; }
+.fc-trend-label { text-align: right; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.fc-trend-chart { position: relative; height: 180px; display: flex; padding-left: 50px; }
+.fc-trend-gridline { position: absolute; left: 50px; right: 0; display: flex; align-items: center; }
+.fc-trend-gridline span { width: 44px; text-align: right; font-size: 9px; color: var(--text-dim); margin-right: 8px; flex-shrink: 0; }
+.fc-trend-gridline::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); opacity: 0.3; }
+.fc-trend-svg { position: absolute; left: 50px; right: 0; top: 0; width: calc(100% - 50px); height: 150px; }
+.fc-trend-labels { position: absolute; left: 50px; right: 0; bottom: 0; display: flex; justify-content: space-around; }
+.fc-trend-point { text-align: center; }
+.fc-trend-val { font-size: 10px; font-weight: 700; color: var(--text-primary); }
+.fc-trend-yr { font-size: 11px; color: var(--text-secondary); }
+
+/* Seasonal Stacked Bars */
+.fc-seasonal { display: flex; gap: 8px; height: 240px; padding: 0 10px; }
+.fc-seasonal-labels { display: flex; flex-direction: column; justify-content: space-between; width: 60px; text-align: right; font-size: 10px; color: var(--text-dim); padding: 0 6px 30px 0; }
+.fc-seasonal-body { flex: 1; display: flex; align-items: flex-end; gap: 6px; padding-bottom: 30px; }
+.fc-season-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fc-season-stack { width: 100%; max-width: 60px; height: 180px; display: flex; flex-direction: column-reverse; border-radius: 4px; overflow: hidden; }
+.fc-season-seg { width: 100%; transition: height 0.6s ease; min-height: 1px; }
+.fc-season-yr { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+
+/* ===== Fire Type Forecast Section ===== */
+.fc-type-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.fc-type-tab { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-secondary); padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+.fc-type-tab:hover { border-color: var(--accent); color: var(--text-primary); }
+.fc-type-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.fc-type-readiness-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.fc-type-card { background: var(--bg-card); border-radius: 10px; padding: 16px; transition: transform 0.2s; }
+.fc-type-card:hover { transform: translateY(-2px); }
+.fc-type-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.fc-type-card-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.fc-type-card-score { font-size: 28px; font-weight: 800; font-family: monospace; }
+.fc-type-card-level { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.fc-type-card-bar { height: 6px; background: var(--bg-map); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.fc-type-card-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.fc-type-card-stats { font-size: 11px; color: var(--text-dim); }
+/* ===== District Forecast Section ===== */
+.fc-district-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.fc-district-card { background: var(--bg-card); border-radius: 10px; padding: 14px; transition: transform 0.2s; }
+.fc-district-card:hover { transform: translateY(-2px); }
+.fc-district-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.fc-district-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.fc-district-state { font-size: 11px; color: var(--text-dim); }
+.fc-district-score { font-size: 32px; font-weight: 800; font-family: monospace; line-height: 1; }
+.fc-district-score-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-left: 6px; vertical-align: middle; }
+.fc-district-bar { height: 5px; background: var(--bg-map); border-radius: 3px; overflow: hidden; margin: 8px 0; }
+.fc-district-bar div { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.fc-district-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); margin-top: 4px; flex-wrap: wrap; }
+.fc-district-typebar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.fc-district-typebar div { height: 100%; transition: width 0.5s ease; }
+/* ===== Alert Escalation Section ===== */
+.fc-alert-summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.fc-alert-count { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+.fc-alert-critical { background: rgba(255,56,47,0.15); color: #ff382f; }
+.fc-alert-high { background: rgba(255,107,26,0.15); color: #ff6b1a; }
+.fc-alert-total { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+.fc-alert-list { display: flex; flex-direction: column; gap: 12px; }
+.fc-alert-card { background: var(--bg-card); border-radius: 10px; padding: 16px; }
+.fc-alert-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.fc-alert-icon { font-size: 18px; }
+.fc-alert-title { font-size: 14px; font-weight: 700; color: var(--text-primary); flex: 1; }
+.fc-alert-severity { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; color: #fff; letter-spacing: 0.5px; }
+.fc-alert-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.5; }
+.fc-alert-actions { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.fc-alert-actions ul { margin: 4px 0 0 16px; padding: 0; }
+.fc-alert-actions li { margin-bottom: 3px; }
+.fc-alert-agencies { display: flex; gap: 6px; flex-wrap: wrap; }
+.fc-alert-agency { background: var(--bg-map); color: var(--text-secondary); padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: 1px solid var(--border-subtle); }

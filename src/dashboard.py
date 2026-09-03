@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import pandas as pd
 import streamlit as st
@@ -284,6 +285,26 @@ def normalize_fire_type(value):
         value,
         "UNCLASSIFIED",
     )
+
+
+# ============================================================
+# AUTO-UPDATE — runs on every page load if data is stale
+# ============================================================
+# Refresh button runs: auto_update.py then fetch_nrt.py
+import subprocess
+
+qp = st.query_params
+if qp.get("refresh", "") == "1":
+    st.cache_data.clear()
+    try:
+        subprocess.run([sys.executable, os.path.join(BASE_DIR, "src", "auto_update.py")],
+                       capture_output=True, text=True, timeout=300, cwd=str(BASE_DIR))
+        subprocess.run([sys.executable, os.path.join(BASE_DIR, "src", "fetch_nrt.py")],
+                       capture_output=True, text=True, timeout=120, cwd=str(BASE_DIR))
+    except Exception:
+        pass
+    st.query_params.clear()
+    st.rerun()
 
 
 # ============================================================
@@ -1035,6 +1056,16 @@ if os.path.exists(os.path.join(DATA_DIR, "nrt_latest_timestamp.txt")):
 
 nrt_detections_count = len(nrt_df) if not nrt_df.empty else 0
 
+# Load forecast data
+FORECAST_FILE = os.path.join(DATA_DIR, "fire_forecast.json")
+try:
+    with open(FORECAST_FILE, encoding="utf-8") as f:
+        forecast_data = json.load(f)
+    forecast_json = json.dumps(forecast_data)
+except Exception:
+    forecast_data = {}
+    forecast_json = "{}"
+
 
 data_script = f"""
 <script>
@@ -1057,9 +1088,12 @@ window.THERMOSCOPE_DATA = {{
 
 if "</head>" in dashboard_html:
 
+    # Inject forecast data as a separate script BEFORE the main data script
+    # to avoid issues with large JSON inside the main data blob
+    forecast_script = '<script>window._FC_DATA = ' + forecast_json + ';</script>\n'
     dashboard_html = dashboard_html.replace(
         "</head>",
-        data_script + "</head>",
+        forecast_script + data_script + "</head>",
         1,
     )
 
