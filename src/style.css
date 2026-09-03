@@ -1415,3 +1415,22 @@ input[type="date"]:focus, .ctrl-select:focus, .ctrl-btn-refresh:focus, .ctrl-btn
     font-size: 22px;
   }
 }
+
+/* ============================================================
+   PRINT — only the generated report preview is printed.
+   Everything else in the dashboard chrome is hidden while the
+   report keeps its own light, print-optimized palette.
+   ============================================================ */
+@media print {
+  body * { visibility: hidden; }
+  #reportPreview, #reportPreview * { visibility: visible; }
+  #reportPreview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+}
