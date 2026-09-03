@@ -78,13 +78,19 @@ const SITE_TYPE_LABELS = {
 
 let gridData = [];
 let dailyData = [];
+let nrtData = [];
+let alertsData = [];
 let map = null;
 let clusterLayer = null;
 let satelliteLayer = null;
 let fireSiteLayer = null;
+let nrtLayer = null;
+let top10Layer = null;
 let fireSiteData = [];
 let riskZoneData = [];
 let markerByGrid = {};
+let nrtAutoRefreshTimer = null;
+const NRT_AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
 
 // ============================================================
 // UTILITIES (original)
@@ -211,6 +217,8 @@ async function init() {
     dailyData = window.THERMOSCOPE_DATA.dailyData || [];
     fireSiteData = window.THERMOSCOPE_DATA.fireSiteData || [];
     riskZoneData = window.THERMOSCOPE_DATA.riskZoneData || [];
+    nrtData = window.THERMOSCOPE_DATA.nrtData || [];
+    alertsData = window.THERMOSCOPE_DATA.alertsData || [];
   }
   // === STANDALONE MODE ===
   else {
@@ -371,6 +379,23 @@ async function init() {
 
   // Tab switching (new)
   initTabs();
+
+  // NRT live layer
+  initNrtLayer();
+  renderNrtLayer();
+  startNrtAutoRefresh();
+
+  // NRT fetch button in sidebar
+  initNrtFetchButton();
+
+  // Alert badge in nav
+  updateAlertBadge();
+
+  // NRT status readout
+  updateNrtReadout();
+
+  // Top 10 map markers (after map is initialized)
+  renderTop10OnMap();
 }
 
 // ============================================================
@@ -389,12 +414,14 @@ function renderMetrics() {
   const mCritical = document.getElementById("mCritical");
   const mHigh = document.getElementById("mHigh");
   const mAvgFrp = document.getElementById("mAvgFrp");
+  const mNrtCount = document.getElementById("mNrtCount");
 
   if (mTotalCells) mTotalCells.textContent = num(total);
   if (mTotalDetections) mTotalDetections.textContent = num(totalDetections);
   if (mCritical) mCritical.textContent = num(critical);
   if (mHigh) mHigh.textContent = num(high);
   if (mAvgFrp) mAvgFrp.textContent = num(avgFrp, 2);
+  if (mNrtCount) mNrtCount.textContent = num(nrtData.length);
 }
 
 // ============================================================
@@ -407,7 +434,7 @@ function renderTop10() {
   if (!element) return;
 
   element.innerHTML = top10.map((row, index) => `
-    <div class="top10-row" data-grid="${row.grid_id}">
+    <div class="top10-row" data-grid="${row.grid_id}" data-rank="${index + 1}">
       <span>
         <span class="top10-rank">#${index + 1}</span>
         ${row.grid_id}
@@ -417,8 +444,134 @@ function renderTop10() {
   `).join("");
 
   element.querySelectorAll(".top10-row").forEach(row => {
-    row.addEventListener("click", () => flyToGrid(row.dataset.grid));
+    row.addEventListener("click", () => {
+      flyToGrid(row.dataset.grid);
+    });
   });
+
+}
+
+// ============================================================
+// TOP 10 MAP MARKERS
+// ============================================================
+
+const TOP10_RANK_COLORS = [
+  "#00e5ff", "#18ffff", "#40c4ff", "#448aff", "#536dfe",
+  "#7c4dff", "#e040fb", "#ff4081", "#ff5252", "#ff6e40",
+];
+
+function renderTop10OnMap() {
+  if (!map) return;
+  if (!top10Layer) top10Layer = L.layerGroup();
+  top10Layer.clearLayers();
+
+  const top10 = [...gridData]
+    .sort((a, b) => Number(b.risk_score) - Number(a.risk_score))
+    .slice(0, 10);
+
+  top10.forEach((row, index) => {
+    const lat = Number(row.map_latitude ?? row.latitude);
+    const lon = Number(row.map_longitude ?? row.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const rank = index + 1;
+    const score = Number(row.risk_score) || 0;
+    const riskLevel = String(row.risk_level || "HIGH").toUpperCase();
+    const color = TOP10_RANK_COLORS[index] || "#ffae42";
+    const fireType = FIRE_TYPE_LABELS[normalizeFireType(row.fire_type)] || row.fire_type || "";
+    const radius = 18 - index; // #1=18, #10=9
+
+    // Outer glow ring
+    const ring = L.circleMarker([lat, lon], {
+      radius: radius + 10,
+      color: color,
+      weight: 1,
+      fillColor: color,
+      fillOpacity: 0.08,
+      className: "top10-ring",
+      interactive: false,
+    });
+    top10Layer.addLayer(ring);
+
+    // Main marker
+    const marker = L.circleMarker([lat, lon], {
+      radius,
+      color: color,
+      weight: 3,
+      fillColor: color,
+      fillOpacity: 0.8,
+      className: "top10-marker",
+    });
+
+    // Rank badge via divIcon
+    const rankIcon = L.divIcon({
+      className: "top10-rank-icon",
+      html: `<span class="top10-rank-badge" style="background:${color};">#${rank}</span>`,
+      iconSize: [32, 18],
+      iconAnchor: [16, radius + 20],
+    });
+    const rankMarker = L.marker([lat, lon], { icon: rankIcon, interactive: false });
+    top10Layer.addLayer(rankMarker);
+
+    // Facility info for Top 10
+    const t10Facility = getFacilityInfo(row);
+    const t10Geo = reverseGeocode(lat, lon);
+    const displayName = row.display_site_name || row.site_name || row.grid_id;
+    const isGIS = row.is_gis_confirmed;
+
+    // Popup
+    marker.bindPopup(`
+      <div style="min-width:240px;font-family:Arial,sans-serif;line-height:1.6;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">${rank}</span>
+          <b style="font-size:14px;">Top ${rank} High-Risk Zone</b>
+        </div>
+        ${t10Facility.name ? `<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:4px;padding:4px 8px;margin:4px 0;font-size:12px;">🏭 <b>${t10Facility.name}</b>${t10Facility.type ? ` · ${t10Facility.type}` : row.display_site_type ? ` · ${row.display_site_type}` : ""} ${isGIS ? `<span style=\"color:#20e889;\">✓</span>` : ""}</div>` : ""}
+        ${t10Geo && t10Geo.state !== "Unknown" ? `<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:4px;padding:4px 8px;margin:4px 0;font-size:11px;">🗺️ <b>${t10Geo.state}</b>${t10Geo.nearestCity ? ` · 🏙️ ${t10Geo.nearestCity}` : ""}</div>` : ""}
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <b>Grid:</b> <code style="background:#1a2533;padding:1px 5px;border-radius:3px;">${row.grid_id}</code><br>
+        <b>Risk Score:</b> <span style="font-size:16px;color:${color};font-weight:700;">${score.toFixed(1)}</span><br>
+        <b>Risk Level:</b> ${riskLevel}<br>
+        <b>Total Detections:</b> ${Number(row.total_detections).toLocaleString("en-IN")}<br>
+        <b>Avg FRP:</b> ${Number(row.avg_frp).toFixed(2)} MW<br>
+        <b>Max FRP:</b> ${Number(row.max_frp).toFixed(2)} MW<br>
+        ${fireType ? `<b>Fire Type:</b> ${fireType}<br>` : ""}
+        <b>Coords:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}
+      </div>
+    `);
+
+    // Click → fly + show intel
+    marker.on("click", () => {
+      map.flyTo([lat, lon], 12, { animate: true, duration: 0.8 });
+      showGridIntel(row);
+      selectFireForChat(row);
+    });
+
+    // Tooltip
+    marker.bindTooltip(
+      `<b>#${rank}</b> &middot; ${score.toFixed(1)} &middot; ${riskLevel} &middot; ${row.grid_id}`,
+      { direction: "top", offset: [0, -radius - 10], className: "top10-tooltip" }
+    );
+
+    top10Layer.addLayer(marker);
+  });
+
+  // Add to map if toggle is on
+  const toggle = document.getElementById("lyrTop10");
+  if (toggle && toggle.checked && !map.hasLayer(top10Layer)) {
+    top10Layer.addTo(map);
+  }
+}
+
+function toggleTop10Layer() {
+  if (!map || !top10Layer) return;
+  const toggle = document.getElementById("lyrTop10");
+  if (!toggle) return;
+  if (toggle.checked) {
+    top10Layer.addTo(map);
+  } else {
+    map.removeLayer(top10Layer);
+  }
 }
 
 // ============================================================
@@ -551,7 +704,7 @@ function renderFireSiteLayer() {
       </div>
     `);
 
-    marker.on("click", () => showSiteIntel(row));
+    marker.on("click", () => { showSiteIntel(row); selectFireForChat(row); });
     fireSiteLayer.addLayer(marker);
   });
 
@@ -667,7 +820,7 @@ function rebuildLayers() {
     `);
 
     marker.bindTooltip(`${zoneId} | ${zone.risk_level}`, { direction: "top" });
-    marker.on("click", () => showRiskZoneIntel(zone));
+    marker.on("click", () => { showRiskZoneIntel(zone); selectFireForChat(zone); });
 
     const key = zone.zone_id || zone.grid_id || zoneId;
     markerByGrid[key] = marker;
@@ -684,9 +837,45 @@ function showRiskZoneIntel(zone) {
   if (!element) return;
   const color = RISK_COLORS[zone.risk_level] || "#7890a8";
   const zoneId = zone.zone_id || zone.grid_id || "—";
+  const zLat = Number(zone.latitude);
+  const zLon = Number(zone.longitude);
+  const geo = reverseGeocode(zLat, zLon);
+
+  // Find worst cell in this zone to get facility name
+  let worstCell = null;
+  const mergedIds = String(zone.grid_ids_merged || "").split(";").map(s => s.trim());
+  if (mergedIds.length && mergedIds[0]) {
+    let maxScore = -1;
+    mergedIds.forEach(gid => {
+      const cell = gridData.find(r => String(r.grid_id) === gid);
+      if (cell && Number(cell.risk_score) > maxScore) {
+        maxScore = Number(cell.risk_score);
+        worstCell = cell;
+      }
+    });
+  }
+  // Fallback: find nearest grid cell by lat/lon
+  if (!worstCell) {
+    let minDist = Infinity;
+    gridData.forEach(r => {
+      const d = Math.sqrt(Math.pow(Number(r.latitude) - zLat, 2) + Math.pow(Number(r.longitude) - zLon, 2));
+      if (d < minDist) { minDist = d; worstCell = r; }
+    });
+  }
+  const facility = worstCell ? getFacilityInfo(worstCell) : null;
+  const displayName = worstCell?.display_site_name || worstCell?.site_name || zoneId;
+  const isGIS = worstCell?.is_gis_confirmed;
+  const siteType = worstCell?.display_site_type || "";
 
   element.innerHTML = `
-    <div class="grid-id">${zoneId}</div>
+    <div class="grid-id">${displayName}</div>
+    ${geo && geo.state !== "Unknown" ? `<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:6px;padding:5px 8px;margin:6px 0;font-size:10.5px;">
+      🗺️ <strong>${geo.state}</strong>${geo.nearestCity ? ` · 🏙️ ${geo.nearestCity}${geo.withinCity ? "" : ` (${geo.distanceToCityKm} km)`}` : ""}
+    </div>` : ""}
+    ${facility && facility.name ? `<div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:6px;padding:5px 8px;margin:6px 0;font-size:10.5px;">
+      🏭 <strong>${facility.name}</strong>${facility.type ? ` · ${facility.type}` : siteType ? ` · ${siteType}` : ""}
+      ${isGIS ? ` <span style="color:#20e889;">✓ Verified</span>` : ""}
+    </div>` : ""}
     ${zone.n_grids_merged > 1
       ? `<div style="color:#94a6b8; font-size:10.5px; margin-bottom:8px;">Regional zone · ${zone.n_grids_merged} raw grid cells merged (~${zone.region_radius_km || 30}km)</div>`
       : ""}
@@ -720,20 +909,31 @@ function showGridIntel(row) {
   const reason = row.fire_type_reason || "No classification reason available.";
   const element = document.getElementById("selectedGrid");
   if (!element) return;
+  const gLat = Number(row.map_latitude ?? row.latitude);
+  const gLon = Number(row.map_longitude ?? row.longitude);
+  const geo = reverseGeocode(gLat, gLon);
+  const facility = getFacilityInfo(row);
 
   element.innerHTML = `
     <div class="grid-id">${row.display_site_name || row.grid_id}</div>
+    ${geo && geo.state !== "Unknown" ? `<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:6px;padding:5px 8px;margin:6px 0;font-size:10.5px;">
+      🗺️ <strong>${geo.state}</strong>${geo.nearestCity ? ` · 🏙️ ${geo.nearestCity}${geo.withinCity ? "" : ` (${geo.distanceToCityKm} km)`}` : ""}
+    </div>` : ""}
     ${row.is_gis_confirmed
       ? `<div style="color:#3cff9a; font-size:10.5px; margin-bottom:8px;">✓ GIS-confirmed real site${row.display_site_type ? ` · ${row.display_site_type}` : ""}</div>`
       : `<div style="color:#94a6b8; font-size:10.5px; margin-bottom:8px;">Pattern-based classification (no matched real-world site)</div>`
     }
+    ${facility.name ? `<div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:6px;padding:5px 8px;margin:6px 0;font-size:10.5px;">
+      🏭 <strong>${facility.name}</strong>${facility.type ? ` · ${facility.type}` : ""}
+      ${facility.isRealGIS ? ` <span style="color:#20e889;">✓ Verified</span>` : ""}
+    </div>` : ""}
     <div class="risk-label" style="border-color:${riskColor}; color:${riskColor};">${riskLevel} RISK</div>
     <div class="type-label" style="border:1px solid ${typeColor}; color:${typeColor};">
       ${typeLabel}${confidence !== null ? ` · ${confidence}% confidence` : ""}
     </div>
     <div class="intel-row"><span>Risk Score</span><strong>${Number(row.risk_score).toFixed(1)}</strong></div>
-    <div class="intel-row"><span>Latitude</span><strong>${Number(row.map_latitude ?? row.latitude).toFixed(6)}</strong></div>
-    <div class="intel-row"><span>Longitude</span><strong>${Number(row.map_longitude ?? row.longitude).toFixed(6)}</strong></div>
+    <div class="intel-row"><span>Latitude</span><strong>${gLat.toFixed(6)}</strong></div>
+    <div class="intel-row"><span>Longitude</span><strong>${gLon.toFixed(6)}</strong></div>
     <div class="intel-row"><span>Total Detections</span><strong>${num(row.total_detections)}</strong></div>
     <div class="intel-row"><span>Active Days</span><strong>${num(row.active_days)}</strong></div>
     <div class="intel-row"><span>Avg FRP</span><strong>${Number(row.avg_frp).toFixed(2)} MW</strong></div>
@@ -875,6 +1075,16 @@ function bindControls() {
     lyrMarkers.addEventListener("change", event => {
       if (event.target.checked) { clusterLayer.addTo(map); } else { map.removeLayer(clusterLayer); }
     });
+  }
+
+  const lyrNrt = document.getElementById("lyrNrt");
+  if (lyrNrt) {
+    lyrNrt.addEventListener("change", toggleNrtLayer);
+  }
+
+  const lyrTop10 = document.getElementById("lyrTop10");
+  if (lyrTop10) {
+    lyrTop10.addEventListener("change", toggleTop10Layer);
   }
 
   const dateFrom = document.getElementById("dateFrom");
@@ -1161,29 +1371,53 @@ function renderHistoryTab() {
 // ============================================================
 
 function renderAlertsTab() {
-  const alerts = [];
+  // === ENGINE ALERTS (from alert_engine.py) ===
+  // These are real alerts generated by comparing NRT data
+  // against the historical risk model.
+  const engineAlerts = (alertsData || []).map(a => ({
+    alert: a.description || a.alert_type || "Unknown alert",
+    grid: a.grid_id || "",
+    type: FIRE_TYPE_LABELS[normalizeFireType(a.fire_type)] || a.fire_type || "",
+    severity: (a.severity || "medium").toLowerCase(),
+    status: a.status || "ACTIVE",
+    timestamp: a.timestamp || "",
+    nrtFrp: a.nrt_max_frp || 0,
+    histRisk: a.historical_risk_score || 0,
+    latitude: a.latitude || 0,
+    longitude: a.longitude || 0,
+    source: "engine",
+  }));
 
+  // === FALLBACK: derive alerts from grid data ===
+  const derivedAlerts = [];
   gridData.forEach(r => {
     if (r.risk_level === "CRITICAL" && r.detections_30d > 5) {
-      alerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active" });
+      derivedAlerts.push({ alert: "Critical fire risk — persistent high FRP", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "critical", status: "Active", source: "derived" });
     } else if (r.risk_level === "HIGH" && r.recurrence_ratio > 0.6) {
-      alerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active" });
+      derivedAlerts.push({ alert: "High risk — recurring thermal anomaly", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "high", status: "Active", source: "derived" });
     } else if (r.risk_level === "HIGH" && r.detections_30d > r.detections_90d / 3) {
-      alerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring" });
+      derivedAlerts.push({ alert: "Escalating thermal activity", grid: r.grid_id, type: FIRE_TYPE_LABELS[r.fire_type] || r.fire_type, severity: "medium", status: "Monitoring", source: "derived" });
     }
   });
 
-  const limited = alerts.slice(0, 50);
-  document.getElementById("alertCount").textContent = limited.length;
+  // Merge: engine alerts first, then derived (dedup by grid_id)
+  const seenGrids = new Set(engineAlerts.map(a => a.grid));
+  const mergedAlerts = [
+    ...engineAlerts,
+    ...derivedAlerts.filter(a => !seenGrids.has(a.grid)),
+  ].slice(0, 100);
+
+  document.getElementById("alertCount").textContent = mergedAlerts.length;
   const tbody = document.querySelector("#alertsTable tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = limited.map(a => `<tr>
+  tbody.innerHTML = mergedAlerts.map(a => `<tr>
     <td>${a.alert}</td>
     <td style="font-family:monospace;font-size:10px;">${a.grid}</td>
     <td style="font-size:10px;">${a.type}</td>
     <td><span class="alert-severity ${a.severity}">${a.severity.toUpperCase()}</span></td>
     <td style="color:#7890a8;font-size:10px;">${a.status}</td>
+    ${a.timestamp ? `<td style="font-family:monospace;font-size:9px;color:#64748b;">${a.timestamp}</td>` : ""}
   </tr>`).join("");
 
   // Filter
@@ -1228,7 +1462,1693 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================================
+// NRT LIVE LAYER
+// ============================================================
+
+function initNrtLayer() {
+  if (!map) return;
+  nrtLayer = L.layerGroup();
+  // Don't add to map by default — user toggles it on
+}
+
+function renderNrtLayer() {
+  if (!nrtLayer || !map) return;
+  nrtLayer.clearLayers();
+
+  if (!nrtData.length) {
+    console.log("No NRT data loaded.");
+    return;
+  }
+
+  console.log("Rendering NRT detections:", nrtData.length);
+
+  nrtData.forEach(det => {
+    const lat = Number(det.latitude);
+    const lon = Number(det.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const frp = Number(det.frp) || 0;
+    const severity = String(det.nrt_severity || "normal");
+    const sensor = det.sensor || det.nrt_source || "";
+    const acqDate = det.acq_date || "";
+    const confidence = Number(det.confidence) || 0;
+    const gridId = det.grid_id || "";
+
+    // --- BIGGER markers + pulsing outer ring for visibility ---
+    let color, innerColor, radius, weight;
+    if (severity === "critical") {
+      color = "#ff2d2d"; innerColor = "#ff5555"; radius = 14; weight = 3;
+    } else if (severity === "high") {
+      color = "#ff6b1a"; innerColor = "#ff8c42"; radius = 12; weight = 2;
+    } else if (severity === "elevated") {
+      color = "#ffae42"; innerColor = "#ffc766"; radius = 10; weight = 2;
+    } else {
+      color = "#ff493d"; innerColor = "#ff7070"; radius = 9; weight = 1;
+    }
+
+    // Outer pulsing ring (larger, semi-transparent)
+    const ring = L.circleMarker([lat, lon], {
+      radius: radius + 6,
+      color: color,
+      weight: 1.5,
+      fillColor: color,
+      fillOpacity: 0.12,
+      className: "nrt-ring-pulse",
+      interactive: false,
+    });
+    nrtLayer.addLayer(ring);
+
+    // Inner solid marker (clickable)
+    const marker = L.circleMarker([lat, lon], {
+      radius,
+      color: color,
+      weight,
+      fillColor: innerColor,
+      fillOpacity: 0.75,
+      className: "nrt-pulse-marker",
+    });
+
+    // --- LIVE badge icon via divIcon ---
+    const liveIcon = L.divIcon({
+      className: "nrt-live-badge-icon",
+      html: `<span class="nrt-live-badge">LIVE</span>`,
+      iconSize: [36, 16],
+      iconAnchor: [18, -radius - 4],
+    });
+    const liveMarker = L.marker([lat, lon], { icon: liveIcon, interactive: false });
+    nrtLayer.addLayer(liveMarker);
+
+    // --- Fire type from NRT data ---
+    const fireType = normalizeFireType(det.fire_type);
+    const fireTypeLabel = FIRE_TYPE_LABELS[fireType] || det.fire_type || "";
+    const fireTypeColor = FIRE_TYPE_COLORS[fireType] || "#7890a8";
+
+    // --- Interactive popup with grid link ---
+    marker.bindPopup(`
+      <div style="min-width:230px;font-family:Arial,sans-serif;line-height:1.6;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;color:#fff;background:${color};letter-spacing:0.5px;">LIVE</span>
+          <b style="color:${color};">NRT Detection</b>
+        </div>
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <b>FRP:</b> <span style="font-size:14px;color:${color};">${frp.toFixed(1)} MW</span><br>
+        <b>Severity:</b> ${severity.toUpperCase()}<br>
+        ${fireTypeLabel ? `<b>Fire Type:</b> <span style="color:${fireTypeColor};">${fireTypeLabel}</span><br>` : ""}
+        <b>Sensor:</b> ${sensor}<br>
+        <b>Confidence:</b> ${confidence}<br>
+        <b>Time:</b> ${acqDate}<br>
+        <b>Coords:</b> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>
+        ${gridId ? `<b>Grid:</b> <code style="background:#1a2533;padding:1px 5px;border-radius:3px;">${gridId}</code><br>` : ""}
+        <hr style="margin:4px 0;border-color:#2a3a4a;">
+        <span style="color:#94a6b8;font-size:10px;">Click to zoom &middot; Hover for quick info</span>
+      </div>
+    `);
+
+    // --- Click: fly to detection + highlight ---
+    marker.on("click", () => {
+      map.flyTo([lat, lon], 13, { animate: true, duration: 0.8 });
+      showNrtIntel(det);
+      selectFireForChat(det);
+    });
+
+    // --- Tooltip on hover ---
+    const ttFireType = fireTypeLabel ? ` &middot; ${fireTypeLabel}` : "";
+    marker.bindTooltip(
+      `<b>LIVE</b> &middot; ${frp.toFixed(0)} MW &middot; ${severity.toUpperCase()}${ttFireType} &middot; ${sensor}`,
+      { direction: "top", offset: [0, -radius - 8], className: "nrt-tooltip" }
+    );
+
+    nrtLayer.addLayer(marker);
+  });
+
+  if (!map.hasLayer(nrtLayer)) {
+    const nrtToggle = document.getElementById("lyrNrt");
+    if (nrtToggle && nrtToggle.checked) {
+      nrtLayer.addTo(map);
+    }
+  }
+}
+
+function toggleNrtLayer() {
+  if (!map || !nrtLayer) return;
+  const nrtToggle = document.getElementById("lyrNrt");
+  if (!nrtToggle) return;
+
+  if (nrtToggle.checked) {
+    nrtLayer.addTo(map);
+  } else {
+    map.removeLayer(nrtLayer);
+  }
+}
+
+// ============================================================
+// NRT FETCH BUTTON (inside sidebar Live NRT Monitor)
+// ============================================================
+
+function initNrtFetchButton() {
+  const btn = document.getElementById("btnFetchNrt");
+  const status = document.getElementById("nrtFetchStatus");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    btn.classList.add("fetching");
+    btn.textContent = "⏳ Running...";
+    if (status) {
+      status.style.display = "block";
+      status.textContent = "Run: python src/fetch_nrt.py && python src/alert_engine.py";
+      status.style.color = "#ffae42";
+    }
+
+    // Signal parent Streamlit to trigger the hidden fetch button
+    window.parent.postMessage({ type: "thermoscope:fetchNrt" }, "*");
+
+    // Auto-reload after 5 seconds to pick up new data
+    setTimeout(() => {
+      btn.classList.remove("fetching");
+      btn.textContent = "🔄 Fetch Live Data";
+      if (status) {
+        status.textContent = "Refreshing...";
+        status.style.color = "#20e889";
+      }
+      // Reload the parent to pick up fresh CSV data
+      window.parent.location.reload();
+    }, 5000);
+  });
+}
+
+// ============================================================
+// NRT INTEL PANEL (right sidebar)
+// ============================================================
+
+function showNrtIntel(det) {
+  const el = document.getElementById("selectedGrid");
+  if (!el) return;
+
+  const frp = Number(det.frp) || 0;
+  const severity = String(det.nrt_severity || "normal").toUpperCase();
+  const sensor = det.sensor || det.nrt_source || "";
+  const acqDate = det.acq_date || "";
+  const confidence = Number(det.confidence) || 0;
+  const gridId = det.grid_id || "";
+  const lat = Number(det.latitude);
+  const lon = Number(det.longitude);
+  const ageHrs = Number(det.age_hours);
+  const ageStr = Number.isFinite(ageHrs) ? `${ageHrs.toFixed(1)}h ago` : "";
+
+  const sevColors = { CRITICAL: "#ff2d2d", HIGH: "#ff6b1a", ELEVATED: "#ffae42", NORMAL: "#ff493d" };
+  const sevColor = sevColors[severity] || "#ff493d";
+
+  // Fire type classification
+  const ft = normalizeFireType(det.fire_type);
+  const ftLabel = FIRE_TYPE_LABELS[ft] || det.fire_type || "";
+  const ftColor = FIRE_TYPE_COLORS[ft] || "#7890a8";
+  const ftConfidence = Number(det.fire_type_confidence) || 0;
+  const ftReason = det.fire_type_reason || "";
+
+  // Reverse geocode for location info
+  const geo = reverseGeocode(lat, lon);
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <span class="nrt-live-badge" style="font-size:11px;">LIVE</span>
+      <div class="grid-id" style="font-size:15px;">NRT Detection</div>
+    </div>
+    ${geo && geo.state !== "Unknown" ? `<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:11px;">
+      🗺️ <strong>${geo.state}</strong>${geo.nearestCity ? ` · 🏙️ ${geo.nearestCity}${geo.withinCity ? "" : ` (${geo.distanceToCityKm} km)`}` : ""}
+    </div>` : ""}
+    <div class="risk-label" style="border-color:${sevColor};color:${sevColor};font-size:13px;">
+      ${severity} SEVERITY
+    </div>
+    ${ftLabel ? `<div class="type-label" style="border:1px solid ${ftColor};color:${ftColor};font-size:12px;margin:6px 0;">
+      🔥 ${ftLabel}${ftConfidence > 0 ? ` · ${Math.round(ftConfidence * 100)}%` : ""}
+    </div>` : ""}
+    <div class="intel-row"><span>FRP</span><strong style="font-size:16px;color:${sevColor};">${frp.toFixed(1)} MW</strong></div>
+    <div class="intel-row"><span>Sensor</span><strong>${sensor}</strong></div>
+    <div class="intel-row"><span>Confidence</span><strong>${confidence}</strong></div>
+    <div class="intel-row"><span>Time</span><strong>${acqDate}</strong></div>
+    ${ageStr ? `<div class="intel-row"><span>Age</span><strong>${ageStr}</strong></div>` : ""}
+    <div class="intel-row"><span>Latitude</span><strong>${lat.toFixed(6)}</strong></div>
+    <div class="intel-row"><span>Longitude</span><strong>${lon.toFixed(6)}</strong></div>
+    ${gridId ? `<div class="intel-row"><span>Grid Cell</span><strong style="font-family:monospace;font-size:11px;">${gridId}</strong></div>` : ""}
+    ${ftReason ? `<div class="intel-reason" style="margin-top:8px;">${ftReason}</div>` : ""}
+  `;
+}
+
+// ============================================================
+// NRT AUTO-REFRESH
+// ============================================================
+// In Streamlit mode the data is baked into the page.
+// This timer triggers a page reload to pick up fresh data
+// from a cron-triggered fetch_nrt.py + alert_engine.py run.
+// ============================================================
+
+function startNrtAutoRefresh() {
+  if (nrtAutoRefreshTimer) clearInterval(nrtAutoRefreshTimer);
+  nrtAutoRefreshTimer = setInterval(() => {
+    console.log("[NRT] Auto-refresh: reloading dashboard data...");
+    // In Streamlit mode, trigger a rerun via Streamlit's
+    // component message. In standalone mode, just reload.
+    if (window.THERMOSCOPE_DATA) {
+      window.parent.postMessage({ type: "streamlit:rerun" }, "*");
+    }
+  }, NRT_AUTO_REFRESH_MS);
+  console.log(`[NRT] Auto-refresh every ${NRT_AUTO_REFRESH_MS / 1000}s`);
+}
+
+function stopNrtAutoRefresh() {
+  if (nrtAutoRefreshTimer) {
+    clearInterval(nrtAutoRefreshTimer);
+    nrtAutoRefreshTimer = null;
+  }
+}
+
+// ============================================================
+// NRT STATUS READOUT
+// ============================================================
+
+function updateNrtReadout() {
+  const el = document.getElementById("nrtReadout");
+  if (!el) return;
+  const count = nrtData.length;
+  if (count === 0) {
+    el.innerHTML = `<span style="color:#64748b;">No NRT data yet — run fetch_nrt.py</span>`;
+  } else {
+    const ts = window.THERMOSCOPE_DATA?.nrtTimestamp || "";
+    el.innerHTML = `<span style="color:#ff6b5e;">● ${count.toLocaleString("en-IN")} live detections</span>${ts ? ` · fetched ${ts}` : ""}`;
+  }
+}
+
+// ============================================================
+// ALERT BADGE IN NAV
+// ============================================================
+
+function updateAlertBadge() {
+  const badge = document.getElementById("alertBadge");
+  const alertsTab = document.querySelector(".nav-tab[data-tab='alerts']");
+  if (!badge || !alertsTab) return;
+
+  const count = alertsData.length;
+  if (count > 0) {
+    badge.textContent = count > 99 ? "99+" : count;
+    badge.style.display = "inline-flex";
+  } else {
+    badge.style.display = "none";
+  }
+}
+
+// ============================================================
+// XAI CHATBOT — FIRE KNOWLEDGE BASE
+// ============================================================
+
+const FIRE_KNOWLEDGE = {
+  INDUSTRIAL_PERSISTENT: {
+    emoji: "🏭",
+    label: "Industrial / Persistent Source",
+    severity: "HIGH",
+    seasonPeak: "Year-round (continuous)",
+    legalFramework: [
+      "Environment Protection Act 1986, Section 5",
+      "Air (Prevention & Control of Pollution) Act 1981",
+      "Factories Act 1948, Section 41A (Safety Officers)",
+      "CPCB Emission Standards for Thermal Power Plants",
+      "MoEFCC Coastal Regulation Zone norms"
+    ],
+    causes: [
+      "Continuous thermal emissions from factories, refineries, or power plants",
+      "Flaring of waste gas at petrochemical facilities",
+      "Coke oven operations in steel plants",
+      "Uncontrolled emissions from brick kilns",
+      "Spontaneous combustion in coal stockpiles",
+      "Leakage in chemical storage causing spontaneous ignition",
+      "Electrical short circuits in industrial complexes"
+    ],
+    precautions: [
+      "Maintain safe buffer zone (500m+) around industrial thermal sources",
+      "Install continuous emissions monitoring systems (CEMS)",
+      "Regular inspection of flaring and venting equipment",
+      "Firebreak maintenance around coal storage areas",
+      "Real-time thermal anomaly alerting for plant operators",
+      "Automatic fire suppression systems in high-risk zones",
+      "Emergency shutdown protocols for chemical processes"
+    ],
+    actions: [
+      "Report to State Pollution Control Board (SPCB) for emission violations",
+      "Invoke CPCB National Air Quality Standards (NAAQS) compliance check",
+      "Deploy CPCB regional team for on-site inspection",
+      "Cross-reference with CPCB Continuous Ambient Air Quality Monitoring data",
+      "File complaint on CPCB CPGRAMS portal if repeated violations",
+      "Notify District Disaster Management Authority (DDMA)",
+      "Activate Industrial Emergency Response Plan"
+    ],
+    agencies: ["CPCB / SPCB", "MoEFCC", "Factory Inspectorate", "NDMA", "District Administration", "National Disaster Response Force (NDRF)", "Industrial Safety Department"],
+    impact: "Persistent industrial thermal emissions degrade local air quality (PM2.5, SO2, NOx), cause respiratory health issues in nearby communities, and indicate potential regulatory non-compliance. Can escalate to major industrial disasters if uncontrolled.",
+    emergencyProtocol: {
+      immediate: ["Evacuate 1km radius", "Activate industrial siren", "Call Fire Brigade + NDRF", "Shut down adjacent chemical processes"],
+      shortTerm: ["Air quality monitoring every 15 min", "Health screening camps for affected population", "CPCB emergency assessment team deployment"],
+      longTerm: ["Mandatory CEMS installation", "Revised Environmental Impact Assessment", "Community health surveillance program"]
+    }
+  },
+  AGRICULTURAL_BURNING: {
+    emoji: "🌾",
+    label: "Agricultural Burning",
+    severity: "MEDIUM-HIGH",
+    seasonPeak: "Oct-Nov (stubble), Apr-May (pre-monsoon clearing)",
+    legalFramework: [
+      "National Green Tribunal (NGT) Order 2015 on stubble burning",
+      "Section 188 IPC — Disobedience of public servant order",
+      "Disaster Management Act 2005, Section 51-60",
+      "Punjab Preservation of Subsoil Water Act 2009",
+      "Commission for Air Quality Management (CAQM) Ordinance 2020"
+    ],
+    causes: [
+      "Post-harvest stubble burning (rice wheat cycle in Punjab/Haryana/UP)",
+      "Land clearing before next cropping season",
+      "Lack of affordable crop residue management machinery",
+      "Traditional farming practices and time pressure",
+      "Economics — burning is cheapest option vs. happy seeder rental",
+      "Zero tolerance window too short between harvest and sowing"
+    ],
+    precautions: [
+      "Use Happy Seeder / Super SMS machinery for in-situ crop residue management",
+      "Create community-level crop residue banks for shared equipment",
+      "Establish village-level monitoring committees",
+      "Indoor air purifiers for vulnerable populations during burning season",
+      "Schedule burning in controlled, low-wind conditions if unavoidable",
+      "Bio-decomposer spray (Pusa decomposer) to decompose stubble in-field"
+    ],
+    actions: [
+      "Alert District Magistrate and sub-divisional magistrate immediately",
+      "File FIR under Section 188 IPC / Disaster Management Act 2005",
+      "Report to Punjab/Haryana/UP Pollution Control Board",
+      "Invoke National Green Tribunal (NGT) directives on stubble burning",
+      "Activate GRAP (Graded Response Action Plan) if in NCR region",
+      "Impose financial penalty as per CAQM guidelines (₹5,000-25,000)",
+      "Deploy drone surveillance for real-time monitoring"
+    ],
+    agencies: ["District Agriculture Office", "SPCB", "NGT", "District Magistrate", "NDRF (if escalated)", "CAQM (Commission for Air Quality Management)", "ISRO / NRSC for satellite monitoring"],
+    impact: "Stubble burning contributes ~25-30% of Delhi NCR winter air pollution (AQI crosses 500 'severe'), causes severe respiratory illness (30% increase in hospital admissions), reduces visibility to <100m on highways, violates NGT orders, and wastes potential bio-fuel/compost resource.",
+    emergencyProtocol: {
+      immediate: ["Alert local fire brigade", "Issue public health advisory (N95 masks, stay indoors)", "Deploy water tankers for dust suppression", "Activate anti-smog guns in NCR"],
+      shortTerm: ["GRAP Stage III/IV implementation", "School closure advisory if AQI > 400", "Free health camps in affected villages", "Satellite-based daily hotspot monitoring"],
+      longTerm: ["Happy Seeder subsidy increase to 80%", "CPCB-mandated crop residue management plan", "In-situ decomposition research funding", "Inter-state coordination for transboundary pollution"]
+    }
+  },
+  FOREST_WILDFIRE: {
+    emoji: "🌲",
+    label: "Forest / Wildfire",
+    severity: "HIGH-CRITICAL",
+    seasonPeak: "Mar-Jun (pre-monsoon dry season)",
+    legalFramework: [
+      "Indian Forest Act 1927, Section 26 (forest fire offense)",
+      "Forest (Conservation) Act 1980",
+      "Wildlife Protection Act 1972 (for protected areas)",
+      "National Disaster Management Act 2005",
+      "NDMA Guidelines on Forest Fires 2019"
+    ],
+    causes: [
+      "Dry season lightning strikes in forest areas",
+      "Abandoned campfires and cigarettes by trekkers",
+      "Deliberate setting for land encroachment",
+      "Extreme heat events and drought conditions",
+      "Forest floor accumulation of dry leaf litter and deadwood",
+      "Shifting cultivation (jhum) escaped control",
+      "Forest product collection (tendu, resin) causing ignition"
+    ],
+    precautions: [
+      "Maintain fire lines (cleared strips) in forest divisions",
+      "Deploy fire watch towers with thermal cameras in high-risk zones",
+      "Community-based fire management training for forest fringe villages",
+      "Seasonal bans on forest entry during peak fire months (Mar-Jun)",
+      "Pre-position fire fighting equipment at forest beat offices",
+      "Satellite-based early warning system (FIRMS NRT integration)",
+      "Insurance coverage for forest fringe communities"
+    ],
+    actions: [
+      "Alert State Forest Department and DFO (Divisional Forest Officer) immediately",
+      "Activate NDRF/SDRF if fire threatens human settlements",
+      "Implement NDMA wildfire response protocol",
+      "Evacuate forest fringe villages if fire front approaches",
+      "Aerial fire suppression via helicopter/air tanker if available",
+      "Create firebreak by controlled back-burning ahead of fire front",
+      "Coordinate with ITBP/Army for large-scale firefighting"
+    ],
+    agencies: ["State Forest Department", "NDRF / SDRF", "NDMA", "ITBP / Army (if needed)", "District Disaster Management Authority", "Wildlife Institute of India", "Forest Survey of India (FSI)"],
+    impact: "Forest fires destroy biodiversity (India lost 35,000+ hectares in 2023), release massive CO2 and PM2.5, cause soil erosion and watershed damage, threaten wildlife habitats, can spread to human settlements, and cost ₹100+ crore in suppression annually.",
+    emergencyProtocol: {
+      immediate: ["Activate forest fire control room", "Deploy fire beat guards + community volunteers", "Evacuate settlements within 2km of fire front", "Request Indian Air Force helicopter support if >50ha"],
+      shortTerm: ["Establish base camps near fire line", "Coordinate with neighboring forest divisions", "Health monitoring for firefighters (smoke inhalation)", "Wildlife rescue operations for affected areas"],
+      longTerm: ["Post-fire reforestation program", "Community forest fire management plans", "Satellite-based fire risk mapping (FSI)", "Fire-resistant species plantation in fire-prone zones"]
+    }
+  },
+  MINING: {
+    emoji: "⛏️",
+    label: "Mining Activity",
+    severity: "HIGH",
+    seasonPeak: "Year-round (peak in dry months)",
+    legalFramework: [
+      "Mines and Minerals (Development & Regulation) Act 1957",
+      "Coal Mines Regulations 2017 (CMR 2017)",
+      "Mines Act 1952, Section 39 (fire precautions)",
+      "DGMS Circular on Mine Fires",
+      "Environment Protection Act 1986"
+    ],
+    causes: [
+      "Spontaneous combustion in coal seams (underground mines)",
+      "Blasting operations in open-cast mines",
+      "Methane gas ignition in coal mines",
+      "Dumping of overburden with residual coal content",
+      "Equipment fires in mining operations",
+      "Electrical faults in mine infrastructure"
+    ],
+    precautions: [
+      "Deploy methane drainage systems in underground coal mines",
+      "Regular fire safety audits per Coal Mines Regulations 2017",
+      "Install real-time gas monitoring and thermal sensors",
+      "Maintain fire suppression infrastructure at pit mouths",
+      "Segregate overburden dumps to prevent spontaneous combustion",
+      "Nitrogen injection to inert goaf areas",
+      "Mandatory firefighting drills quarterly"
+    ],
+    actions: [
+      "Alert DGMS (Directorate General of Mines Safety) immediately",
+      "Invoke Coal India safety protocols for mine fire response",
+      "Evacuate miners and activate mine rescue teams",
+      "Report to SPCB for environmental violation",
+      "Emergency closure of affected mine sections per CMR 2017",
+      "Deploy mine rescue station teams (SDMF)",
+      "Environmental impact assessment of mine fire emissions"
+    ],
+    agencies: ["DGMS", "Coal India / State Mining Corp", "SPCB", "NDMA", "District Administration", "Mine Rescue Station", "Central Mine Planning & Design Institute (CMPDI)"],
+    impact: "Mine fires cause land subsidence (affecting surface structures), release toxic gases (CO, SO2, H2S), contaminate groundwater rendering it unusable, render land unusable for decades, pose fatal risks to miners, and cause massive economic loss to mining companies.",
+    emergencyProtocol: {
+      immediate: ["Immediate mine evacuation (all personnel)", "Activate mine rescue team", "Seal affected section with sand/clay", "Gas monitoring at all access points"],
+      shortTerm: ["Continuous atmospheric monitoring", "Water injection to cool fire zone", "DGMS investigation team deployment", "Worker health screening"],
+      longTerm: ["Mine fire remediation plan (inert gas injection)", "Surface subsidence monitoring", "Groundwater contamination remediation", "Mine closure/rehabilitation plan if unresolvable"]
+    }
+  },
+  UNCLASSIFIED: {
+    emoji: "❓",
+    label: "Unclassified Fire",
+    severity: "UNKNOWN",
+    seasonPeak: "Unknown",
+    legalFramework: ["District Disaster Management Plan", "Disaster Management Act 2005"],
+    causes: [
+      "Insufficient historical data for pattern classification",
+      "Mixed land use with multiple fire sources",
+      "One-time or sporadic thermal event",
+      "Seasonal or weather-related fire",
+      "Possible data quality issue in satellite detection"
+    ],
+    precautions: [
+      "Conduct ground-truth verification of satellite detection",
+      "Cross-reference with local administration reports",
+      "Monitor for recurring patterns over next 30 days",
+      "Check nearby land use for potential fire sources",
+      "Verify with multiple satellite sources for confirmation"
+    ],
+    actions: [
+      "Report to District Disaster Management Office for investigation",
+      "Deploy field team for ground-truth verification",
+      "Monitor next 48 hours for repeat detections",
+      "Cross-reference with local fire brigade incident reports",
+      "Reclassify after gathering additional ground data"
+    ],
+    agencies: ["District Administration", "Local Fire Brigade", "SPCB", "Remote Sensing Centre", "SDRF"],
+    impact: "Unverified thermal detections may represent emerging fire risks or data artifacts. Ground truthing is essential to determine actual risk level and appropriate response.",
+    emergencyProtocol: {
+      immediate: ["Alert district control room", "Dispatch reconnaissance team", "Activate satellite monitoring for 48 hours"],
+      shortTerm: ["Ground verification within 24 hours", "Cross-check with local fire incident records"],
+      longTerm: ["Update classification model with new data", "Add to monitoring watchlist"]
+    }
+  }
+};
+
+// ============================================================
+// XAI CHATBOT — FEATURE IMPORTANCE ENGINE (ENHANCED)
+// ============================================================
+
+function computeXAI(fireData) {
+  const features = [];
+
+  // Land Cover
+  const lc = String(fireData.landcover_class || "").toLowerCase();
+  let lcScore = 20;
+  let lcReason = "Unknown land cover";
+  if (lc.includes("built") || lc.includes("urban") || lc.includes("industrial")) {
+    lcScore = 85; lcReason = "Built-up/urban area → industrial indicator";
+  } else if (lc.includes("crop") || lc.includes("grass") || lc.includes("agri")) {
+    lcScore = 75; lcReason = "Cropland/grassland → agricultural indicator";
+  } else if (lc.includes("tree") || lc.includes("forest")) {
+    lcScore = 70; lcReason = "Tree cover/forest → wildfire indicator";
+  } else if (lc.includes("bare") || lc.includes("rock")) {
+    lcScore = 40; lcReason = "Bare ground → possible mining or controlled burn";
+  } else if (lc.includes("water")) {
+    lcScore = 10; lcReason = "Near water body → low fire association";
+  }
+  features.push({ name: "Land Cover", score: lcScore, color: "#22d3ee", reason: lcReason });
+
+  // Recurrence
+  const rec = Number(fireData.recurrence_ratio) || 0;
+  features.push({ name: "Recurrence", score: Math.round(rec * 100), color: "#a855f7", reason: `Heat recurs ${(rec * 100).toFixed(0)}% of observation days` });
+
+  // FRP Intensity
+  const avgFrp = Number(fireData.avg_frp) || 0;
+  const maxFrp = Number(fireData.max_frp) || 1;
+  const frpScore = Math.min(100, Math.round((avgFrp / Math.max(maxFrp, 1)) * 100));
+  features.push({ name: "FRP Intensity", score: frpScore, color: "#ff382f", reason: `Avg FRP ${avgFrp.toFixed(1)} MW (max observed: ${maxFrp.toFixed(1)} MW)` });
+
+  // Persistence
+  const persMonths = Number(fireData.persistent_months) || 0;
+  const persScore = Math.min(100, Math.round((persMonths / 12) * 100));
+  features.push({ name: "Persistence", score: persScore, color: "#ff6b1a", reason: `Active across ${persMonths} months` });
+
+  // Multi-satellite
+  const multiSat = Number(fireData.multi_satellite_activity) || 0;
+  const msScore = multiSat ? 80 : 15;
+  features.push({ name: "Multi-Satellite", score: msScore, color: "#20e889", reason: multiSat ? "Confirmed by multiple VIIRS sensors" : "Single satellite detection" });
+
+  // Proximity to facility
+  const dist = Number(fireData.named_facility_distance_km);
+  let proxScore = 30;
+  let proxReason = "No facility proximity data";
+  if (Number.isFinite(dist)) {
+    proxScore = dist <= 1 ? 95 : dist <= 3 ? 80 : dist <= 5 ? 60 : dist <= 10 ? 40 : 20;
+    proxReason = `${dist.toFixed(1)} km from named facility`;
+  }
+  features.push({ name: "Proximity", score: proxScore, color: "#ffd400", reason: proxReason });
+
+  return features;
+}
+
+function computeOverallSeverity(fireData, features) {
+  // Weighted composite severity score 0-100
+  const weights = { "Land Cover": 0.20, "Recurrence": 0.20, "FRP Intensity": 0.25, "Persistence": 0.15, "Multi-Satellite": 0.10, "Proximity": 0.10 };
+  let score = 0;
+  features.forEach(f => { score += (f.score || 0) * (weights[f.name] || 0.1); });
+  return Math.round(score);
+}
+
+function getSeverityLabel(score) {
+  if (score >= 80) return { label: "CRITICAL", color: "#ff382f", emoji: "🔴" };
+  if (score >= 60) return { label: "HIGH", color: "#ff6b1a", emoji: "🟠" };
+  if (score >= 40) return { label: "MODERATE", color: "#ffae42", emoji: "🟡" };
+  return { label: "LOW", color: "#20e889", emoji: "🟢" };
+}
+
+function renderXAIChart(features) {
+  let html = '<div style="margin:8px 0;">';
+  features.forEach(f => {
+    html += `<div class="chat-xai-bar">
+      <span class="chat-xai-label">${f.name}</span>
+      <div class="chat-xai-track"><div class="chat-xai-fill" style="width:${f.score}%;background:${f.color};"></div></div>
+      <span class="chat-xai-pct">${f.score}%</span>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+// ============================================================
+// XAI CHATBOT — SEASONAL CONTEXT
+// ============================================================
+
+function getSeasonalContext() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const contexts = [];
+  if (month >= 10 || month <= 11) contexts.push("🌾 Post-harvest stubble burning season — high agricultural fire risk in Punjab/Haryana/UP");
+  if (month >= 3 && month <= 6) contexts.push("🔥 Pre-monsoon dry season — peak forest fire risk across Himalayan and Central Indian forests");
+  if (month >= 11 || month <= 2) contexts.push("🌫️ Winter inversion — pollutants trapped near ground, industrial emissions more impactful");
+  if (month >= 6 && month <= 9) contexts.push("🌧️ Monsoon season — reduced fire risk, but lightning-caused forest fires possible");
+  if (contexts.length === 0) contexts.push("📅 Transitional season — moderate fire risk across all categories");
+  return contexts;
+}
+
+// ============================================================
+// XAI CHATBOT — ALERT CONTEXT
+// ============================================================
+
+function getAlertContext(gridId) {
+  if (!alertsData || !alertsData.length) return null;
+  const matching = alertsData.filter(a => String(a.grid_id) === String(gridId));
+  return matching.length ? matching : null;
+}
+
+function getActiveAlertCount() {
+  if (!alertsData) return 0;
+  return alertsData.filter(a => String(a.status).toUpperCase() === "ACTIVE").length;
+}
+
+// ============================================================
+// XAI CHATBOT — GEMINI API (ENHANCED)
+// ============================================================
+
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_SYSTEM = `You are AgniRakshak AI, an expert in fire risk analysis, satellite-based thermal monitoring, and Indian disaster management.
+You MUST respond in the SAME LANGUAGE the user writes in. If the user writes in Hinglish (Hindi written in English script like "ye kya hai", "batao", "kisko risk hai"), respond in Hinglish. If they write in pure Hindi (Devanagari), respond in Hindi. If English, respond in English.
+Analyze the provided fire data and give clear, actionable explanations.
+Reference NDMA guidelines, NDRF protocols, and CPCB standards where applicable.
+Be concise but thorough. Use bullet points and emojis for readability.
+Always include: severity assessment, key risk factors, immediate actions, responsible agencies, and long-term recommendations.
+When comparing fires, use the statistical data provided. When discussing trends, calculate growth rate from the detection counts.
+You can answer general questions about fire safety, climate, geography of India, disaster management, and any topic related to your expertise. Be helpful and conversational.`;
+
+// ============================================================
+// XAI CHATBOT — LANGUAGE DETECTION
+// ============================================================
+
+function detectLanguage(query) {
+  const q = query.toLowerCase();
+  // Hindi/Devanagari characters
+  if (/[ऀ-ॿ]/.test(query)) return "hindi";
+  // Hinglish patterns
+  const hinglishWords = ["kya", "hai", "hain", "ka", "ki", "ke", "ko", "se", "me", "mein", "ye", "wo", "yeh", "woh", "aur", "ya", "par", "pe", "nahi", "nhi", "bhi", "jo", "jo", "tum", "aap", "hum", "mai", "mera", "tera", "uska", "batao", "bata", "bolo", "sunao", "dekhlo", "kisko", "kis", "konsa", "kaise", "kyun", "kyu", "abhi", "yaha", "waha", "idhar", "udhar", "jaise", "waise", "tab", "phir", "toh", "tha", "thi", "hoga", "hogi", "karega", "karegi", "chahiye", "sakte", "ho sakta", "sakta", "sakti", "wala", "wali", "wale", "gaya", "gai", "diya", "liya", "karo", "karna", "karne", "bolte", "bol", "samajh", "samjho"];
+  const hinglishCount = hinglishWords.filter(w => q.includes(w)).length;
+  if (hinglishCount >= 2) return "hinglish";
+  // Common Hinglish question patterns
+  if (/\b(kya|kaun|kiska|kaise|kyun|kyu|kitna|kab|kaha|kahan)\b/.test(q)) return "hinglish";
+  return "english";
+}
+
+// ============================================================
+// XAI CHATBOT — GEOGRAPHIC KNOWLEDGE BASE
+// ============================================================
+
+const GEO_KNOWLEDGE = {
+  states: {
+    "up": { name: "Uttar Pradesh", full: "Uttar Pradesh", capitals: ["Lucknow"], majorDistricts: ["Lucknow", "Kanpur", "Agra", "Varanasi", "Meerut", "Prayagraj", "Bareilly", "Jhansi", "Gorakhpur", "Noida", "Ghaziabad"], fireNote: "UP has high agricultural burning (Oct-Nov) and industrial thermal activity near Kanpur, Varanasi belt." },
+    "uttar pradesh": { name: "Uttar Pradesh", full: "Uttar Pradesh", capitals: ["Lucknow"], majorDistricts: ["Lucknow", "Kanpur", "Agra", "Varanasi", "Meerut"], fireNote: "UP has high agricultural burning (Oct-Nov) and industrial thermal activity near Kanpur, Varanasi belt." },
+    "delhi": { name: "Delhi", full: "National Capital Territory of Delhi", capitals: ["New Delhi"], majorDistricts: ["New Delhi", "Central Delhi", "South Delhi", "North Delhi", "East Delhi", "West Delhi"], fireNote: "Delhi NCR receives transboundary pollution from stubble burning in Punjab/Haryana. Industrial hotspots in outer Delhi." },
+    "ncr": { name: "Delhi NCR", full: "National Capital Region", capitals: ["New Delhi"], majorDistricts: ["Gurugram", "Noida", "Ghaziabad", "Faridabad", "Sonipat"], fireNote: "NCR is most affected by stubble burning. GRAP (Graded Response Action Plan) activates when AQI crosses 300+." },
+    "haryana": { name: "Haryana", full: "Haryana", capitals: ["Chandigarh"], majorDistricts: ["Gurugram", "Faridabad", "Sonipat", "Panipat", "Hisar", "Karnal"], fireNote: "Major stubble burning state (Oct-Nov). Industrial emissions from Panipat refinery, Hisar sugar mills." },
+    "punjab": { name: "Punjab", full: "Punjab", capitals: ["Chandigarh"], majorDistricts: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", "Ferozpur"], fireNote: "Highest stubble burning intensity in India (Oct-Nov). Rice-wheat cycle creates massive stubble problem." },
+    "rajasthan": { name: "Rajasthan", full: "Rajasthan", capitals: ["Jaipur"], majorDistricts: ["Jaipur", "Jodhpur", "Kota", "Udaipur", "Ajmer", "Bikaner"], fireNote: "Forest fires in Aravalli range (Mar-Jun). Industrial thermal activity near Kota-Chittorgarh belt." },
+    "mp": { name: "Madhya Pradesh", full: "Madhya Pradesh", capitals: ["Bhopal"], majorDistricts: ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Ujjain"], fireNote: "Large forest fire zone in Satpura-Vindhyas. Coal mine fires in Singrauli belt." },
+    "madhya pradesh": { name: "Madhya Pradesh", full: "Madhya Pradesh", capitals: ["Bhopal"], majorDistricts: ["Bhopal", "Indore", "Jabalpur", "Gwalior"], fireNote: "Large forest fire zone in Satpura-Vindhyas. Coal mine fires in Singrauli belt." },
+    "jharkhand": { name: "Jharkhand", full: "Jharkhand", capitals: ["Ranchi"], majorDistricts: ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro", "Hazaribagh"], fireNote: "Major coal mining state. Jharia mine fires have burned for 100+ years. High industrial fire risk." },
+    "bihar": { name: "Bihar", full: "Bihar", capitals: ["Patna"], majorDistricts: ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur", "Munger"], fireNote: "Agricultural residue burning in Kosi region. Forest fires in Rajgir hills." },
+    "uttarakhand": { name: "Uttarakhand", full: "Uttarakhand", capitals: ["Dehradun"], majorDistricts: ["Dehradun", "Haridwar", "Nainital", "Almora", "Chamoli"], fireNote: "Severe forest fires in Himalayan foothills (Mar-Jun). 2024 fires burned 1000+ hectares." },
+    "uk": { name: "Uttarakhand", full: "Uttarakhand", capitals: ["Dehradun"], majorDistricts: ["Dehradun", "Haridwar", "Nainital"], fireNote: "Severe forest fires in Himalayan foothills (Mar-Jun)." },
+    "himachal": { name: "Himachal Pradesh", full: "Himachal Pradesh", capitals: ["Shimla"], majorDistricts: ["Shimla", "Mandi", "Kullu", "Kangra", "Solan"], fireNote: "Forest fires in pine forests during dry season. Chir pine needles are highly flammable." },
+    "himachal pradesh": { name: "Himachal Pradesh", full: "Himachal Pradesh", capitals: ["Shimla"], majorDistricts: ["Shimla", "Mandi", "Kullu"], fireNote: "Forest fires in pine forests during dry season." },
+  },
+  cities: {
+    "delhi": "Delhi NCR — Major transboundary pollution from stubble burning. AQI crosses 500 in Nov.",
+    "kanpur": "Kanpur, UP — Industrial hub with leather tanneries. High industrial thermal emissions.",
+    "ludhiana": "Ludhiana, Punjab — Major industrial city + surrounded by agricultural burning zones.",
+    "ranchi": "Ranchi, Jharkhand — Coal mining region. Jharia fires visible from space.",
+    "jaipur": "Jaipur, Rajasthan — Industrial corridor. Forest fires in nearby Aravalli range.",
+    "lucknow": "Lucknow, UP — Agricultural + urban fires. Near sugarcane belt.",
+    "patna": "Patna, Bihar — Agricultural burning in surrounding districts.",
+    "dehradun": "Dehradun, Uttarakhand — Gateway to Himalayan forest fire zone.",
+    "bhopal": "Bhopal, MP — Near Satpura forest fires. Coal fires in nearby Singrauli.",
+    "gurugram": "Gurugram, Haryana (NCR) — Industrial emissions + stubble burning impact.",
+  },
+  fireStats: {
+    delhi_ncr_stubble: "Delhi NCR receives ~25-30% of its winter air pollution from stubble burning in Punjab/Haryana/UP.",
+    forest_fire_india: "India loses ~35,000 hectares of forest annually to fires. Uttarakhand, MP, Chhattisgarh are worst affected.",
+    coal_mine_fires: "Jharia coal mine fires in Jharkhand have been burning for 100+ years. 70+ fires active.",
+    industrial_india: "India has 200+ critically polluted industrial clusters identified by CPCB.",
+    satellite_coverage: "Thermoscope monitors Delhi NCR + UP using VIIRS satellites (S-NPP, NOAA-20, NOAA-21) with 375m resolution.",
+  }
+};
+
+// ============================================================
+// XAI CHATBOT — REVERSE GEOCODING (lat/lon → state, city)
+// ============================================================
+
+const STATE_BOUNDARIES = [
+  // Small states checked FIRST (more precise bounding boxes)
+  { state: "Delhi", latMin: 28.40, latMax: 28.88, lonMin: 76.83, lonMax: 77.34, cities: [
+    { name: "New Delhi", lat: 28.61, lon: 77.21, radius: 0.15 },
+    { name: "North Delhi", lat: 28.70, lon: 77.18, radius: 0.12 },
+    { name: "South Delhi", lat: 28.52, lon: 77.20, radius: 0.12 },
+    { name: "East Delhi", lat: 28.63, lon: 77.30, radius: 0.10 },
+    { name: "West Delhi", lat: 28.63, lon: 77.10, radius: 0.10 },
+    { name: "Central Delhi", lat: 28.64, lon: 77.22, radius: 0.08 },
+  ]},
+  // Haryana — ends at ~77.3 east (border with UP), south ~27.7
+  { state: "Haryana", latMin: 27.7, latMax: 30.9, lonMin: 74.9, lonMax: 77.3, cities: [
+    { name: "Gurugram", lat: 28.46, lon: 77.03, radius: 0.12 },
+    { name: "Faridabad", lat: 28.41, lon: 77.32, radius: 0.10 },
+    { name: "Sonipat", lat: 28.99, lon: 77.02, radius: 0.15 },
+    { name: "Panipat", lat: 29.39, lon: 76.97, radius: 0.15 },
+    { name: "Hisar", lat: 29.15, lon: 75.72, radius: 0.18 },
+    { name: "Karnal", lat: 29.69, lon: 76.99, radius: 0.15 },
+    { name: "Ambala", lat: 30.37, lon: 76.78, radius: 0.15 },
+    { name: "Rewari", lat: 28.23, lon: 76.72, radius: 0.10 },
+    { name: "Bhiwani", lat: 28.79, lon: 76.14, radius: 0.15 },
+    { name: "Rohtak", lat: 28.90, lon: 76.58, radius: 0.12 },
+  ]},
+  // Punjab — narrow band 29.5-32.5 lat, 73.5-77.0 lon
+  { state: "Punjab", latMin: 29.5, latMax: 32.5, lonMin: 73.5, lonMax: 77.0, cities: [
+    { name: "Ludhiana", lat: 30.90, lon: 75.86, radius: 0.20 },
+    { name: "Amritsar", lat: 31.63, lon: 74.87, radius: 0.20 },
+    { name: "Jalandhar", lat: 31.33, lon: 75.58, radius: 0.18 },
+    { name: "Patiala", lat: 30.34, lon: 76.39, radius: 0.15 },
+    { name: "Bathinda", lat: 30.21, lon: 74.95, radius: 0.18 },
+    { name: "Ferozpur", lat: 30.92, lon: 74.62, radius: 0.15 },
+    { name: "Mohali", lat: 30.70, lon: 76.72, radius: 0.10 },
+    { name: "Moga", lat: 30.81, lon: 75.17, radius: 0.12 },
+    { name: "Sangrur", lat: 30.25, lon: 75.84, radius: 0.12 },
+    { name: "Hoshiarpur", lat: 31.51, lon: 75.91, radius: 0.12 },
+    { name: "Pathankot", lat: 32.27, lon: 75.65, radius: 0.12 },
+    { name: "Gurdaspur", lat: 32.04, lon: 74.79, radius: 0.12 },
+  ]},
+  // Rajasthan — ends at ~76.5 east (border with UP/MP)
+  { state: "Rajasthan", latMin: 23.3, latMax: 30.2, lonMin: 69.5, lonMax: 76.5, cities: [
+    { name: "Jaipur", lat: 26.92, lon: 75.79, radius: 0.25 },
+    { name: "Jodhpur", lat: 26.24, lon: 73.02, radius: 0.25 },
+    { name: "Kota", lat: 25.18, lon: 75.86, radius: 0.20 },
+    { name: "Udaipur", lat: 24.58, lon: 73.71, radius: 0.20 },
+    { name: "Ajmer", lat: 26.45, lon: 74.64, radius: 0.18 },
+    { name: "Bikaner", lat: 28.02, lon: 73.32, radius: 0.20 },
+    { name: "Alwar", lat: 27.55, lon: 76.63, radius: 0.18 },
+    { name: "Bharatpur", lat: 27.22, lon: 77.49, radius: 0.12 },
+    { name: "Dholpur", lat: 26.70, lon: 77.90, radius: 0.12 },
+    { name: "Sawai Madhopur", lat: 26.02, lon: 76.35, radius: 0.15 },
+    { name: "Chittorgarh", lat: 24.88, lon: 74.62, radius: 0.15 },
+    { name: "Baran", lat: 25.10, lon: 76.35, radius: 0.12 },
+    { name: "Karauli", lat: 26.50, lon: 77.02, radius: 0.10 },
+  ]},
+  // Uttarakhand — northern hill state
+  { state: "Uttarakhand", latMin: 28.4, latMax: 31.4, lonMin: 77.5, lonMax: 81.0, cities: [
+    { name: "Dehradun", lat: 30.32, lon: 78.03, radius: 0.22 },
+    { name: "Haridwar", lat: 29.95, lon: 78.16, radius: 0.18 },
+    { name: "Nainital", lat: 29.38, lon: 79.45, radius: 0.18 },
+    { name: "Haldwani", lat: 29.22, lon: 79.53, radius: 0.12 },
+    { name: "Rishikesh", lat: 30.09, lon: 78.27, radius: 0.10 },
+    { name: "Almora", lat: 29.60, lon: 79.66, radius: 0.12 },
+    { name: "Pithoragarh", lat: 29.58, lon: 80.22, radius: 0.12 },
+    { name: "Chamoli", lat: 30.40, lon: 79.33, radius: 0.12 },
+  ]},
+  // Himachal Pradesh — northern hill state
+  { state: "Himachal Pradesh", latMin: 30.4, latMax: 33.2, lonMin: 75.8, lonMax: 79.0, cities: [
+    { name: "Shimla", lat: 31.10, lon: 77.17, radius: 0.18 },
+    { name: "Mandi", lat: 31.71, lon: 76.93, radius: 0.18 },
+    { name: "Kullu", lat: 31.96, lon: 77.11, radius: 0.18 },
+    { name: "Kangra", lat: 32.10, lon: 76.27, radius: 0.18 },
+    { name: "Solan", lat: 30.91, lon: 77.10, radius: 0.10 },
+    { name: "Hamirpur", lat: 31.68, lon: 76.53, radius: 0.10 },
+  ]},
+  // Jharkhand — checked before UP/MP to avoid overlap
+  { state: "Jharkhand", latMin: 21.9, latMax: 24.7, lonMin: 83.3, lonMax: 87.9, cities: [
+    { name: "Ranchi", lat: 23.35, lon: 85.33, radius: 0.22 },
+    { name: "Jamshedpur", lat: 22.80, lon: 86.18, radius: 0.18 },
+    { name: "Dhanbad", lat: 23.79, lon: 86.43, radius: 0.18 },
+    { name: "Bokaro", lat: 23.67, lon: 86.15, radius: 0.15 },
+    { name: "Hazaribagh", lat: 23.99, lon: 85.36, radius: 0.18 },
+    { name: "Deoghar", lat: 24.48, lon: 86.70, radius: 0.12 },
+    { name: "Gumla", lat: 23.07, lon: 84.54, radius: 0.12 },
+    { name: "Lohardaga", lat: 23.43, lon: 84.68, radius: 0.10 },
+  ]},
+  // Bihar — checked before UP
+  { state: "Bihar", latMin: 24.2, latMax: 27.5, lonMin: 83.2, lonMax: 88.2, cities: [
+    { name: "Patna", lat: 25.61, lon: 85.14, radius: 0.25 },
+    { name: "Gaya", lat: 24.79, lon: 85.00, radius: 0.18 },
+    { name: "Muzaffarpur", lat: 26.12, lon: 85.39, radius: 0.18 },
+    { name: "Bhagalpur", lat: 25.24, lon: 86.99, radius: 0.18 },
+    { name: "Darbhanga", lat: 26.15, lon: 86.10, radius: 0.12 },
+    { name: "Ara", lat: 25.55, lon: 84.67, radius: 0.10 },
+    { name: "Munger", lat: 25.38, lon: 86.47, radius: 0.10 },
+  ]},
+  // Chhattisgarh — checked before MP, tight boundary to avoid capturing MP Singrauli region
+  { state: "Chhattisgarh", latMin: 17.8, latMax: 23.9, lonMin: 80.3, lonMax: 84.0, cities: [
+    { name: "Raipur", lat: 21.25, lon: 81.63, radius: 0.25 },
+    { name: "Bilaspur", lat: 22.08, lon: 82.14, radius: 0.20 },
+    { name: "Durg", lat: 21.19, lon: 81.28, radius: 0.15 },
+    { name: "Korba", lat: 22.34, lon: 82.68, radius: 0.15 },
+    { name: "Jagdalpur", lat: 19.09, lon: 82.00, radius: 0.12 },
+    { name: "Ambikapur", lat: 23.12, lon: 83.20, radius: 0.12 },
+  ]},
+  // Madhya Pradesh — precise boundary to avoid UP overlap
+  // West border ~74.0, East border ~82.7 (Singrauli at 82.68 is IN MP!)
+  // North border varies: ~26.9 near Gwalior, ~23.5 near UP border
+  // CRITICAL: MP extends to 82.7 east at Singrauli latitude (24.19)
+  { state: "Madhya Pradesh", latMin: 21.1, latMax: 26.9, lonMin: 74.0, lonMax: 82.7, cities: [
+    { name: "Bhopal", lat: 23.26, lon: 77.41, radius: 0.25 },
+    { name: "Indore", lat: 22.72, lon: 75.86, radius: 0.25 },
+    { name: "Jabalpur", lat: 23.18, lon: 79.95, radius: 0.22 },
+    { name: "Gwalior", lat: 26.22, lon: 78.18, radius: 0.20 },
+    { name: "Ujjain", lat: 23.18, lon: 75.79, radius: 0.18 },
+    { name: "Singrauli", lat: 24.19, lon: 82.68, radius: 0.25 },
+    { name: "Sagar", lat: 23.84, lon: 78.74, radius: 0.15 },
+    { name: "Satna", lat: 24.60, lon: 80.83, radius: 0.15 },
+    { name: "Rewa", lat: 24.53, lon: 81.30, radius: 0.15 },
+    { name: "Katni", lat: 23.83, lon: 80.39, radius: 0.12 },
+    { name: "Narsinghpur", lat: 22.92, lon: 79.19, radius: 0.12 },
+    { name: "Balaghat", lat: 21.81, lon: 80.19, radius: 0.12 },
+    { name: "Chhindwara", lat: 22.06, lon: 78.94, radius: 0.12 },
+    { name: "Betul", lat: 21.83, lon: 77.93, radius: 0.12 },
+    { name: "Harda", lat: 22.34, lon: 77.10, radius: 0.10 },
+    { name: "Dewas", lat: 23.00, lon: 76.06, radius: 0.12 },
+    { name: "Ratlam", lat: 23.32, lon: 75.04, radius: 0.12 },
+    { name: "Jhabua", lat: 22.77, lon: 74.59, radius: 0.10 },
+  ]},
+  // Uttar Pradesh — PRECISE boundaries, excluded Singrauli/MP region
+  // South border: ~24.5 (above MP), East: up to ~84.3 (Gorakhpur)
+  // West: starts ~77.3 (after Haryana), North: ~30.5
+  { state: "Uttar Pradesh", latMin: 24.5, latMax: 30.5, lonMin: 77.3, lonMax: 84.3, cities: [
+    { name: "Lucknow", lat: 26.85, lon: 80.95, radius: 0.30 },
+    { name: "Kanpur", lat: 26.45, lon: 80.35, radius: 0.25 },
+    { name: "Agra", lat: 27.18, lon: 78.02, radius: 0.20 },
+    { name: "Varanasi", lat: 25.32, lon: 83.01, radius: 0.20 },
+    { name: "Meerut", lat: 28.98, lon: 77.71, radius: 0.20 },
+    { name: "Prayagraj", lat: 25.43, lon: 81.85, radius: 0.20 },
+    { name: "Bareilly", lat: 28.37, lon: 79.43, radius: 0.20 },
+    { name: "Gorakhpur", lat: 26.76, lon: 83.37, radius: 0.20 },
+    { name: "Jhansi", lat: 25.45, lon: 78.57, radius: 0.18 },
+    { name: "Noida", lat: 28.57, lon: 77.36, radius: 0.12 },
+    { name: "Ghaziabad", lat: 28.67, lon: 77.42, radius: 0.12 },
+    { name: "Aligarh", lat: 27.90, lon: 78.09, radius: 0.18 },
+    { name: "Moradabad", lat: 28.84, lon: 78.77, radius: 0.18 },
+    { name: "Saharanpur", lat: 29.96, lon: 77.55, radius: 0.18 },
+    { name: "Firozabad", lat: 27.16, lon: 78.40, radius: 0.12 },
+    { name: "Banda", lat: 25.48, lon: 80.34, radius: 0.15 },
+    { name: "Chitrakoot", lat: 25.20, lon: 80.88, radius: 0.10 },
+    { name: "Mirzapur", lat: 25.14, lon: 82.57, radius: 0.12 },
+    { name: "Sonbhadra", lat: 24.68, lon: 83.07, radius: 0.15 },
+    { name: "Azamgarh", lat: 26.07, lon: 83.19, radius: 0.12 },
+    { name: "Ballia", lat: 25.76, lon: 84.15, radius: 0.12 },
+    { name: "Basti", lat: 26.79, lon: 82.74, radius: 0.12 },
+    { name: "Mahrajganj", lat: 27.38, lon: 83.30, radius: 0.10 },
+    { name: "Kanpur Dehat", lat: 26.33, lon: 79.96, radius: 0.10 },
+    { name: "Unnao", lat: 26.54, lon: 80.49, radius: 0.10 },
+    { name: "Sitapur", lat: 27.57, lon: 80.68, radius: 0.10 },
+    { name: "Lakhimpur Kheri", lat: 27.94, lon: 80.70, radius: 0.10 },
+    { name: "Bahraich", lat: 27.57, lon: 81.60, radius: 0.10 },
+    { name: "Gonda", lat: 27.13, lon: 81.94, radius: 0.10 },
+    { name: "Faizabad", lat: 26.77, lon: 82.13, radius: 0.10 },
+    { name: "Ambedkar Nagar", lat: 26.44, lon: 82.58, radius: 0.10 },
+    { name: "Deoria", lat: 26.50, lon: 83.79, radius: 0.10 },
+    { name: "Kushinagar", lat: 26.74, lon: 83.89, radius: 0.10 },
+    { name: "Mau", lat: 25.94, lon: 83.56, radius: 0.10 },
+  ]},
+];
+
+function reverseGeocode(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  // Find state
+  let state = null;
+  for (const sb of STATE_BOUNDARIES) {
+    if (lat >= sb.latMin && lat <= sb.latMax && lon >= sb.lonMin && lon <= sb.lonMax) {
+      state = sb;
+      break;
+    }
+  }
+  if (!state) return { state: "Unknown", city: "Unknown", district: "Unknown" };
+
+  // Find nearest city within state
+  let nearestCity = null;
+  let minDist = Infinity;
+  for (const city of state.cities) {
+    const dLat = Math.abs(lat - city.lat);
+    const dLon = Math.abs(lon - city.lon);
+    const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+    if (dist < minDist) { minDist = dist; nearestCity = city; }
+  }
+
+  const distKm = (minDist * 111).toFixed(1); // rough km conversion
+  const withinCity = nearestCity && minDist <= nearestCity.radius;
+
+  return {
+    state: state.state,
+    city: nearestCity ? nearestCity.name : "Unknown",
+    distanceToCityKm: distKm,
+    withinCity: withinCity,
+    nearestCity: nearestCity?.name || "",
+  };
+}
+
+function getFacilityInfo(fireData) {
+  const name = fireData.display_site_name || fireData.site_name || "";
+  const type = fireData.display_site_type || fireData.site_type || "";
+  const source = fireData.coordinate_source || "";
+  const dist = fireData.named_facility_distance_km;
+  const isReal = String(source).toUpperCase().includes("REAL_GIS");
+  return { name, type, source, distance: dist, isRealGIS: isReal };
+}
+
+function getGeminiKey() { return localStorage.getItem("thermoscope-gemini-key") || ""; }
+function setGeminiKey(key) { localStorage.setItem("thermoscope-gemini-key", key); }
+
+async function callGemini(prompt, fireContext) {
+  const key = getGeminiKey();
+  if (!key) return null;
+
+  const seasonal = getSeasonalContext().join("\n");
+  const alerts = fireContext ? getAlertContext(fireContext.grid_id) : null;
+  const ctxParts = [];
+  if (fireContext) ctxParts.push(`Fire Data:\n${JSON.stringify(fireContext, null, 2)}`);
+  if (seasonal) ctxParts.push(`Seasonal Context:\n${seasonal}`);
+  if (alerts) ctxParts.push(`Active Alerts for this grid:\n${JSON.stringify(alerts.slice(0,3), null, 2)}`);
+
+  try {
+    const resp = await fetch(`${GEMINI_ENDPOINT}?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: GEMINI_SYSTEM }] },
+        contents: [{ parts: [{ text: prompt + (ctxParts.length ? "\n\n" + ctxParts.join("\n\n") : "") }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 }
+      })
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (e) {
+    console.warn("Gemini API error:", e);
+    return null;
+  }
+}
+
+// ============================================================
+// XAI CHATBOT — SMART QUERY ROUTER
+// ============================================================
+
+const INTENT_RULES = [
+  { intent: "greeting", patterns: ["hello", "hi ", "hey", "namaste", "namaskar", "hlo", "hii", "good morning", "good evening", "kaise ho", "kya haal", "sup", "yo"] },
+  { intent: "about", patterns: ["who are you", "what are you", "about you", "tum kaun ho", "tumhara naam", "your name", "介绍", "about agnirakshak", "agnirakshak kya hai", "project kya hai", "ye kya hai", "kya karta hai"] },
+  { intent: "explain", patterns: ["why", "classif", "explain", "reason", "how was", "basis", "determin", "kyun", "kyu", "kaise", "kaise pata", "kyun bola"] },
+  { intent: "risks", patterns: ["risk", "danger", "threat", "impact", "hazard", "harm", "effect", "khatra", "nuksan", "nuksaan", "asar", "effect", "dikkat"] },
+  { intent: "actions", patterns: ["action", "precaution", "safety", "prevent", "measure", "plan", "respond", "protocol", "what to do", "kya karein", "kya karna", "upay", "bachav", "suraksha"] },
+  { intent: "compare", patterns: ["compare", "similar", "same type", "other", "versus", "different", "alag", "baki", "dusra"] },
+  { intent: "trend", patterns: ["grow", "trend", "increas", "decreas", "worsen", "improv", "getting", "badh", "ghat", "barh"] },
+  { intent: "emergency", patterns: ["emergency", "urgent", "critical", "immediate", "now", "help", "bachao", "turant", "abhi", "jaldi"] },
+  { intent: "legal", patterns: ["legal", "law", "act", "regulation", "rule", "compliance", "violation", "penalty", "fine", "FIR", "kanoon", "kanun", "jurmana", "sazaa"] },
+  { intent: "seasonal", patterns: ["season", "month", "when", "time of year", "period", "mausam", "kaunsa month", " kab"] },
+  { intent: "agencies", patterns: ["agency", "who", "department", "ministry", "report to", "contact", "kaunsa dept", "kaun"] },
+  { intent: "nrt", patterns: ["live", "current", "now", "today", "latest", "real.time", "abhi", "filhal"] },
+  { intent: "stats", patterns: ["stat", "number", "count", "total", "how many", "data", "kitna", "kitne", "sankhya", "ginti"] },
+  { intent: "geo", patterns: ["state", "city", "district", "region", "area", "where", "kaha", "kahan", "kis state", "kis rajya", "kaunsa state", "kaunsa sheher", "which state", "which city", "which region", "kaunsa area", "up bihar", "jharkhand", "punjab haryana", "uttarakhand"] },
+  { intent: "about_fire", patterns: ["fire", "aag", "agni", "flame", "jalna", "jala", "burning", "burn"] },
+  { intent: "about_satellite", patterns: ["satellite", "nasa", "firms", "viirs", "remote sensing", "space", "upar se", "upar se dekhna"] },
+  { intent: "key", patterns: ["api key", "setkey", "gemini key", "configure"] }
+];
+
+function detectIntent(query) {
+  const q = query.toLowerCase().trim();
+  for (const rule of INTENT_RULES) {
+    if (rule.patterns.some(p => q.includes(p))) return rule.intent;
+  }
+  return "general";
+}
+
+// ============================================================
+// XAI CHATBOT — RULE-BASED RESPONSES (ENHANCED)
+// ============================================================
+
+function ruleBasedResponse(query, fireData) {
+  const intent = detectIntent(query);
+  const ft = normalizeFireType(fireData?.fire_type);
+  const kb = FIRE_KNOWLEDGE[ft] || FIRE_KNOWLEDGE.UNCLASSIFIED;
+  const features = fireData ? computeXAI(fireData) : [];
+  const severity = features.length ? getSeverityLabel(computeOverallSeverity(fireData, features)) : null;
+
+  switch (intent) {
+    case "greeting": return generateGreetingResponse();
+    case "about": return generateAboutResponse();
+    case "geo": return generateGeoResponse(query);
+    case "about_fire": return generateAboutFireResponse(query, fireData, kb);
+    case "about_satellite": return generateAboutSatelliteResponse();
+    case "explain": return generateExplainResponse(fireData, kb, features, severity);
+    case "risks": return generateRiskResponse(fireData, kb, features, severity);
+    case "actions": return generateActionsResponse(fireData, kb);
+    case "compare": return generateComparison(fireData);
+    case "trend": return generateTrendAnalysis(fireData);
+    case "emergency": return generateEmergencyResponse(fireData, kb, severity);
+    case "legal": return generateLegalResponse(kb);
+    case "seasonal": return generateSeasonalResponse();
+    case "agencies": return generateAgenciesResponse(kb);
+    case "nrt": return generateNRTResponse();
+    case "stats": return generateStatsResponse();
+    case "key": return "Set your Gemini API key via the ⚙️ button in the header.";
+    default: return generateGeneralResponse(fireData, kb, features, severity, query);
+  }
+}
+
+function generateGreetingResponse() {
+  const hour = new Date().getHours();
+  let timeGreeting = hour < 12 ? "🌅 Good morning / Namaste!" : hour < 17 ? "☀️ Good afternoon / Namaskar!" : "🌙 Good evening / Namaste!";
+  let text = `${timeGreeting} 🙏<br><br>`;
+  text += `Main <strong>AgniRakshak AI</strong> hoon — aapka fire risk analysis assistant! 🔥<br><br>`;
+  text += `<strong>Main ye sab kar sakta hoon:</strong><br>`;
+  text += `• 🔍 Fire classification kyun hua — reason & XAI explanation<br>`;
+  text += `• ⚠️ Risk assessment — kitna khatra hai<br>`;
+  text += `• 🛡️ Safety precautions & action plans — kya karna hai<br>`;
+  text += `• 🚨 Emergency protocols — turant kya karein<br>`;
+  text += `• 📊 Data analysis — stats, comparison, trends<br>`;
+  text += `• 🌍 Geographic info — kaunsa state, city, region<br>`;
+  text += `• 🛰️ Satellite monitoring — kaise kaam karta hai<br>`;
+  text += `• 📅 Seasonal context — abhi ka mausam & fire season<br>`;
+  text += `• 📜 Legal framework — kaun sa act lagta hai<br><br>`;
+  text += `<strong>Kuch bhi puchho — Hinglish, Hindi, ya English — main samajhta hoon!</strong> 😊<br><br>`;
+  text += `<em>💡 Map pe koi bhi fire marker click karo aur main uska full analysis karunga!</em>`;
+  return text;
+}
+
+function generateAboutResponse() {
+  let text = `🤖 <strong>AgniRakshak AI</strong> — AI-Enabled Fire Risk Intelligence\n\n`;
+  text += `Main <strong>AgniRakshak</strong> project ka AI assistant hoon. Ye system NASA FIRMS satellite data use karke fire risk monitor karta hai.\n\n`;
+  text += `<strong>Kya karta hai ye system:</strong>\n`;
+  text += `• 🛰️ NASA FIRMS VIIRS satellites se real-time fire detections track karta hai\n`;
+  text += `• 🧠 ML model se fire risk score calculate karta hai (0-100)\n`;
+  text += `• 🔥 Fire types classify karta hai: Industrial, Agricultural, Forest, Mining\n`;
+  text += `• 📊 Historical data (2020-present) se patterns analyze karta hai\n`;
+  text += `• 🗺️ Regional risk zones map pe dikhata hai\n`;
+  text += `• 📡 Live NRT (Near Real-Time) monitoring karta hai\n\n`;
+  text += `<strong>Coverage:</strong> Delhi NCR + Uttar Pradesh + surrounding states\n`;
+  text += `<strong>Data:</strong> ${gridData.length.toLocaleString("en-IN")} grid cells | ${gridData.reduce((s,r) => s + (Number(r.total_detections)||0), 0).toLocaleString("en-IN")} total FIRMS detections\n\n`;
+  text += `<em>Main aapke har sawaal ka jawab de sakta hoon — fire, risk, safety, geography, kuch bhi puchho!</em>`;
+  return text.replace(/\n/g, "<br>");
+}
+
+function generateGeoResponse(query) {
+  const q = query.toLowerCase();
+  const lang = detectLanguage(query);
+  // Check for state mentions
+  let foundState = null;
+  let foundCity = null;
+  for (const [key, state] of Object.entries(GEO_KNOWLEDGE.states)) {
+    if (q.includes(key)) { foundState = state; break; }
+  }
+  for (const [city, info] of Object.entries(GEO_KNOWLEDGE.cities)) {
+    if (q.includes(city)) { foundCity = { name: city, info }; break; }
+  }
+  if (foundCity) {
+    let text = `📍 <strong>${foundCity.name.toUpperCase()}</strong>\n\n`;
+    text += `${foundCity.info}\n\n`;
+    // Find fires in this city's state
+    const stateKey = Object.keys(GEO_KNOWLEDGE.states).find(k => q.includes(k));
+    if (stateKey) {
+      const stateFires = gridData.filter(r => {
+        const lat = Number(r.latitude) || 0;
+        const lon = Number(r.longitude) || 0;
+        return lat > 0 && lon > 0;
+      });
+      text += `<strong>Thermoscope data mein ${foundCity.name} ke nearby fires:</strong> ${stateFires.length} grid cells tracked.`;
+    }
+    return text.replace(/\n/g, "<br>");
+  }
+  if (foundState) {
+    let text = `📍 <strong>${foundState.full}</strong>\n\n`;
+    text += `Capital: ${foundState.capitals[0]}\n`;
+    text += `Major Districts: ${foundState.majorDistricts.join(", ")}\n\n`;
+    text += `🔥 <strong>Fire Situation:</strong>\n${foundState.fireNote}\n\n`;
+    // Count fires in this state's approximate lat/lon range
+    text += `📊 Thermoscope monitoring: Delhi NCR + UP region covers parts of this state.`;
+    return text.replace(/\n/g, "<br>");
+  }
+  // General geography question
+  let text = `🌍 <strong>Geographic Fire Information</strong>\n\n`;
+  text += `Thermoscope Delhi NCR + UP region monitor karta hai. Yahan major fire-prone states hain:\n\n`;
+  text += `• 🌾 <strong>Punjab/Haryana</strong> — Stubble burning (Oct-Nov)\n`;
+  text += `• 🏭 <strong>UP (Kanpur, Varanasi)</strong> — Industrial emissions\n`;
+  text += `• 🌲 <strong>Uttarakhand/HP</strong> — Forest fires (Mar-Jun)\n`;
+  text += `• ⛏️ <strong>Jharkhand</strong> — Coal mine fires (Dhanbad/Jharia)\n`;
+  text += `• 🏭 <strong>Delhi NCR</strong> — Transboundary pollution + industrial\n\n`;
+  text += `<em>Kisi specific state ya city ke baare mein puchho!</em>`;
+  return text.replace(/\n/g, "<br>");
+}
+
+function generateAboutFireResponse(query, fireData, kb) {
+  const q = query.toLowerCase();
+  let text = `🔥 <strong>Fire se related jaankari:</strong><br><br>`;
+  if (fireData) {
+    text += `<strong>Selected fire:</strong> ${kb.label}<br>`;
+    text += `Risk Score: ${Number(fireData.risk_score || 0).toFixed(1)}/100<br>`;
+    text += `Risk Level: ${fireData.risk_level || "N/A"}<br>`;
+    text += `Avg FRP: ${Number(fireData.avg_frp || 0).toFixed(1)} MW<br><br>`;
+  }
+  text += `<strong>Fire Types jo track karte hain:</strong><br>`;
+  text += `• 🏭 Industrial — Factories, refineries, power plants<br>`;
+  text += `• 🌾 Agricultural — Stubble burning, crop residue<br>`;
+  text += `• 🌲 Forest — Wildfires, jungle mein aag<br>`;
+  text += `• ⛏️ Mining — Coal mine fires, blasting<br><br>`;
+  text += `<strong>Fire Radiative Power (FRP):</strong> Ye batata hai fire kitna powerful hai MW mein. Zyada FRP = zyada intense fire.<br><br>`;
+  text += `<em>Koi specific fire type ke baare mein detail chahiye toh batao!</em>`;
+  return text;
+}
+
+function generateAboutSatelliteResponse() {
+  let text = `🛰️ <strong>Satellite Fire Monitoring — Kaise kaam karta hai:</strong><br><br>`;
+  text += `<strong>Satellites used:</strong><br>`;
+  text += `• VIIRS S-NPP (NASA Suomi NPP)<br>`;
+  text += `• VIIRS NOAA-20<br>`;
+  text += `• VIIRS NOAA-21<br><br>`;
+  text += `<strong>Technology:</strong><br>`;
+  text += `• 375m resolution thermal detection<br>`;
+  text += `• Detects fires as small as 0.5 MW<br>`;
+  text += `• Passes over India 2-4 times daily<br>`;
+  text += `• NRT (Near Real-Time) data available within 3 hours<br><br>`;
+  text += `<strong>NASA FIRMS:</strong> Fire Information for Resource Management System — free global fire data service.<br><br>`;
+  text += `<strong>Thermoscope uses:</strong><br>`;
+  text += `• Historical data: 2020-present (500+ CSV files)<br>`;
+  text += `• Live monitoring: Last 24-48 hours NRT<br>`;
+  text += `• Grid system: 0.05° cells (~5km) for spatial analysis<br>`;
+  text += `• ML model: Random Forest for risk prediction<br><br>`;
+  text += `<em>3 satellites milke poore Delhi NCR + UP cover karte hain!</em>`;
+  return text;
+}
+
+function generateExplainResponse(fireData, kb, features, severity) {
+  if (!fireData) return "⚠️ Select a fire marker on the map first to get a classification explanation.";
+  let text = `${kb.emoji} <strong>Why classified as ${kb.label}?</strong><br><br>`;
+  if (severity) text += `${severity.emoji} <strong>Overall Severity: <span style="color:${severity.color}">${severity.label}</span></strong><br>`;
+  text += `Fire type reason: <em>${fireData.fire_type_reason || "Pattern-based classification"}</em><br>`;
+  text += `Confidence: <strong>${((fireData.fire_type_confidence || 0) * 100).toFixed(0)}%</strong><br><br>`;
+  text += `<strong>📊 Feature Importance Breakdown:</strong>`;
+  text += renderXAIChart(features);
+  text += `<br><strong>📝 Detailed Analysis:</strong><br>`;
+  features.forEach(f => { text += `• <em>${f.name}</em> (${f.score}%): ${f.reason}<br>`; });
+  text += `<br><strong>💡 Key Insight:</strong> `;
+  const topFeature = [...features].sort((a, b) => b.score - a.score)[0];
+  if (topFeature) text += `The strongest signal is <strong>${topFeature.name}</strong> at ${topFeature.score}%. ${topFeature.reason}.`;
+  return text;
+}
+
+function generateRiskResponse(fireData, kb, features, severity) {
+  let text = `${kb.emoji} <strong>Risk Assessment: ${kb.label}</strong><br><br>`;
+  if (severity) text += `${severity.emoji} Severity Level: <strong style="color:${severity.color}">${severity.label}</strong><br>`;
+  if (fireData) {
+    text += `Risk Score: <strong>${Number(fireData.risk_score || 0).toFixed(1)}/100</strong> | Risk Level: <strong>${fireData.risk_level || "N/A"}</strong><br>`;
+    text += `Avg FRP: <strong>${Number(fireData.avg_frp || 0).toFixed(1)} MW</strong> | Max FRP: <strong>${Number(fireData.max_frp || 0).toFixed(1)} MW</strong><br>`;
+  }
+  text += `<br><strong>🔴 Probable Causes:</strong><br>`;
+  kb.causes.forEach(c => { text += `• ${c}<br>`; });
+  text += `<br><strong>💥 Impact Assessment:</strong><br>${kb.impact}`;
+  const alerts = fireData ? getAlertContext(fireData.grid_id) : null;
+  if (alerts && alerts.length) {
+    text += `<br><br><strong>🚨 Active Alerts:</strong> ${alerts.length} alert(s) for this grid`;
+    alerts.slice(0, 2).forEach(a => { text += `<br>• [${(a.severity || "medium").toUpperCase()}] ${a.alert_type || "ALERT"}`; });
+  }
+  return text;
+}
+
+function generateActionsResponse(fireData, kb) {
+  let text = `${kb.emoji} <strong>Action Plan & Precautions</strong><br><br>`;
+  text += `<strong>🛡️ Safety Precautions:</strong><br>`;
+  kb.precautions.forEach((p, i) => { text += `${i+1}. ${p}<br>`; });
+  text += `<br><strong>⚡ Recommended Actions:</strong><br>`;
+  kb.actions.forEach((a, i) => { text += `${i+1}. ${a}<br>`; });
+  text += `<br><strong>🏛️ Responsible Agencies:</strong><br>`;
+  kb.agencies.forEach(a => { text += `• ${a}<br>`; });
+  if (kb.legalFramework) {
+    text += `<br><strong>📜 Legal Framework:</strong><br>`;
+    kb.legalFramework.forEach(l => { text += `• ${l}<br>`; });
+  }
+  return text;
+}
+
+function generateEmergencyResponse(fireData, kb, severity) {
+  const ep = kb.emergencyProtocol;
+  if (!ep) return generateActionsResponse(fireData, kb);
+  let text = `${kb.emoji} <strong>🚨 Emergency Response Protocol</strong><br><br>`;
+  if (severity) text += `${severity.emoji} Severity: <strong style="color:${severity.color}">${severity.label}</strong><br><br>`;
+  text += `<strong>⚡ IMMEDIATE (0-1 hours):</strong><br>`;
+  ep.immediate.forEach(a => { text += `• 🔴 ${a}<br>`; });
+  text += `<br><strong>📋 SHORT-TERM (1-72 hours):</strong><br>`;
+  ep.shortTerm.forEach(a => { text += `• 🟡 ${a}<br>`; });
+  text += `<br><strong>📅 LONG-TERM (1-4 weeks):</strong><br>`;
+  ep.longTerm.forEach(a => { text += `• 🟢 ${a}<br>`; });
+  text += `<br><strong>🏛️ Agencies to contact:</strong><br>`;
+  kb.agencies.forEach(a => { text += `• ${a}<br>`; });
+  return text;
+}
+
+function generateLegalResponse(kb) {
+  let text = `📜 <strong>Legal Framework & Compliance</strong><br><br>`;
+  if (kb.legalFramework) {
+    kb.legalFramework.forEach(l => { text += `• ${l}<br>`; });
+  }
+  text += `<br><strong>Key Penalties:</strong><br>`;
+  text += `• IPC Section 188: Up to 1 month imprisonment or ₹200 fine<br>`;
+  text += `• Disaster Management Act 2005: Up to 1 year imprisonment or ₹1 lakh fine<br>`;
+  text += `• NGT can impose penalty up to ₹5 crore for environmental damage<br>`;
+  text += `• CPCB: Closure of non-compliant units + compensation<br>`;
+  return text;
+}
+
+function generateSeasonalResponse() {
+  const contexts = getSeasonalContext();
+  let text = `📅 <strong>Seasonal Fire Context</strong><br><br>`;
+  contexts.forEach(c => { text += `${c}<br>`; });
+  text += `<br><strong>Peak Risk Months by Type:</strong><br>`;
+  text += `• 🌾 Agricultural: <strong>Oct-Nov</strong> (stubble) + <strong>Apr-May</strong> (pre-monsoon)<br>`;
+  text += `• 🌲 Forest: <strong>Mar-Jun</strong> (pre-monsoon dry)<br>`;
+  text += `• 🏭 Industrial: <strong>Year-round</strong> (continuous)<br>`;
+  text += `• ⛏️ Mining: <strong>Year-round</strong> (peak in dry months)<br>`;
+  return text;
+}
+
+function generateAgenciesResponse(kb) {
+  let text = `🏛️ <strong>Responsible Agencies & Contacts</strong><br><br>`;
+  kb.agencies.forEach(a => { text += `• <strong>${a}</strong><br>`; });
+  text += `<br><strong>Emergency Numbers:</strong><br>`;
+  text += `• 🚒 Fire Brigade: <strong>101</strong><br>`;
+  text += `• 🚑 Ambulance: <strong>108</strong><br>`;
+  text += `• 🚔 Police: <strong>100</strong><br>`;
+  text += `• 🆘 NDMA: <strong>1070</strong><br>`;
+  text += `• 🌿 NDRF: <strong>011-24363260</strong><br>`;
+  return text;
+}
+
+function generateNRTResponse() {
+  const nrtCount = nrtData.length;
+  let text = `📡 <strong>Live NRT Status</strong><br><br>`;
+  text += `Detections: <strong>${nrtCount.toLocaleString("en-IN")}</strong><br>`;
+  if (nrtCount > 0) {
+    const bySeverity = {};
+    nrtData.forEach(d => { const s = d.nrt_severity || "normal"; bySeverity[s] = (bySeverity[s] || 0) + 1; });
+    text += `<br><strong>By Severity:</strong><br>`;
+    Object.entries(bySeverity).sort((a,b) => b[1]-a[1]).forEach(([s, c]) => {
+      const emoji = { critical: "🔴", high: "🟠", elevated: "🟡", normal: "🟢" }[s] || "⚪";
+      text += `${emoji} ${s.toUpperCase()}: <strong>${c}</strong><br>`;
+    });
+  }
+  const alertCount = getActiveAlertCount();
+  text += `<br>Active Alerts: <strong>${alertCount}</strong>`;
+  return text;
+}
+
+function generateStatsResponse() {
+  let text = `📊 <strong>Dashboard Statistics</strong><br><br>`;
+  text += `Total Grid Cells: <strong>${gridData.length.toLocaleString("en-IN")}</strong><br>`;
+  const crit = gridData.filter(r => r.risk_level === "CRITICAL").length;
+  const high = gridData.filter(r => r.risk_level === "HIGH").length;
+  text += `Critical Risk: <strong>${crit.toLocaleString("en-IN")}</strong><br>`;
+  text += `High Risk: <strong>${high.toLocaleString("en-IN")}</strong><br>`;
+  const byType = {};
+  gridData.forEach(r => { const t = normalizeFireType(r.fire_type); byType[t] = (byType[t] || 0) + 1; });
+  text += `<br><strong>By Fire Type:</strong><br>`;
+  Object.entries(byType).sort((a,b) => b[1]-a[1]).forEach(([t, c]) => {
+    text += `${FIRE_KNOWLEDGE[t]?.emoji || "❓"} ${FIRE_KNOWLEDGE[t]?.label || t}: <strong>${c.toLocaleString("en-IN")}</strong><br>`;
+  });
+  text += `<br>NRT Live Detections: <strong>${nrtData.length}</strong><br>`;
+  text += `Active Alerts: <strong>${getActiveAlertCount()}</strong>`;
+  return text;
+}
+
+function generateGeneralResponse(fireData, kb, features, severity, query) {
+  const q = (query || "").toLowerCase();
+  const lang = detectLanguage(query || "");
+  // If no fire selected, give helpful general response
+  if (!fireData) {
+    let text = `🤖 <strong>Mujhe aapka sawaal samajh nahi aaya</strong>, lekin main in cheezon mein help kar sakta hoon:<br><br>`;
+    text += `<strong>🔥 Fire Analysis:</strong><br>`;
+    text += `• Map pe koi fire marker click karo → main uska analysis karunga<br>`;
+    text += `• "Why this classification?" → classification reason<br>`;
+    text += `• "What are the risks?" → risk assessment<br>`;
+    text += `• "Emergency protocol" → emergency response plan<br><br>`;
+    text += `<strong>📊 Data & Stats:</strong><br>`;
+    text += `• "Dashboard stats" → total grid cells, risk levels<br>`;
+    text += `• "Live NRT status" → current satellite detections<br>`;
+    text += `• "Seasonal context" → current fire season info<br><br>`;
+    text += `<strong>🌍 General Info:</strong><br>`;
+    text += `• "Which state mein risk hai?" → geographic fire info<br>`;
+    text += `• "About AgniRakshak" → project details<br>`;
+    text += `• "Satellite kaise kaam karta hai?" → monitoring tech<br>`;
+    text += `• "Emergency number" → 101 (fire), 108 (ambulance), 100 (police)<br><br>`;
+    text += `<em>Kuch bhi puchho — fire, geography, safety, data, kuch bhi! Main jawab dunga. 😊</em>`;
+    return text;
+  }
+  // Fire selected but unmatched query — give fire summary + suggestions
+  let text = `${kb.emoji} <strong>${kb.label}</strong><br><br>`;
+  if (severity) text += `${severity.emoji} Severity: <strong style="color:${severity.color}">${severity.label}</strong><br>`;
+  text += `<strong>Causes:</strong><br>`;
+  kb.causes.slice(0, 3).forEach(c => { text += `• ${c}<br>`; });
+  text += `<br><strong>Impact:</strong> ${kb.impact}<br><br>`;
+  text += `<em>💡 Aap ye bhi puchh sakte ho: risks, actions, emergency protocol, legal framework, comparison, trend, ya geographic info!</em>`;
+  return text;
+}
+
+function generateComparison(fireData) {
+  const ft = normalizeFireType(fireData?.fire_type);
+  const sameType = gridData.filter(r => normalizeFireType(r.fire_type) === ft);
+  if (sameType.length < 2) return `🔍 Not enough ${FIRE_KNOWLEDGE[ft]?.label || ft} sites for comparison (found ${sameType.length}).`;
+
+  const stats = {
+    count: sameType.length,
+    avgRisk: sameType.reduce((s, r) => s + (Number(r.risk_score) || 0), 0) / sameType.length,
+    avgFrp: sameType.reduce((s, r) => s + (Number(r.avg_frp) || 0), 0) / sameType.length,
+    avgRec: sameType.reduce((s, r) => s + (Number(r.recurrence_ratio) || 0), 0) / sameType.length,
+    avgPersist: sameType.reduce((s, r) => s + (Number(r.persistent_months) || 0), 0) / sameType.length,
+    maxRisk: Math.max(...sameType.map(r => Number(r.risk_score) || 0)),
+    minRisk: Math.min(...sameType.map(r => Number(r.risk_score) || 0)),
+  };
+  const myRisk = Number(fireData?.risk_score) || 0;
+  const myFrp = Number(fireData?.avg_frp) || 0;
+  const myRec = Number(fireData?.recurrence_ratio) || 0;
+
+  let text = `📊 <strong>Comparison: ${sameType.length} similar ${FIRE_KNOWLEDGE[ft]?.emoji || ""} ${FIRE_KNOWLEDGE[ft]?.label || ft} fires</strong><br><br>`;
+  text += `<div class="chat-compare-row"><span>Metric</span><span>This Fire → Avg (${sameType.length} sites)</span></div>`;
+  text += `<div class="chat-compare-row"><span>Risk Score</span><span>${myRisk.toFixed(1)} → ${stats.avgRisk.toFixed(1)} <span class="chat-compare-highlight">${myRisk > stats.avgRisk ? "▲ +" + (myRisk - stats.avgRisk).toFixed(1) : "▼ -" + (stats.avgRisk - myRisk).toFixed(1)}</span></span></div>`;
+  text += `<div class="chat-compare-row"><span>Avg FRP</span><span>${myFrp.toFixed(1)} → ${stats.avgFrp.toFixed(1)} MW</span></div>`;
+  text += `<div class="chat-compare-row"><span>Recurrence</span><span>${(myRec * 100).toFixed(0)}% → ${(stats.avgRec * 100).toFixed(0)}%</span></div>`;
+  text += `<div class="chat-compare-row"><span>Persistence</span><span>${(Number(fireData?.persistent_months) || 0)} → ${stats.avgPersist.toFixed(1)} months</span></div>`;
+  text += `<div class="chat-compare-row"><span>Risk Range</span><span>${stats.minRisk.toFixed(0)} - ${stats.maxRisk.toFixed(0)}</span></div>`;
+  text += `<div class="chat-compare-row"><span>Total Sites</span><span>${sameType.length.toLocaleString("en-IN")}</span></div>`;
+  text += `<br><em>${myRisk > stats.avgRisk ? "📈 This fire scores ABOVE average — higher priority for monitoring." : myRisk < stats.avgRisk ? "📉 This fire scores below average — lower relative risk." : "➡️ This fire is at the average risk level for its type."}</em>`;
+  return text;
+}
+
+function generateTrendAnalysis(fireData) {
+  const d30 = Number(fireData?.detections_30d) || 0;
+  const d90 = Number(fireData?.detections_90d) || 0;
+  const d90avg = d90 / 3;
+  const growthRate = d90avg > 0 ? ((d30 - d90avg) / d90avg * 100) : 0;
+  let trend = "stable", emoji = "➡️";
+  if (d30 > d90avg * 1.5) { trend = "INCREASING"; emoji = "📈"; }
+  else if (d30 < d90avg * 0.6) { trend = "DECREASING"; emoji = "📉"; }
+
+  let text = `${emoji} <strong>Fire Activity Trend Analysis</strong><br><br>`;
+  text += `<div class="chat-compare-row"><span>30-day detections</span><span><strong>${d30.toLocaleString("en-IN")}</strong></span></div>`;
+  text += `<div class="chat-compare-row"><span>90-day detections</span><span>${d90.toLocaleString("en-IN")} (avg ${d90avg.toFixed(0)}/mo)</span></div>`;
+  text += `<div class="chat-compare-row"><span>Growth Rate</span><span class="chat-compare-highlight">${growthRate >= 0 ? "+" : ""}${growthRate.toFixed(1)}%</span></div>`;
+  text += `<div class="chat-compare-row"><span>Trend</span><span><strong>${trend}</strong></span></div>`;
+  text += `<br>`;
+  if (trend === "INCREASING") {
+    text += `⚠️ <strong>Activity is accelerating (+${growthRate.toFixed(0)}%).</strong> This may indicate an emerging fire source or seasonal intensification. Recommend increased monitoring frequency and ground verification.`;
+  } else if (trend === "DECREASING") {
+    text += `✅ <strong>Activity is declining (${growthRate.toFixed(0)}%).</strong> The fire source may be seasonal or temporarily inactive. Continue periodic monitoring.`;
+  } else {
+    text += `➡️ <strong>Activity is stable.</strong> Consistent with historical patterns. No immediate escalation detected.`;
+  }
+  return text;
+}
+
+// ============================================================
+// XAI CHATBOT — UI LOGIC (ENHANCED)
+// ============================================================
+
+let chatContext = null;
+let chatOpen = false;
+let chatMessages = [];
+let chatHistory = []; // conversation memory
+
+function initChatbot() {
+  const fab = document.getElementById("chatbotFab");
+  const panel = document.getElementById("chatbotPanel");
+  const closeBtn = document.getElementById("chatbotClose");
+  const minimizeBtn = document.getElementById("chatbotMinimize");
+  const sendBtn = document.getElementById("chatbotSend");
+  const input = document.getElementById("chatbotInput");
+
+  if (!fab || !panel) return;
+
+  fab.addEventListener("click", () => {
+    chatOpen = !chatOpen;
+    panel.style.display = chatOpen ? "flex" : "none";
+    if (chatOpen && chatMessages.length === 0) showWelcome();
+    if (chatOpen) { setTimeout(() => input?.focus(), 100); }
+  });
+  closeBtn.addEventListener("click", () => { chatOpen = false; panel.style.display = "none"; });
+  minimizeBtn.addEventListener("click", () => { chatOpen = false; panel.style.display = "none"; });
+  sendBtn.addEventListener("click", sendUserMessage);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") sendUserMessage(); });
+}
+
+function showWelcome() {
+  const key = getGeminiKey();
+  const nrtCount = nrtData.length;
+  const alertCount = getActiveAlertCount();
+  const season = getSeasonalContext()[0] || "";
+
+  let welcome = `👋 Hello / Namaste! I'm <strong>AgniRakshak AI</strong> 🔥<br><br>`;
+  welcome += `Main fire classifications explain karta hoon, precautions suggest karta hoon, aur emergency protocols provide karta hoon.`;
+  welcome += ` Aap <strong>Hinglish, Hindi, ya English</strong> mein baat kar sakte ho — main sab samajhta hoon! 😊<br><br>`;
+  welcome += `📊 <strong>${gridData.length.toLocaleString("en-IN")}</strong> grid cells | 📡 <strong>${nrtCount}</strong> live detections | 🚨 <strong>${alertCount}</strong> alerts<br>`;
+  if (season) welcome += `${season}<br>`;
+  welcome += `<br>🎯 <strong>Quick Start:</strong> Map pe koi fire marker click karo ya neeche koi button dabao!`;
+  if (!key) welcome += `<br><br><em>💡 AI responses ke liye "set api key" type karo.</em>`;
+
+  const actions = [
+    { label: "🔍 Ye classification kyun hua?", action: "explain" },
+    { label: "⚠️ Risks kya hain?", action: "risks" },
+    { label: "🛡️ Kya karna chahiye?", action: "actions" },
+    { label: "🚨 Emergency protocol", action: "emergency" },
+    { label: "📊 Compare similar fires?", action: "compare" },
+    { label: "📈 Fire badh raha hai?", action: "trend" },
+    { label: "🌍 Kis state mein risk hai?", action: "geo" },
+    { label: "📅 Seasonal context", action: "seasonal" },
+    { label: "📡 Live NRT status", action: "nrt" },
+    { label: "📊 Dashboard stats", action: "stats" },
+    { label: "🛰️ Satellite kaise kaam karta hai?", action: "satellite" }
+  ];
+  addBotMessage(welcome, actions);
+}
+
+function addBotMessage(html, quickActions) {
+  const container = document.getElementById("chatbotMessages");
+  if (!container) return;
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "chat-msg bot";
+  msgDiv.innerHTML = `<div class="chat-msg-avatar">🤖</div><div class="chat-msg-bubble">${html}</div>`;
+  container.appendChild(msgDiv);
+
+  if (quickActions && quickActions.length) {
+    const qaDiv = document.createElement("div");
+    qaDiv.className = "chat-quick-actions";
+    qaDiv.style.paddingLeft = "38px";
+    quickActions.forEach(qa => {
+      const btn = document.createElement("button");
+      btn.className = "chat-quick-btn";
+      btn.textContent = qa.label;
+      btn.addEventListener("click", () => handleQuickAction(qa.action));
+      qaDiv.appendChild(btn);
+    });
+    container.appendChild(qaDiv);
+  }
+  container.scrollTop = container.scrollHeight;
+  chatMessages.push({ role: "bot", html });
+}
+
+function addUserMessage(text) {
+  const container = document.getElementById("chatbotMessages");
+  if (!container) return;
+  const msgDiv = document.createElement("div");
+  msgDiv.className = "chat-msg user";
+  msgDiv.innerHTML = `<div class="chat-msg-avatar">👤</div><div class="chat-msg-bubble">${text}</div>`;
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+  chatMessages.push({ role: "user", html: text });
+  chatHistory.push({ role: "user", content: text });
+}
+
+function showTyping() {
+  const container = document.getElementById("chatbotMessages");
+  if (!container) return;
+  const typing = document.createElement("div");
+  typing.className = "chat-typing";
+  typing.id = "chatTyping";
+  typing.innerHTML = '<div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div>';
+  container.appendChild(typing);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() { const el = document.getElementById("chatTyping"); if (el) el.remove(); }
+
+function updateSelectedFireDisplay() {
+  const el = document.getElementById("chatbotSelectedFire");
+  if (!el) return;
+  if (chatContext) {
+    const name = chatContext.display_site_name || chatContext.site_name || chatContext.grid_id || "Unknown";
+    el.textContent = `📍 ${name}`;
+    el.style.display = "inline-block";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function sendUserMessage() {
+  const input = document.getElementById("chatbotInput");
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  addUserMessage(text);
+  processUserQuery(text);
+}
+
+async function processUserQuery(query) {
+  const intent = detectIntent(query);
+
+  // API key setup
+  if (intent === "key") {
+    const existing = getGeminiKey();
+    const newKey = prompt("Enter your Gemini API Key (get one at aistudio.google.com):", existing);
+    if (newKey !== null && newKey.trim()) {
+      setGeminiKey(newKey.trim());
+      addBotMessage("✅ Gemini API key saved! I'll now use AI-powered responses.");
+    }
+    return;
+  }
+
+  // Fire-specific intents
+  const needsFire = ["explain", "risks", "actions", "compare", "trend", "emergency", "legal", "agencies"];
+  if (needsFire.includes(intent) && !chatContext) {
+    addBotMessage("⚠️ Please click a fire marker on the map first to select a fire for analysis.", [
+      { label: "📡 Live NRT status", action: "nrt" },
+      { label: "📊 Dashboard stats", action: "stats" },
+      { label: "📅 Seasonal context", action: "seasonal" }
+    ]);
+    return;
+  }
+
+  // Try Gemini first
+  showTyping();
+  const geminiResp = await callGemini(query, chatContext);
+  hideTyping();
+
+  if (geminiResp) {
+    // Add context-aware follow-ups after Gemini response
+    const followUps = [];
+    if (chatContext) {
+      followUps.push({ label: "🔍 Why this classification?", action: "explain" });
+      followUps.push({ label: "🚨 Emergency protocol", action: "emergency" });
+      followUps.push({ label: "📊 Compare similar?", action: "compare" });
+      followUps.push({ label: "📈 Trend analysis", action: "trend" });
+    }
+    followUps.push({ label: "📡 Live NRT", action: "nrt" });
+    addBotMessage(geminiResp.replace(/\n/g, "<br>"), followUps);
+  } else {
+    const resp = ruleBasedResponse(query, chatContext);
+    addBotMessage(resp);
+  }
+}
+
+function handleQuickAction(action) {
+  if (action === "key") { processUserQuery("set api key"); return; }
+  if (action === "nrt") { addUserMessage("📡 Live NRT status"); showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateNRTResponse()); }, 400); return; }
+  if (action === "stats") { addUserMessage("📊 Dashboard stats"); showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateStatsResponse()); }, 400); return; }
+  if (action === "seasonal") { addUserMessage("📅 Seasonal context"); showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateSeasonalResponse()); }, 400); return; }
+  if (action === "satellite") { addUserMessage("🛰️ Satellite kaise kaam karta hai?"); showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateAboutSatelliteResponse()); }, 400); return; }
+  if (action === "geo") { addUserMessage("🌍 Kis state mein risk hai?"); showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateGeoResponse("state fire risk")); }, 400); return; }
+  if (action === "emergency") {
+    if (!chatContext) { addBotMessage("⚠️ Select a fire marker first."); return; }
+    addUserMessage("🚨 Emergency protocol");
+    showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateEmergencyResponse(chatContext, FIRE_KNOWLEDGE[normalizeFireType(chatContext.fire_type)] || FIRE_KNOWLEDGE.UNCLASSIFIED, null)); }, 500);
+    return;
+  }
+  if (action === "legal") {
+    if (!chatContext) { addBotMessage("⚠️ Select a fire marker first."); return; }
+    addUserMessage("📜 Legal framework");
+    showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateLegalResponse(FIRE_KNOWLEDGE[normalizeFireType(chatContext.fire_type)] || FIRE_KNOWLEDGE.UNCLASSIFIED)); }, 400);
+    return;
+  }
+  if (action === "agencies") {
+    if (!chatContext) { addBotMessage("⚠️ Select a fire marker first."); return; }
+    addUserMessage("🏛️ Responsible agencies");
+    showTyping(); setTimeout(() => { hideTyping(); addBotMessage(generateAgenciesResponse(FIRE_KNOWLEDGE[normalizeFireType(chatContext.fire_type)] || FIRE_KNOWLEDGE.UNCLASSIFIED)); }, 400);
+    return;
+  }
+
+  const queryMap = {
+    explain: "Explain why this fire was classified this way",
+    risks: "What are the risks and impacts?",
+    actions: "What actions and precautions should be taken?",
+    compare: "Compare with similar fires",
+    trend: "Is this fire growing?"
+  };
+  if (queryMap[action]) {
+    if (!chatContext) { addBotMessage("⚠️ Please click a fire marker on the map first."); return; }
+    addUserMessage(queryMap[action]);
+    showTyping(); setTimeout(() => { hideTyping(); addBotMessage(ruleBasedResponse(queryMap[action], chatContext)); }, 500);
+  }
+}
+
+// ============================================================
+// XAI CHATBOT — MAP INTEGRATION (ENHANCED)
+// ============================================================
+
+function selectFireForChat(fireData) {
+  chatContext = fireData;
+  updateSelectedFireDisplay();
+
+  if (!chatOpen) {
+    chatOpen = true;
+    const panel = document.getElementById("chatbotPanel");
+    if (panel) panel.style.display = "flex";
+    if (chatMessages.length === 0) showWelcome();
+  }
+
+  const name = fireData.display_site_name || fireData.site_name || fireData.grid_id || "Unknown";
+  const ft = normalizeFireType(fireData.fire_type);
+  const kb = FIRE_KNOWLEDGE[ft] || FIRE_KNOWLEDGE.UNCLASSIFIED;
+  const features = computeXAI(fireData);
+  const severity = getSeverityLabel(computeOverallSeverity(fireData, features));
+  const alerts = getAlertContext(fireData.grid_id);
+
+  // Reverse geocode — state, city, district
+  const lat = Number(fireData.latitude || fireData.map_latitude) || 0;
+  const lon = Number(fireData.longitude || fireData.map_longitude) || 0;
+  const geo = reverseGeocode(lat, lon);
+  const facility = getFacilityInfo(fireData);
+
+  addUserMessage(`📍 Selected: ${name}`);
+
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    let text = `${kb.emoji} <strong>${name}</strong><br><br>`;
+
+    // Geographic location block
+    if (geo && geo.state !== "Unknown") {
+      text += `<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;">`;
+      text += `<strong style="color:#22d3ee;">📍 Location:</strong><br>`;
+      text += `🗺️ State: <strong>${geo.state}</strong><br>`;
+      if (geo.nearestCity) {
+        text += `🏙️ Nearest City: <strong>${geo.nearestCity}</strong>`;
+        text += geo.withinCity ? ` <span style="color:#20e889;">(within city)</span>` : ` (${geo.distanceToCityKm} km away)`;
+        text += `<br>`;
+      }
+      text += `🌐 Coords: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      text += `</div>`;
+    }
+
+    // Facility / Industry info block
+    if (facility.name || facility.isRealGIS) {
+      text += `<div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:8px 10px;margin-bottom:8px;">`;
+      text += `<strong style="color:#a855f7;">🏭 Facility Info:</strong><br>`;
+      if (facility.name) text += `Name: <strong>${facility.name}</strong><br>`;
+      if (facility.type) text += `Type: <strong>${facility.type}</strong><br>`;
+      if (facility.isRealGIS) text += `✓ <span style="color:#20e889;">GIS-verified real facility</span><br>`;
+      if (facility.distance != null) text += `Distance: ${Number(facility.distance).toFixed(1)} km from thermal source`;
+      text += `</div>`;
+    }
+
+    // Fire type + risk block
+    text += `<strong style="color:${severity.color};">${severity.emoji} ${kb.label}</strong><br>`;
+    text += `Risk: <span style="color:${severity.color}"><strong>${fireData.risk_level || "N/A"}</strong></span> | Score: <strong>${Number(fireData.risk_score || 0).toFixed(1)}</strong>/100<br>`;
+    text += `Severity: <strong style="color:${severity.color}">${severity.label}</strong> (${computeOverallSeverity(fireData, features)}/100)<br>`;
+    text += `FRP: ${Number(fireData.avg_frp || 0).toFixed(1)} MW avg | ${Number(fireData.max_frp || 0).toFixed(1)} MW max<br>`;
+    if (alerts && alerts.length) text += `🚨 <strong>${alerts.length}</strong> active alert(s) for this grid<br>`;
+
+    text += `<br><strong>📊 Feature Importance:</strong>`;
+    text += renderXAIChart(features);
+    features.slice(0, 3).forEach(f => { text += `• <em>${f.name}</em>: ${f.reason}<br>`; });
+    const season = getSeasonalContext()[0];
+    if (season) text += `<br>${season}`;
+
+    const followUps = [
+      { label: "🔍 Why this classification?", action: "explain" },
+      { label: "⚠️ Risks kya hain?", action: "risks" },
+      { label: "🛡️ Kya karna chahiye?", action: "actions" },
+      { label: "🚨 Emergency protocol", action: "emergency" },
+      { label: "📊 Compare similar fires?", action: "compare" },
+      { label: "📈 Fire badh raha hai?", action: "trend" },
+      { label: "📜 Legal framework", action: "legal" },
+      { label: "🏛️ Kaun contact karein?", action: "agencies" }
+    ];
+    addBotMessage(text, followUps);
+  }, 500);
+}
+
+// ============================================================
 // START (original)
 // ============================================================
 
 init();
+initChatbot();
