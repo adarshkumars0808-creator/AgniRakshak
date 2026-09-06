@@ -4195,7 +4195,37 @@ function fcRenderAlerts(fd) {
 // START (original)
 // ============================================================
 
+// ============================================================
+// MAP FULLSCREEN TOGGLE
+// ============================================================
+
+function initMapFullscreen() {
+  const btn = document.getElementById("mapFullscreen");
+  const wrapper = document.getElementById("mapWrapper");
+  if (!btn || !wrapper) return;
+
+  btn.addEventListener("click", () => {
+    wrapper.classList.toggle("fullscreen");
+    btn.textContent = wrapper.classList.contains("fullscreen") ? "⛶" : "⛶";
+    setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+  });
+
+  // Keyboard shortcut: F to toggle fullscreen
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+    if (e.key === "f" || e.key === "F") {
+      wrapper.classList.toggle("fullscreen");
+      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+    }
+    if (e.key === "Escape" && wrapper.classList.contains("fullscreen")) {
+      wrapper.classList.remove("fullscreen");
+      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+    }
+  });
+}
+
 init();
 initChatbot();
+initMapFullscreen();
 // Render forecast on load (after a small delay for DOM readiness)
 setTimeout(renderForecastTab, 500);
