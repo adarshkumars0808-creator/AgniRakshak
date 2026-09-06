@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgniRakshak — AI Fire Risk Intelligence</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PREMIUM INTRO / LANDING SCREEN (shows on load) -->
+<!-- ============================================================ -->
+<div id="introScreen" class="intro-screen" role="banner">
+  <div class="intro-glow" aria-hidden="true"></div>
+  <div class="intro-glow intro-glow-blue" aria-hidden="true"></div>
+
+  <!-- INTRO NAV -->
+  <nav class="intro-nav">
+    <div class="intro-brand">
+      <div class="intro-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+          <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="intro-brand-name">AGNIRAKSHAK</span>
+    </div>
+
+    <div class="intro-nav-links">
+      <a href="#" data-intro-link="overview">Features</a>
+      <a href="#" data-intro-link="about">About</a>
+    </div>
+
+    <div class="intro-nav-right">
+      <div class="intro-live-badge"><span class="intro-live-dot"></span> LIVE</div>
+      <button class="intro-theme-btn" id="introThemeToggle" title="Toggle Dark/Light Mode" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
+      <button class="intro-cta-btn" id="introGetStarted">Get Started&nbsp;&rarr;</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="intro-hero">
+    <div class="intro-hero-icon" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="72" height="72" fill="none">
+        <defs>
+          <linearGradient id="heroFireGrad" x1="12" y1="48" x2="36" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ff382f"/>
+            <stop offset="50%" stop-color="#ff6b1a"/>
+            <stop offset="100%" stop-color="#ffae42"/>
+          </linearGradient>
+        </defs>
+        <path d="M24 2C24 2 8 18 8 28a16 16 0 0 0 32 0C40 18 24 2 24 2z" fill="url(#heroFireGrad)" opacity="0.9"/>
+        <path d="M24 14c0 0-7 8-7 14a7 7 0 0 0 14 0c0-6-7-14-7-14z" fill="#fff" opacity="0.35"/>
+      </svg>
+    </div>
+    <h1 class="intro-title"><span class="intro-grad-text">AI-Enabled Fire Risk Intelligence</span><br/>&amp; Monitoring</h1>
+    <p class="intro-subtitle">Identifying, classifying, and monitoring industrial fires, agricultural burning, and wildfires across North India — powered by NASA FIRMS satellite data and machine learning.</p>
+    <div class="intro-actions">
+      <button class="intro-btn intro-btn-primary" id="introOpenDashboard">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.2"/>
+          <path d="M3 12h18M12 2.8c2.6 2.6 3.9 5.8 3.9 9.2s-1.3 6.6-3.9 9.2c-2.6-2.6-3.9-5.8-3.9-9.2S9.4 5.4 12 2.8z"/>
+        </svg>
+        Open Dashboard&nbsp;&rarr;
+      </button>
+      <button class="intro-btn intro-btn-ghost" onclick="document.getElementById('introFeatures').scrollIntoView({behavior:'smooth'})">Explore Features &darr;</button>
+    </div>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="intro-metrics">
+    <div class="intro-metric-card">
+      <div class="intro-metric-icon">📡</div>
+      <div class="intro-metric-value" id="introMetric1">—</div>
+      <div class="intro-metric-label">Total Detections</div>
+      <div class="intro-metric-delta" id="introMetric1Delta" title="Detection volume trend: last 30 days vs previous 30 days">…</div>
+      <div class="intro-metric-bar"><div class="intro-metric-bar-fill" id="introMetric1Bar" style="width:0%;background:linear-gradient(90deg,#ff382f,#ff6b1a);"></div></div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-icon">📍</div>
+      <div class="intro-metric-value" id="introMetric2">—</div>
+      <div class="intro-metric-label">Active Grid Cells</div>
+      <div class="intro-metric-delta" id="introMetric2Delta" title="Live satellite detections right now (NRT)">…</div>
+      <div class="intro-metric-bar"><div class="intro-metric-bar-fill" id="introMetric2Bar" style="width:0%;background:linear-gradient(90deg,#ff6b1a,#ffae42);"></div></div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-icon">🔥</div>
+      <div class="intro-metric-value" id="introMetric3">—</div>
+      <div class="intro-metric-label">High Risk Zones</div>
+      <div class="intro-metric-delta" id="introMetric3Delta" title="Fire intensity trend (total FRP): last 30 days vs previous 30 days">…</div>
+      <div class="intro-metric-bar"><div class="intro-metric-bar-fill" id="introMetric3Bar" style="width:0%;background:linear-gradient(90deg,#ff382f,#ff382f);"></div></div>
+    </div>
+    <div class="intro-metric-card">
+      <div class="intro-metric-icon">🧠</div>
+      <div class="intro-metric-value" id="introMetric4">—</div>
+      <div class="intro-metric-label">ML Risk Score (Avg)</div>
+      <div class="intro-metric-delta" id="introMetric4Delta">Model-based ranking</div>
+      <div class="intro-metric-bar"><div class="intro-metric-bar-fill" id="introMetric4Bar" style="width:0%;background:linear-gradient(90deg,#a855f7,#22d3ee);"></div></div>
+    </div>
+  </div>
+
+  <!-- FEATURES SECTION -->
+  <section class="intro-section" id="introFeatures">
+    <div class="intro-section-label">CAPABILITIES</div>
+    <h2 class="intro-section-title">Built for <span class="intro-grad-text">real-time vigilance</span></h2>
+    <p class="intro-section-sub">From raw satellite pixels to verified, actionable fire-risk intelligence — the full pipeline runs automatically.</p>
+
+    <div class="intro-features-grid">
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(255,107,26,0.12);border-color:rgba(255,107,26,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ff6b1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>
+        <div class="intro-feature-title">Live Satellite Monitoring</div>
+        <div class="intro-feature-text">Near-real-time NASA FIRMS thermal detections with 5-minute auto-refresh, severity classification, and pulsing live markers on the map.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(168,85,247,0.12);border-color:rgba(168,85,247,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 2a10 10 0 0 0-10 10"/><path d="M12 2v4"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <div class="intro-feature-title">ML Risk Scoring</div>
+        <div class="intro-feature-text">Random-Forest risk model ranks 26,000+ grid cells 0–100 using recurrence, persistence, FRP intensity, and multi-satellite agreement.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(255,56,47,0.12);border-color:rgba(255,56,47,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ff382f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2"/><path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4"/></svg></div>
+        <div class="intro-feature-title">Fire-Type Classification</div>
+        <div class="intro-feature-text">Automatically labels sources as Industrial, Mining, Agricultural Burning, or Forest/Wildfire with confidence scores.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(34,211,238,0.12);border-color:rgba(34,211,238,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
+        <div class="intro-feature-title">Real-GIS Verification</div>
+        <div class="intro-feature-text">Every site is cross-checked against ESA WorldCover 10m land cover and OSM facility geolocation — kills ~92% of false labels.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(255,174,66,0.12);border-color:rgba(255,174,66,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffae42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="intro-feature-title">Smart Alert Engine</div>
+        <div class="intro-feature-text">Four anomaly rules (new critical zones, escalation, persistence, elevated activity) with cooldown dedup so you never get spammed.</div>
+      </div>
+      <div class="intro-feature-card">
+        <div class="intro-feature-icon" style="background:rgba(74,222,128,0.12);border-color:rgba(74,222,128,0.25);"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 17V13"/><path d="M11 17V9"/><path d="M15 17V5"/></svg></div>
+        <div class="intro-feature-title">Intelligence Reports</div>
+        <div class="intro-feature-text">One-click daily, weekly, monthly, and incident reports — KPIs, trends, hot zones, and auto recommendations, exportable to PDF.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="intro-section" id="introHow">
+    <div class="intro-section-label">HOW IT WORKS</div>
+    <h2 class="intro-section-title">From satellite pixel to <span class="intro-grad-text">actionable risk</span></h2>
+
+    <div class="intro-steps">
+      <div class="intro-step">
+        <div class="intro-step-num">01</div>
+        <div class="intro-step-title">Ingest</div>
+        <div class="intro-step-text">Historical + live NASA FIRMS detections across North India, 2020 → present.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">02</div>
+        <div class="intro-step-title">Analyze</div>
+        <div class="intro-step-text">5km grid feature engineering — recurrence, persistence, seasonality, satellite agreement.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">03</div>
+        <div class="intro-step-title">Model</div>
+        <div class="intro-step-text">ML risk ranking 0–100, fire-type classification, and land-cover verification per site.</div>
+      </div>
+      <div class="intro-step">
+        <div class="intro-step-num">04</div>
+        <div class="intro-step-title">Monitor</div>
+        <div class="intro-step-text">Live NRT layer, anomaly alert engine, and one-click intelligence reports.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA SOURCES -->
+  <section class="intro-section intro-sources">
+    <div class="intro-section-label">DATA SOURCES</div>
+    <div class="intro-source-row">
+      <div class="intro-source-item">
+        <div class="intro-source-name">NASA FIRMS</div>
+        <div class="intro-source-detail">VIIRS SNPP · NOAA-20 · NOAA-21 · MODIS</div>
+      </div>
+      <div class="intro-source-item">
+        <div class="intro-source-name">ESA WorldCover</div>
+        <div class="intro-source-detail">10m land-cover verification</div>
+      </div>
+      <div class="intro-source-item">
+        <div class="intro-source-name">OpenStreetMap</div>
+        <div class="intro-source-detail">Industrial &amp; facility geolocation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="intro-footer">
+    <div class="intro-footer-brand">
+      <div class="intro-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+          <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="intro-brand-name">AGNIRAKSHAK</span>
+    </div>
+    <div class="intro-footer-tag">AgniRakshak — AI-enabled fire risk intelligence &amp; satellite monitoring</div>
+    <div class="intro-footer-note">Risk scores are model-based rankings for early identification, not confirmed fire causes. Data: NASA FIRMS · ESA WorldCover · OpenStreetMap.</div>
+  </footer>
+</div>
+
+<!-- ============================================================ -->
+<!-- TOP NAVIGATION BAR -->
+<!-- ============================================================ -->
+<nav class="topnav">
+  <div class="nav-brand">
+    <div class="nav-logo">🔥</div>
+    <div>
+      <div class="nav-brand-name">AGNIRAKSHAK</div>
+      <div class="nav-brand-sub">AI-Enabled Fire Risk Intelligence &amp; Satellite Monitoring</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="overview">OVERVIEW</button>
+    <button class="nav-tab" data-tab="analytics">ANALYTICS</button>
+    <button class="nav-tab" data-tab="history">HISTORY</button>
+    <button class="nav-tab" data-tab="forecast">FORECAST</button>
+    <button class="nav-tab" data-tab="alerts">ALERTS <span class="alert-badge" id="alertBadge" style="display:none;">0</span></button>
+    <button class="nav-tab" data-tab="reports">REPORTS</button>
+    <button class="nav-tab" data-tab="about">ABOUT</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-status" id="nrtReadout">
+      <span class="status-dot-live"></span> LIVE &middot; System Online
+    </div>
+    <div class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌙</div>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- OVERVIEW TAB — Original working dashboard layout -->
+<!-- ============================================================ -->
+<section class="tab-panel active" id="panel-overview">
+
+<div class="dashboard">
+
+  <!-- HEADER (hidden — nav bar has branding) -->
+  <section class="top-header" style="display:none;"></section>
+
+  <!-- INFO STRIP -->
+  <section class="info-strip" id="infoStrip">
+    <div>▲ AGNIRAKSHAK — NASA FIRMS THERMAL ANOMALY MONITORING</div>
+    <div>▲ AI RISK RANKING — NORTH INDIA</div>
+    <div>▲ HISTORICAL SATELLITE ANALYSIS: 2020 – PRESENT</div>
+    <div>▲ RISK SCORE = ML THERMAL-RISK RANKING (0–100)</div>
+  </section>
+
+  <!-- METRICS -->
+  <section class="metrics-grid" id="metricsGrid">
+    <div class="metric-card">
+      <div class="metric-title">TOTAL GRID CELLS</div>
+      <div class="metric-value" id="mTotalCells">—</div>
+      <div class="metric-badge">North India, 5km grid</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">FIRMS DETECTIONS (ALL-TIME)</div>
+      <div class="metric-value" id="mTotalDetections">—</div>
+      <div class="metric-badge">2020 → present</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">CRITICAL RISK CELLS</div>
+      <div class="metric-value" id="mCritical">—</div>
+      <div class="metric-badge" style="background:#3a1414; color:#ff6b5e;">risk score ≥ 75</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">HIGH RISK CELLS</div>
+      <div class="metric-value" id="mHigh">—</div>
+      <div class="metric-badge" style="background:#3a2a10; color:#ffae42;">risk score 50–75</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">AVG FRP (MW)</div>
+      <div class="metric-value" id="mAvgFrp">—</div>
+      <div class="metric-badge">mean across all grid cells</div>
+    </div>
+  </section>
+
+  <!-- MAIN LAYOUT — 3 columns: sidebar | center (map) | intel -->
+  <section class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="side-block">
+        <div class="side-title">Data Source</div>
+        <div class="data-readout" id="dataReadout">Loading risk_predictions.csv…</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Risk Filter</div>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="CRITICAL" checked><span class="chip chip-critical"></span> Critical</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="HIGH" checked><span class="chip chip-high"></span> High</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="MODERATE" checked><span class="chip chip-moderate"></span> Moderate</label>
+        <label class="check-row"><input type="checkbox" class="risk-toggle" value="LOW"><span class="chip chip-low"></span> Low</label>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Map Layers</div>
+        <div class="toggle-row">Risk Grid Markers <label class="switch"><input type="checkbox" id="lyrMarkers" checked><span class="slider"></span></label></div>
+        <div class="toggle-row">🔴 Live NRT Detections <label class="switch"><input type="checkbox" id="lyrNrt"><span class="slider"></span></label></div>
+        <div class="toggle-row">🏆 Top 10 High-Risk Zones <label class="switch"><input type="checkbox" id="lyrTop10" checked><span class="slider"></span></label></div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Map Color Mode</div>
+        <label class="check-row"><input type="radio" name="colorMode" value="risk" checked> Risk Level (regional zones)</label>
+        <label class="check-row"><input type="radio" name="colorMode" value="fireType"> Fire Type (verified sites)</label>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Fire Type Filter</div>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="INDUSTRIAL" checked><span class="chip chip-industrial"></span> Industrial</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="MINING" checked><span class="chip chip-mining"></span> Mining</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="AGRICULTURAL_BURNING" checked><span class="chip chip-agricultural"></span> Agricultural Burning</label>
+        <label class="check-row"><input type="checkbox" class="type-toggle" value="FOREST_FIRE" checked><span class="chip chip-wildfire"></span> Forest / Wildfire</label>
+        <div class="hint">Every site checked against real ESA WorldCover (10m) land cover. Nearby grid cells (within 8km) merged into one marker.</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Activity Timeline Range</div>
+        <input type="date" id="dateFrom">
+        <div style="height:6px;"></div>
+        <input type="date" id="dateTo">
+        <div class="hint">Controls the chart below only — the risk map reflects the full historical model.</div>
+        <div class="side-block" style="margin-top:10px;">
+          <div class="side-title">Live NRT Monitor</div>
+          <div id="nrtReadout" style="font-size:11px;color:#94a6b8;line-height:1.5;">Loading…</div>
+          <button id="btnFetchNrt" class="nrt-fetch-btn">🔄 Fetch Live Data</button>
+          <div id="nrtFetchStatus" style="font-size:10px;color:#94a6b8;margin-top:4px;display:none;"></div>
+          <div style="font-size:9px;color:#64748b;margin-top:6px;line-height:1.4;">Auto-updates: fetches recent FIRMS data, cleans old NRT (>24h), updates grid features & risk predictions.</div>
+        </div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Legend</div>
+        <div class="legend-item"><span class="swatch" style="background:#ff382f;"></span> Critical (≥75)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ff6b1a;"></span> High (50–75)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffae42;"></span> Moderate (25–50)</div>
+        <div class="legend-item"><span class="swatch" style="background:#20e889;"></span> Low (&lt;25)</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Fire Type Legend</div>
+        <div class="legend-item"><span class="swatch" style="background:#a855f7;"></span> Industrial (verified)</div>
+        <div class="legend-item"><span class="swatch" style="background:#f97316;"></span> Mining (verified)</div>
+        <div class="legend-item"><span class="swatch" style="background:#ffd400;"></span> Agricultural Burning</div>
+        <div class="legend-item"><span class="swatch" style="background:#22d3ee;"></span> Forest / Wildfire</div>
+      </div>
+
+      <div class="side-block">
+        <div class="side-title">Top 10 High-Risk Zones</div>
+        <div id="top10List"></div>
+      </div>
+    </aside>
+
+    <!-- CENTER: Map + Chart -->
+    <main class="center">
+      <section class="map-header">
+        <div class="map-header-left">
+          <div class="map-title">🛰️ AGNIRAKSHAK REGIONAL THERMAL RISK MAP</div>
+          <div class="map-subtitle" id="gridCountLabel">AI-BASED SPATIAL RISK ANALYSIS</div>
+        </div>
+        <div class="map-header-right">
+          <div class="map-type-control">
+            <button class="map-type-btn active" data-tile="osm" title="Street map (OpenStreetMap)">🗺️ OSM</button>
+            <button class="map-type-btn" data-tile="satellite" title="Esri World Imagery satellite">🛰️ Satellite</button>
+            <button class="map-type-btn" data-tile="thermal" title="NASA MODIS 8-day land surface temperature">🌡️ Thermal</button>
+          </div>
+          <img id="thermalLegend" class="map-type-legend" src="https://gibs.earthdata.nasa.gov/legends/MODIS_Land_Surface_Temp_H.svg" alt="Thermal legend (°C)" title="NASA GIBS MODIS LST 8-day legend (°C)" hidden>
+        </div>
+      </section>
+
+      <section class="map-wrapper">
+        <div id="map"></div>
+      </section>
+
+      <section class="chart-card">
+        <div class="chart-title">FIRE ACTIVITY TIMELINE — DAILY DETECTIONS</div>
+        <svg id="chart" viewBox="0 0 900 200" width="100%" height="200"></svg>
+      </section>
+    </main>
+
+    <!-- RIGHT: Grid Intelligence -->
+    <aside class="intel-col">
+      <div class="intelligence-card">
+        <div class="intelligence-title">SELECTED GRID INTELLIGENCE</div>
+        <div class="selected-grid" id="selectedGrid">
+          <div class="grid-id">Select a grid on the map</div>
+          <div class="risk-label" style="border-color:#3a4a5a; color:#7890a8;">READY</div>
+        </div>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- FOOTER -->
+  <section class="footer">
+    <div class="credits" style="margin-bottom:14px;color:var(--text-secondary);font-size:11px;line-height:1.8;letter-spacing:0.5px;">🔥 AgniRakshak — <span id="creditsGridCount"></span> historical FIRMS grid cells<br>✓ <span id="creditsSiteCount"></span> land-cover-verified fire-type sites<br>✓ <span id="creditsZoneCount"></span> regional risk zones</div>
+    <div>AGNIRAKSHAK • NASA FIRMS • AI FIRE RISK INTELLIGENCE</div>
+    <div>Historical satellite analysis for early fire-risk identification. Risk scores are model-based rankings, not confirmed fire causes.</div>
+  </section>
+
+</div><!-- /dashboard -->
+</section>
+
+<!-- ============================================================ -->
+<!-- ANALYTICS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-analytics">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📊 Analytics Dashboard</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">Risk Distribution</div>
+      <div class="chart-center-wrap"><svg id="chartRiskDist" viewBox="0 0 280 280" width="100%"></svg></div>
+      <div id="legendRiskDist" class="chart-legend-bottom"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk Trend (Last 7 Days)</div>
+      <svg id="chartRiskTrend" viewBox="0 0 600 200" width="100%" height="200"></svg>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Fire Type Distribution</div>
+      <div class="chart-center-wrap"><svg id="chartFireType" viewBox="0 0 280 280" width="100%"></svg></div>
+      <div id="legendFireType" class="chart-legend-bottom"></div>
+    </div>
+  </section>
+
+  <section class="analytics-row" style="margin-top:18px;">
+    <div class="chart-card" style="flex:2;">
+      <div class="chart-title">Top 10 High-Risk Grids</div>
+      <table class="data-table" id="top10Table">
+        <thead><tr><th>#</th><th>Grid ID</th><th>Location</th><th>Risk Score</th><th>Risk Level</th><th>Avg FRP</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="chart-card" style="flex:1;">
+      <div class="chart-title">Satellite Contribution</div>
+      <div class="chart-center-wrap"><svg id="chartSatellite" viewBox="0 0 260 260" width="100%"></svg></div>
+      <div id="legendSatellite" class="chart-legend-bottom"></div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- HISTORY TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-history">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📜 History Explorer</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="history-stats-row">
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Total Detections</div>
+      <div class="metric-value" id="hsTotal">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Active Days</div>
+      <div class="metric-value" id="hsActiveDays">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Avg FRP</div>
+      <div class="metric-value" id="hsAvgFrp">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Max FRP</div>
+      <div class="metric-value" id="hsMaxFrp">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">First Detection</div>
+      <div class="metric-value" id="hsFirst" style="font-size:14px;">—</div>
+    </div>
+    <div class="metric-card" style="text-align:center;">
+      <div class="metric-title">Last Detection</div>
+      <div class="metric-value" id="hsLast" style="font-size:14px;">—</div>
+    </div>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-title">Historical Fire Activity</div>
+    <div id="historyDateGrid" style="padding:12px;"></div>
+  </section>
+
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Daily Activity Chart</div>
+    <svg id="chartDailyActivity" viewBox="0 0 900 200" width="100%" height="200"></svg>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- FORECAST TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-forecast">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">🔮 Fire Season Forecast</div>
+        <div class="brand-subtitle">PREDICTIVE ANALYSIS FROM 6 YEARS OF FIRMS DATA</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Readiness Index + Summary Cards -->
+  <section class="forecast-summary" id="forecastSummary">
+    <div class="forecast-readiness-card" id="readinessCard">
+      <div class="forecast-readiness-label">FIRE SEASON READINESS INDEX</div>
+      <div class="forecast-readiness-score" id="readinessScore">—</div>
+      <div class="forecast-readiness-level" id="readinessLevel">—</div>
+      <div class="forecast-readiness-bar"><div class="forecast-readiness-fill" id="readinessFill"></div></div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Current Year (2026)</div>
+      <div class="forecast-metric-value" id="fcCurrentYear">—</div>
+      <div class="forecast-metric-sub" id="fcCurrentDet">— detections</div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Predicted 2027</div>
+      <div class="forecast-metric-value" id="fcPredicted">—</div>
+      <div class="forecast-metric-sub" id="fcPredictedDet">— detections</div>
+    </div>
+    <div class="forecast-metric-card">
+      <div class="forecast-metric-title">Year Trend</div>
+      <div class="forecast-metric-value" id="fcTrend">—</div>
+      <div class="forecast-metric-sub" id="fcTrendPct">—</div>
+    </div>
+  </section>
+
+  <!-- Peak / Low Months -->
+  <section class="forecast-row">
+    <div class="chart-card">
+      <div class="chart-title">🔥 Peak Fire Months</div>
+      <div id="peakMonthsList" class="forecast-month-list"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🌧️ Low Activity Months</div>
+      <div id="lowMonthsList" class="forecast-month-list"></div>
+    </div>
+  </section>
+
+  <!-- Monthly Intensity Bar Chart -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Monthly Fire Intensity (6-Year Average)</div>
+    <div id="chartForecastMonthly" class="fc-chart-container" style="min-height:250px"></div>
+  </section>
+
+  <!-- Year x Month Heatmap -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Year × Month Detection Heatmap (2020–2026)</div>
+    <div id="forecastHeatmap" class="forecast-heatmap-container"></div>
+  </section>
+
+  <!-- Yearly Trend Line -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Year-over-Year Detection Trend</div>
+    <div id="chartForecastTrend" class="fc-chart-container" style="min-height:220px"></div>
+  </section>
+
+  <!-- Seasonal Breakdown -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Seasonal Fire Activity by Year</div>
+    <div id="chartSeasonalStack" class="fc-chart-container" style="min-height:250px"></div>
+    <div class="chart-legend-bottom" id="legendSeasonal"></div>
+  </section>
+
+  <!-- Top Grid Forecasts Table -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">Top 20 Grid Cell Forecasts — Peak Month & Season Totals</div>
+    <table class="data-table" id="forecastGridTable">
+      <thead><tr>
+        <th>#</th><th>Grid ID</th><th>Site</th><th>Fire Type</th><th>Risk</th>
+        <th>Peak Month</th><th>Pre-Monsoon</th><th>Monsoon</th><th>Post-Monsoon</th><th>Winter</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ========== FIRE-TYPE FORECAST SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🔥 Fire Type Breakdown — Individual Readiness Scores</div>
+    <div id="fcTypeTabs" class="fc-type-tabs">
+      <button class="fc-type-tab active" data-type="all" onclick="fcFilterType('all')">All Types</button>
+    </div>
+    <div id="fcTypeReadinessCards" class="fc-type-readiness-grid"></div>
+    <div id="fcTypeBarChart" class="fc-chart-container" style="min-height:220px; margin-top:12px;"></div>
+  </section>
+
+  <!-- ========== DISTRICT FORECAST SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🗺️ District-Level Fire Forecast</div>
+    <div id="fcDistrictCards" class="fc-district-grid"></div>
+  </section>
+
+  <!-- ========== ALERT ESCALATION SECTION ========== -->
+  <section class="chart-card" style="margin-top:18px;">
+    <div class="chart-title">🚨 Alert Escalation — Threshold Breaches</div>
+    <div id="fcAlertEscalation" class="fc-alert-list"></div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- ALERTS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-alerts">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">🚨 Alerts Center</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alerts-filter-bar">
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="critical" checked><span class="chip chip-critical"></span> Critical</label>
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="high" checked><span class="chip chip-high"></span> High</label>
+    <label class="check-row"><input type="checkbox" class="alert-filter" value="medium" checked><span class="chip chip-moderate"></span> Medium</label>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-title">Active Alerts (<span id="alertCount">0</span>)</div>        <table class="data-table" id="alertsTable">
+      <thead><tr><th>Alert</th><th>Grid</th><th>Type</th><th>Severity</th><th>Status</th><th>Time</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- REPORTS TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-reports">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">📋 Reports</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">Generate Intelligence Report</div>
+      <div style="padding:12px;">
+        <label for="reportType" style="display:block;font-size:11px;color:#7890a8;margin-bottom:6px;letter-spacing:0.5px;">REPORT TYPE</label>
+        <select id="reportType" style="width:100%;background:#101820;border:1px solid #202b38;color:#f2f5f8;padding:8px;border-radius:5px;font-size:12px;">
+          <option>Daily Report</option>
+          <option>Weekly Report</option>
+          <option>Monthly Report</option>
+          <option>Incident Report</option>
+        </select>
+        <button id="btnGenerateReport" style="width:100%;margin-top:12px;padding:10px;background:linear-gradient(135deg,#ff382f,#ff6b1a);border:none;border-radius:6px;color:white;font-weight:bold;cursor:pointer;">⚡ Generate Report</button>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="btnPrintReport" disabled title="Print or save as PDF" style="flex:1;padding:8px;background:#101820;border:1px solid #2a3a4a;border-radius:6px;color:#e2e8f0;font-size:11px;font-weight:600;cursor:pointer;">🖨️ Print / PDF</button>
+          <button id="btnDownloadReport" disabled title="Download standalone HTML report" style="flex:1;padding:8px;background:#101820;border:1px solid #2a3a4a;border-radius:6px;color:#e2e8f0;font-size:11px;font-weight:600;cursor:pointer;">⬇️ Download</button>
+        </div>
+        <div class="hint" style="margin-top:8px;">Reports are generated live from the dashboard data. Print/PDF export uses a clean printable layout.</div>
+      </div>
+    </div>
+    <div class="chart-card" style="flex:2;">
+      <div class="chart-title">Report Preview</div>
+      <div id="reportPreview" style="padding:20px;color:#7890a8;font-size:12px;">Select report type and click Generate</div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- ABOUT TAB -->
+<!-- ============================================================ -->
+<section class="tab-panel" id="panel-about">
+<div class="dashboard">
+  <section class="top-header">
+    <div class="brand-section">
+      <div>
+        <div class="brand-title" style="font-size:24px;">ℹ️ About AgniRakshak</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics-row">
+    <div class="chart-card">
+      <div class="chart-title">🎯 Project Overview</div>
+      <div style="padding:16px;color:#94a6b8;font-size:12px;line-height:1.8;">
+        <p><strong style="color:#e2e8f0;">AgniRakshak</strong> is an AI-enabled geospatial system that automatically identifies, classifies, and monitors industrial fires and persistent thermal sources.</p>
+        <br>
+        <p><strong style="color:#e2e8f0;">Data Sources:</strong></p>
+        <ul style="padding-left:18px;">
+          <li><strong>NASA FIRMS</strong> — VIIRS SNPP, VIIRS NOAA-20, MODIS</li>
+          <li><strong>ESA WorldCover</strong> — 10m land cover for site verification</li>
+          <li><strong>OpenStreetMap</strong> — Industrial facility geolocation</li>
+        </ul>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔬 Methodology</div>
+      <div style="padding:16px;color:#94a6b8;font-size:12px;line-height:1.8;">
+        <ul style="padding-left:18px;">
+          <li>5km FIRMS grid cells analyzed (2020–present)</li>
+          <li>ML-based risk scoring: FRP, recurrence, persistence, multi-satellite</li>
+          <li>Fire-type classification: Industrial, Agricultural, Forest/Wildfire</li>
+          <li>Land-cover verification via ESA WorldCover 10m</li>
+          <li>Regional zone aggregation for map display</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- PREMIUM TRANSITION OVERLAY (intro → dashboard loading bar) -->
+<!-- ============================================================ -->
+<div id="transitionOverlay" class="transition-overlay" aria-hidden="true">
+  <div class="transition-logo">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
+      <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+    </svg>
+  </div>
+  <div class="transition-name">AGNIRAKSHAK</div>
+  <div class="transition-sub">INITIALIZING DASHBOARD</div>
+  <div class="transition-bar-row">
+    <div class="transition-bar"><div class="transition-bar-fill" id="transitionBarFill"></div></div>
+    <div class="transition-pct" id="transitionPct">0%</div>
+  </div>
+  <div class="transition-steps" id="transitionSteps">
+    <div class="transition-step" data-step="0"><span class="ts-icon"></span><span>Loading risk model</span></div>
+    <div class="transition-step" data-step="1"><span class="ts-icon"></span><span>Rendering satellite map</span></div>
+    <div class="transition-step" data-step="2"><span class="ts-icon"></span><span>Syncing live NRT detections</span></div>
+    <div class="transition-step" data-step="3"><span class="ts-icon"></span><span>Preparing alerts &amp; intelligence</span></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SATELLITE EVIDENCE MODAL -->
+<!-- ============================================================ -->
+<div id="satEvidenceModal" class="sat-evidence-modal" style="display:none;">
+  <div class="sat-evidence-backdrop" id="satEvidenceBackdrop"></div>
+  <div class="sat-evidence-dialog">
+    <div class="sat-evidence-header">
+      <div class="sat-evidence-header-left">
+        <span>🛰️</span>
+        <span class="sat-evidence-title">Satellite Evidence</span>
+        <span id="satEvidenceCoords" class="sat-evidence-coords"></span>
+      </div>
+      <div class="sat-evidence-header-actions">
+        <button id="satEvidenceDownload" class="sat-evidence-dl-btn">⬇️ Download</button>
+        <button id="satEvidenceClose" class="sat-evidence-close-btn">✕</button>
+      </div>
+    </div>
+    <div id="satEvidenceMapContainer" class="sat-evidence-map-container">
+      <div id="satEvidenceMap" class="sat-evidence-map"></div>
+      <div class="sat-evidence-loading" id="satEvidenceLoading">
+        <div class="sat-evidence-spinner"></div>
+        <span>Loading satellite imagery...</span>
+      </div>
+      <div class="sat-evidence-watermark">
+        <span>🔥 AgniRakshak — Satellite Evidence</span>
+        <span id="satEvidenceTimestamp"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- XAI CHATBOT WIDGET (before scripts so DOM is ready) -->
+<!-- ============================================================ -->
+<div id="chatbotFab" class="chatbot-fab" title="AgniRakshak AI Assistant">🤖</div>
+
+<div id="chatbotPanel" class="chatbot-panel" style="display:none;">
+  <div class="chatbot-header">
+    <div class="chatbot-header-left">
+      <span class="chatbot-header-icon">🤖</span>
+      <span class="chatbot-header-title">AgniRakshak AI</span>
+      <span id="chatbotSelectedFire" class="chatbot-selected-fire" style="display:none;"></span>
+    </div>
+    <div class="chatbot-header-actions">
+      <button id="chatbotMinimize" class="chatbot-header-btn" title="Minimize">—</button>
+      <button id="chatbotClose" class="chatbot-header-btn chatbot-close-btn" title="Close">✕</button>
+    </div>
+  </div>
+  <div id="chatbotMessages" class="chatbot-messages"></div>
+  <div class="chatbot-input-area">
+    <input id="chatbotInput" class="chatbot-input" type="text" placeholder="Ask about fire risk, precautions..." />
+    <button id="chatbotSend" class="chatbot-send-btn">➤</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCRIPTS — Same CDN links as original -->
+<!-- ============================================================ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="script.js"></script>
+<script>
+// AgniRakshak AI chatbot — always floats on screen.
+// The FAB + panel use pure position:fixed (see style.css), so they stay
+// anchored to the viewport bottom-right no matter how the dashboard
+// scrolls. Dragging the panel by its header moves it anywhere on screen
+// and remembers the position; no scroll math is needed here.
+(function() {
+  var panel = document.getElementById('chatbotPanel');
+  var header = panel ? panel.querySelector('.chatbot-header') : null;
+  if (!panel || !header) return;
+
+  var isDragging = false, startX, startY, origBottom, origRight;
+
+  header.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.chatbot-header-btn')) return; // don't drag on buttons
+    isDragging = true;
+    panel.dataset.dragging = '1';
+    var rect = panel.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    origBottom = window.innerHeight - rect.bottom;
+    origRight = window.innerWidth - rect.right;
+    panel.style.transition = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    var dx = e.clientX - startX;
+    var dy = e.clientY - startY;
+    // Clamp so the panel always stays fully on screen (position:fixed).
+    // The limits account for the panel's own size so it can't be
+    // dragged past the edge of narrow viewports.
+    var panelW = panel.offsetWidth || 380;
+    var panelH = panel.offsetHeight || 520;
+    var maxRight = Math.max(8, window.innerWidth - panelW - 8);
+    var maxBottom = Math.max(8, window.innerHeight - panelH - 8);
+    var newRight = Math.max(8, Math.min(maxRight, origRight - dx));
+    var newBottom = Math.max(8, Math.min(maxBottom, origBottom - dy));
+    panel.style.right = newRight + 'px';
+    panel.style.bottom = newBottom + 'px';
+    panel.style.top = 'auto';
+    panel.style.left = 'auto';
+  });
+
+  function stopDrag() {
+    if (!isDragging) return;
+    isDragging = false;
+    delete panel.dataset.dragging;
+    panel.style.transition = '';
+  }
+  document.addEventListener('mouseup', stopDrag);
+  window.addEventListener('blur', stopDrag); // safety if released outside the window
+})();
+</script>
+
+</body>
+</html>

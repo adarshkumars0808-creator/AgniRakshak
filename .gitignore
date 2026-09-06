@@ -195,3 +195,9 @@ data/processed/firms_clean_merged.csv
 data/worldcover/
 data/processed/*.html
 data/raw/
+
+# Auto-update markers
+data/processed/.auto_update_done
+data/processed/.auto_update_running
+# Legacy Streamlit dashboard
+src/_legacy_dashboard.py

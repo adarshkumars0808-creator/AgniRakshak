@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-09-06T15:51:34.193640+00:00",
+  "historical_grid_count": 26891,
+  "recent_grid_count": 1210,
+  "nrt_detections_count": 2,
+  "nrt_timestamp": "2026-09-06T13:44:13.185745",
+  "active_alert_count": 0,
+  "fire_type_counts": {
+    "UNCLASSIFIED": 26891
+  }
+}
