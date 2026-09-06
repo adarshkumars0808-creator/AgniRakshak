@@ -948,6 +948,7 @@ const TILE_URLS = {
 
 const GIBS_THERMAL_LAYER = "MODIS_Terra_L3_Land_Surface_Temp_8Day_Day";
 let thermalLayer = null;
+let thermalOverlay = null;
 let thermalLayerDate = gibsEvidenceDate(3); // fallback
 
 // MODIS 8-day LST composites publish ~2-5 days after each 8-day period ends, but
@@ -1062,18 +1063,31 @@ function initMap() {
       btn.classList.add("active");
       const key = btn.dataset.tile;
 
-      // Map type selection is authoritative — drop any satellite overlay + its sidebar toggle
-      const satToggle = document.getElementById("lyrSatellite");
-      if (satelliteLayer && map.hasLayer(satelliteLayer)) {
-        map.removeLayer(satelliteLayer);
-        if (satToggle) satToggle.checked = false;
+      // Remove any previous thermal overlay
+      if (thermalOverlay && map.hasLayer(thermalOverlay)) {
+        map.removeLayer(thermalOverlay);
+        thermalOverlay = null;
       }
 
       if (baseTileLayer) map.removeLayer(baseTileLayer);
       if (key === "satellite") {
         baseTileLayer = satelliteLayer;
       } else if (key === "thermal") {
-        baseTileLayer = getThermalLayer();
+        // Keep OSM as base so there are no black gaps; add thermal as semi-transparent overlay
+        baseTileLayer = L.tileLayer(TILE_URLS.dark, {
+          attribution: "&copy; OpenStreetMap contributors",
+          maxNativeZoom: 19,
+          maxZoom: 22,
+        });
+        baseTileLayer.addTo(map);
+        thermalOverlay = getThermalLayer();
+        thermalOverlay.setOpacity(0.65);
+        thermalOverlay.addTo(map);
+        // Ensure all marker layers are on top of the thermal overlay
+        if (map.hasLayer(clusterLayer)) clusterLayer.bringToFront();
+        if (fireSiteLayer && map.hasLayer(fireSiteLayer)) fireSiteLayer.bringToFront();
+        if (nrtLayer && map.hasLayer(nrtLayer)) nrtLayer.bringToFront();
+        if (top10Layer && map.hasLayer(top10Layer)) top10Layer.bringToFront();
       } else {
         baseTileLayer = L.tileLayer(TILE_URLS[key] || TILE_URLS.dark, {
           attribution: "&copy; OpenStreetMap contributors",
@@ -1081,7 +1095,7 @@ function initMap() {
           maxZoom: 22,
         });
       }
-      baseTileLayer.addTo(map);
+      if (key !== "thermal") baseTileLayer.addTo(map);
 
       // Show the temperature scale legend only in thermal mode
       const legend = document.getElementById("thermalLegend");
@@ -1525,13 +1539,7 @@ function renderChart() {
 // ============================================================
 
 function bindControls() {
-  const satelliteEl = document.getElementById("lyrSatellite");
-  if (satelliteEl) {
-    satelliteEl.addEventListener("change", event => {
-      if (!satelliteLayer) return;
-      if (event.target.checked) { satelliteLayer.addTo(map); } else { map.removeLayer(satelliteLayer); }
-    });
-  }
+
 
   document.querySelectorAll(".risk-toggle").forEach(checkbox => {
     checkbox.addEventListener("change", rebuildLayers);
