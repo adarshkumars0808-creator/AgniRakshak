@@ -203,6 +203,7 @@
     <button class="nav-tab" data-tab="about">ABOUT</button>
   </div>
   <div style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-last-updated" id="navLastUpdated" style="font-size:10px;color:var(--text-dim);white-space:nowrap;">—</div>
     <div class="nav-status" id="nrtReadout">
       <span class="status-dot-live"></span> LIVE &middot; System Online
     </div>
@@ -305,7 +306,7 @@
         <div class="hint">Controls the chart below only — the risk map reflects the full historical model.</div>
         <div class="side-block" style="margin-top:10px;">
           <div class="side-title">Live NRT Monitor</div>
-          <div id="nrtReadout" style="font-size:11px;color:#94a6b8;line-height:1.5;">Loading…</div>
+          <div id="nrtReadoutSidebar" style="font-size:11px;color:var(--text-secondary);line-height:1.5;">Loading…</div>
           <button id="btnFetchNrt" class="nrt-fetch-btn">🔄 Fetch Live Data</button>
           <div id="nrtFetchStatus" style="font-size:10px;color:#94a6b8;margin-top:4px;display:none;"></div>
           <div style="font-size:9px;color:#64748b;margin-top:6px;line-height:1.4;">Auto-updates: fetches recent FIRMS data, cleans old NRT (>24h), updates grid features & risk predictions.</div>

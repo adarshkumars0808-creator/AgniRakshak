@@ -2538,10 +2538,18 @@ function updateNrtReadout() {
   if (!el) return;
   const count = nrtData.length;
   if (count === 0) {
-    el.innerHTML = `<span style="color:#64748b;">No NRT data yet — run fetch_nrt.py</span>`;
+    el.innerHTML = `<span style="color:#64748b;">No NRT data yet</span>`;
   } else {
     const ts = window.THERMOSCOPE_DATA?.nrtTimestamp || "";
     el.innerHTML = `<span style="color:#ff6b5e;">● ${count.toLocaleString("en-IN")} live detections</span>${ts ? ` · fetched ${ts}` : ""}`;
+  }
+  // Update last updated timestamp in nav
+  const lastUpd = document.getElementById("navLastUpdated");
+  if (lastUpd) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    lastUpd.textContent = `Updated ${dateStr} ${timeStr}`;
   }
 }
 
