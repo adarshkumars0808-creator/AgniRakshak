@@ -903,6 +903,7 @@ function renderTop10OnMap() {
       map.flyTo([lat, lon], 12, { animate: true, duration: 0.8 });
       showGridIntel(row);
       selectFireForChat(row);
+      highlightFireTypeOnMap(lat, lon, row.fire_type);
     });
 
     // Tooltip
@@ -941,6 +942,93 @@ const TILE_URLS = {
   street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 };
 
+// ============================================================
+// THERMAL MAP (NASA GIBS VIIRS Land Surface Temperature)
+// ============================================================
+
+const GIBS_THERMAL_LAYER = "MODIS_Terra_L3_Land_Surface_Temp_8Day_Day";
+let thermalLayer = null;
+let thermalLayerDate = gibsEvidenceDate(3); // fallback
+
+// MODIS 8-day LST composites publish ~2-5 days after each 8-day period ends, but
+// they cover the whole of India with no daily-swath gaps. Build the recent 8-day
+// period-start dates (day-of-year 1, 9, 17, ...) and probe them freshest-first.
+function recentCompositeDates(daysBack) {
+  const dates = [];
+  const seen = new Set();
+  const d = new Date();
+  for (let i = 0; i < (daysBack || 24); i++) {
+    d.setDate(d.getDate() - 1);
+    const y = d.getFullYear();
+    const doy = Math.floor((d - new Date(y, 0, 1)) / 86400000) + 1;
+    const periodStartDoy = doy - ((doy - 1) % 8);
+    const start = new Date(y, 0, periodStartDoy);
+    const s = start.getFullYear() + '-' + String(start.getMonth() + 1).padStart(2, '0') + '-' + String(start.getDate()).padStart(2, '0');
+    if (!seen.has(s)) { seen.add(s); dates.push(s); }
+  }
+  return dates;
+}
+
+(function probeThermalDate() {
+  const candidates = recentCompositeDates(24);
+  if (candidates.length > 1) thermalLayerDate = candidates[1]; // best guess before probing finishes
+  let idx = 0;
+  const probe = () => {
+    if (idx >= candidates.length) return;
+    const d = candidates[idx++];
+    const img = new Image();
+    img.onload = () => { thermalLayerDate = d; };
+    img.onerror = probe;
+    img.src = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/" + GIBS_THERMAL_LAYER
+      + "/default/" + d + "/GoogleMapsCompatible_Level7/7/53/91.png";
+  };
+  probe();
+})();
+
+function getThermalLayer() {
+  if (!thermalLayer) {
+    thermalLayer = L.tileLayer(
+      "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/" + GIBS_THERMAL_LAYER
+        + "/default/" + thermalLayerDate + "/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png",
+      {
+        attribution: "Thermal: NASA GIBS MODIS LST 8-day composite (" + thermalLayerDate + ") · &copy; OpenStreetMap contributors",
+        maxNativeZoom: 7, // GIBS serves this product only up to z7 — scale beyond that
+        maxZoom: 22,
+      }
+    );
+  }
+  return thermalLayer;
+}
+
+// ============================================================
+// FIRE-TYPE HIGHLIGHT OVERLAY
+// ============================================================
+
+function fireTypeColorFor(raw) {
+  if (!raw) return "#5b6b7a";
+  const up = String(raw).trim().toUpperCase();
+  if (SITE_TYPE_COLORS[up]) return SITE_TYPE_COLORS[up];
+  const t = normalizeFireType(raw);
+  return FIRE_TYPE_COLORS[t] || "#5b6b7a";
+}
+
+let fireTypeHighlight = null;
+
+function highlightFireTypeOnMap(lat, lon, fireType) {
+  if (!map) return;
+  if (fireTypeHighlight) map.removeLayer(fireTypeHighlight);
+  const c = fireTypeColorFor(fireType);
+  fireTypeHighlight = L.circle([lat, lon], {
+    radius: 6500,
+    color: c,
+    weight: 3,
+    opacity: 0.95,
+    fillColor: c,
+    fillOpacity: 0.22,
+  }).addTo(map);
+  fireTypeHighlight.bringToFront();
+}
+
 function initMap() {
   map = L.map("map", { preferCanvas: true, maxZoom: 22 }).setView([28.5, 78.5], 7);
 
@@ -973,9 +1061,19 @@ function initMap() {
       document.querySelectorAll(".map-type-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       const key = btn.dataset.tile;
+
+      // Map type selection is authoritative — drop any satellite overlay + its sidebar toggle
+      const satToggle = document.getElementById("lyrSatellite");
+      if (satelliteLayer && map.hasLayer(satelliteLayer)) {
+        map.removeLayer(satelliteLayer);
+        if (satToggle) satToggle.checked = false;
+      }
+
       if (baseTileLayer) map.removeLayer(baseTileLayer);
       if (key === "satellite") {
         baseTileLayer = satelliteLayer;
+      } else if (key === "thermal") {
+        baseTileLayer = getThermalLayer();
       } else {
         baseTileLayer = L.tileLayer(TILE_URLS[key] || TILE_URLS.dark, {
           attribution: "&copy; OpenStreetMap contributors",
@@ -984,6 +1082,10 @@ function initMap() {
         });
       }
       baseTileLayer.addTo(map);
+
+      // Show the temperature scale legend only in thermal mode
+      const legend = document.getElementById("thermalLegend");
+      if (legend) legend.hidden = key !== "thermal";
     });
   });
 }
@@ -1064,7 +1166,7 @@ function renderFireSiteLayer() {
       </div>
     `);
 
-    marker.on("click", () => { showSiteIntel(row); selectFireForChat(row); });
+    marker.on("click", () => { showSiteIntel(row); selectFireForChat(row); highlightFireTypeOnMap(lat, lon, row.fire_type); });
     fireSiteLayer.addLayer(marker);
   });
 
@@ -1182,7 +1284,21 @@ function rebuildLayers() {
     `);
 
     marker.bindTooltip(`${zoneId} | ${zone.risk_level}`, { direction: "top" });
-    marker.on("click", () => { showRiskZoneIntel(zone); selectFireForChat(zone); });
+    marker.on("click", () => {
+      showRiskZoneIntel(zone);
+      selectFireForChat(zone);
+      // Highlight this zone on the base map in its fire-type colour
+      let ft = zone.fire_type;
+      if (!ft) {
+        let best = null, bd = Infinity;
+        gridData.forEach(r => {
+          const d = Math.hypot(Number(r.latitude) - lat, Number(r.longitude) - lon);
+          if (d < bd) { bd = d; best = r; }
+        });
+        ft = best && best.fire_type;
+      }
+      highlightFireTypeOnMap(lat, lon, ft);
+    });
 
     const key = zone.zone_id || zone.grid_id || zoneId;
     markerByGrid[key] = marker;
@@ -2237,6 +2353,7 @@ function renderNrtLayer() {
       map.flyTo([lat, lon], 13, { animate: true, duration: 0.8 });
       showNrtIntel(det);
       selectFireForChat(det);
+      highlightFireTypeOnMap(lat, lon, det.fire_type);
     });
 
     // --- Tooltip on hover ---

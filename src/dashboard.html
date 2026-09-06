@@ -354,8 +354,18 @@
     <!-- CENTER: Map + Chart -->
     <main class="center">
       <section class="map-header">
-        <div class="map-title">🛰️ AGNIRAKSHAK REGIONAL THERMAL RISK MAP</div>
-        <div class="map-subtitle" id="gridCountLabel">AI-BASED SPATIAL RISK ANALYSIS</div>
+        <div class="map-header-left">
+          <div class="map-title">🛰️ AGNIRAKSHAK REGIONAL THERMAL RISK MAP</div>
+          <div class="map-subtitle" id="gridCountLabel">AI-BASED SPATIAL RISK ANALYSIS</div>
+        </div>
+        <div class="map-header-right">
+          <div class="map-type-control">
+            <button class="map-type-btn active" data-tile="osm" title="Street map (OpenStreetMap)">🗺️ OSM</button>
+            <button class="map-type-btn" data-tile="satellite" title="Esri World Imagery satellite">🛰️ Satellite</button>
+            <button class="map-type-btn" data-tile="thermal" title="NASA MODIS 8-day land surface temperature">🌡️ Thermal</button>
+          </div>
+          <img id="thermalLegend" class="map-type-legend" src="https://gibs.earthdata.nasa.gov/legends/MODIS_Land_Surface_Temp_H.svg" alt="Thermal legend (°C)" title="NASA GIBS MODIS LST 8-day legend (°C)" hidden>
+        </div>
       </section>
 
       <section class="map-wrapper">
