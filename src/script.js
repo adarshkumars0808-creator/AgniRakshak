@@ -605,6 +605,11 @@ async function init() {
       nrtData = await fetchJson('data/processed/nrt_data.json');
       alertsData = await fetchJson('data/processed/alerts_data.json');
 
+      // Load metadata (nrt_timestamp etc.)
+      try {
+        window._METADATA = await fetchJson('data/processed/metadata.json');
+      } catch (e) { window._METADATA = {}; }
+
       // Load forecast data
       if (!window._FC_DATA) {
         try {
@@ -2543,13 +2548,18 @@ function updateNrtReadout() {
     const ts = window.THERMOSCOPE_DATA?.nrtTimestamp || "";
     el.innerHTML = `<span style="color:#ff6b5e;">● ${count.toLocaleString("en-IN")} live detections</span>${ts ? ` · fetched ${ts}` : ""}`;
   }
-  // Update last updated timestamp in nav
+  // Update last updated timestamp from metadata
   const lastUpd = document.getElementById("navLastUpdated");
   if (lastUpd) {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-    lastUpd.textContent = `Updated ${dateStr} ${timeStr}`;
+    const nrtTs = window._METADATA?.nrt_timestamp || window.THERMOSCOPE_DATA?.nrtTimestamp || "";
+    if (nrtTs) {
+      const d = new Date(nrtTs);
+      const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+      const dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      lastUpd.textContent = `Last fetched: ${dateStr} ${timeStr}`;
+    } else {
+      lastUpd.textContent = "";
+    }
   }
 }
 
