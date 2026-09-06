@@ -221,6 +221,25 @@ function initTabs() {
 // INTRO / LANDING SCREEN (premium load page)
 // ============================================================
 
+function animateCounter(el, target, duration) {
+  if (!el || target === 0) { if (el) el.textContent = target.toLocaleString("en-IN"); return; }
+  const start = performance.now();
+  const from = 0;
+  function tick(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / (duration || 1500), 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    el.textContent = Math.round(from + (target - from) * eased).toLocaleString("en-IN");
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function setBarWidth(id, pct) {
+  const el = document.getElementById(id);
+  if (el) { el.style.width = Math.min(100, Math.max(0, pct)) + "%"; }
+}
+
 function populateIntroMetrics() {
   const set = (id, val) => {
     const el = document.getElementById(id);
@@ -231,11 +250,21 @@ function populateIntroMetrics() {
   const activeCells = gridData.length;
   const highCrit = gridData.filter(row => row.risk_level === "CRITICAL" || row.risk_level === "HIGH");
   const criticalCells = gridData.filter(row => row.risk_level === "CRITICAL").length;
+  const avgRisk = gridData.length > 0 ? Math.round(gridData.reduce((s, r) => s + (r.risk_score || 0), 0) / gridData.length) : 0;
 
-  set("introMetric1", totalDetections.toLocaleString("en-IN"));
-  set("introMetric2", activeCells.toLocaleString("en-IN"));
-  set("introMetric3", highCrit.length.toLocaleString("en-IN"));
-  set("introMetric4", criticalCells.toLocaleString("en-IN"));
+  // Animated counters
+  animateCounter(document.getElementById("introMetric1"), totalDetections, 1500);
+  animateCounter(document.getElementById("introMetric2"), activeCells, 1500);
+  animateCounter(document.getElementById("introMetric3"), highCrit.length, 1500);
+  animateCounter(document.getElementById("introMetric4"), avgRisk, 1500);
+
+  // Progress bars
+  setTimeout(() => {
+    setBarWidth("introMetric1Bar", Math.min(100, totalDetections / 300000));
+    setBarWidth("introMetric2Bar", Math.min(100, activeCells / 300));
+    setBarWidth("introMetric3Bar", Math.min(100, highCrit.length / 50));
+    setBarWidth("introMetric4Bar", avgRisk);
+  }, 200);
 
   // Trend deltas — last 30 days vs previous 30 days, from real daily activity.
   // Negative = activity is falling (good for fire risk) → shown in green.
@@ -391,6 +420,20 @@ function initIntro() {
   });
   const introTheme = document.getElementById("introThemeToggle");
   if (introTheme) introTheme.addEventListener("click", toggleTheme);
+
+  // Scroll-triggered feature card animations
+  const featureCards = document.querySelectorAll(".intro-feature-card");
+  if (featureCards.length && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    featureCards.forEach(card => observer.observe(card));
+  }
 }
 
 // ============================================================
@@ -3858,12 +3901,9 @@ function selectFireForChat(fireData) {
   chatContext = fireData;
   updateSelectedFireDisplay();
 
-  if (!chatOpen) {
-    chatOpen = true;
-    const panel = document.getElementById("chatbotPanel");
-    if (panel) panel.style.display = "flex";
-    if (chatMessages.length === 0) showWelcome();
-  }
+  // BUG FIX: Do NOT auto-open the chat panel on fire marker click.
+  // Only set the context so when the user manually opens the chat,
+  // it shows the selected fire's intelligence.
 
   const name = fireData.display_site_name || fireData.site_name || fireData.grid_id || "Unknown";
   const ft = normalizeFireType(fireData.fire_type);
@@ -3877,6 +3917,9 @@ function selectFireForChat(fireData) {
   const lon = Number(fireData.longitude || fireData.map_longitude) || 0;
   const geo = reverseGeocode(lat, lon);
   const facility = getFacilityInfo(fireData);
+
+  // BUG FIX: Only send messages if the chat panel is already open.
+  if (!chatOpen) return;
 
   addUserMessage(`📍 Selected: ${name}`);
 
