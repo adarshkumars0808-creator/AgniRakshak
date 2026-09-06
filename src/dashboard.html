@@ -147,35 +147,6 @@
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
-  <section class="intro-section" id="introHow">
-    <div class="intro-section-label">HOW IT WORKS</div>
-    <h2 class="intro-section-title">From satellite pixel to <span class="intro-grad-text">actionable risk</span></h2>
-
-    <div class="intro-steps">
-      <div class="intro-step">
-        <div class="intro-step-num">01</div>
-        <div class="intro-step-title">Ingest</div>
-        <div class="intro-step-text">Historical + live NASA FIRMS detections across North India, 2020 → present.</div>
-      </div>
-      <div class="intro-step">
-        <div class="intro-step-num">02</div>
-        <div class="intro-step-title">Analyze</div>
-        <div class="intro-step-text">5km grid feature engineering — recurrence, persistence, seasonality, satellite agreement.</div>
-      </div>
-      <div class="intro-step">
-        <div class="intro-step-num">03</div>
-        <div class="intro-step-title">Model</div>
-        <div class="intro-step-text">ML risk ranking 0–100, fire-type classification, and land-cover verification per site.</div>
-      </div>
-      <div class="intro-step">
-        <div class="intro-step-num">04</div>
-        <div class="intro-step-title">Monitor</div>
-        <div class="intro-step-text">Live NRT layer, anomaly alert engine, and one-click intelligence reports.</div>
-      </div>
-    </div>
-  </section>
-
   <!-- DATA SOURCES -->
   <section class="intro-section intro-sources">
     <div class="intro-section-label">DATA SOURCES</div>
@@ -384,9 +355,10 @@
         <div id="map"></div>
       </section>
 
-      <section class="chart-card">
+      <section class="chart-card" style="position:relative;">
         <div class="chart-title">FIRE ACTIVITY TIMELINE — DAILY DETECTIONS</div>
         <svg id="chart" viewBox="0 0 900 200" width="100%" height="200"></svg>
+        <div id="chatbotFab" class="chatbot-fab-inline" title="AgniRakshak AI Assistant">🤖</div>
       </section>
     </main>
 
@@ -740,9 +712,16 @@
 <!-- ============================================================ -->
 <div id="transitionOverlay" class="transition-overlay" aria-hidden="true">
   <div class="transition-logo">
-    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2.5c.6 3.2 1.7 5.4 3.4 7 .6 3.2-.5 5.6-2.4 7.2 1.9.4 3.7.3 5.1-.4 1.4-.7 2.2-1.8 2.4-3.3-.4.8-1.6 1.1-2.6.8.6-1.7.6-3.9-.6-5.9C16.5 6 14.5 4.3 12 2.5z"/>
-      <path d="M7.3 7.2C5 9.2 4.2 11.9 5 14.4c.5 1.6 1.5 3 2.7 4-.6-1.8-.4-3.9.8-5.8 1-1.6 2.3-2.7 3.9-3.6-.3 1.8-.4 3.5.4 5.1.3-2.6 1.5-4.6 3-6.3C15.2 5 13.9 4.4 12.4 4.2c-.5 1-1.5 1.5-2.5 1.5.3-1.6-.2-3.4-1.2-4.9-.7.8-1.2 1.6-1.4 2.4z" opacity="0.8"/>
+    <svg viewBox="0 0 48 48" width="30" height="30" fill="none">
+      <defs>
+        <linearGradient id="transFireGrad" x1="12" y1="48" x2="36" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#ff382f"/>
+          <stop offset="50%" stop-color="#ff6b1a"/>
+          <stop offset="100%" stop-color="#ffae42"/>
+        </linearGradient>
+      </defs>
+      <path d="M24 2C24 2 8 18 8 28a16 16 0 0 0 32 0C40 18 24 2 24 2z" fill="url(#transFireGrad)" opacity="0.9"/>
+      <path d="M24 14c0 0-7 8-7 14a7 7 0 0 0 14 0c0-6-7-14-7-14z" fill="#fff" opacity="0.35"/>
     </svg>
   </div>
   <div class="transition-name">AGNIRAKSHAK</div>
@@ -793,7 +772,7 @@
 <!-- ============================================================ -->
 <!-- XAI CHATBOT WIDGET (before scripts so DOM is ready) -->
 <!-- ============================================================ -->
-<div id="chatbotFab" class="chatbot-fab" title="AgniRakshak AI Assistant">🤖</div>
+<!-- chatbotFab moved inline -->
 
 <div id="chatbotPanel" class="chatbot-panel" style="display:none;">
   <div class="chatbot-header">
