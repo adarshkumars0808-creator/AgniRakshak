@@ -588,73 +588,46 @@ async function init() {
     nrtData = window.THERMOSCOPE_DATA.nrtData || [];
     alertsData = window.THERMOSCOPE_DATA.alertsData || [];
   }
-  // === STANDALONE MODE ===
+  // === STANDALONE MODE (JSON) ===
   else {
     try {
-      gridData = await loadCSVWithFallback([
-        "../data/processed/risk_predictions.csv",
-        "data/processed/risk_predictions.csv",
-        "data/risk_predictions.csv",
-      ]);
-      dailyData = await loadCSVWithFallback([
-        "../data/processed/daily_activity.csv",
-        "data/processed/daily_activity.csv",
-        "data/daily_activity.csv",
-      ]);
+      const base = '';
+      const fetchJson = async (path) => {
+        const r = await fetch(base + path);
+        if (!r.ok) return [];
+        return await r.json();
+      };
 
-      try {
-        const fireTypes = await loadCSVWithFallback([
-          "../data/processed/fire_type_predictions.csv",
-          "data/processed/fire_type_predictions.csv",
-        ]);
-        const byGrid = {};
-        fireTypes.forEach(row => {
-          const id = String(row.grid_id ?? "").trim();
-          if (id) byGrid[id] = row;
-        });
-        gridData.forEach(row => {
-          const id = String(row.grid_id ?? "").trim();
-          const fire = byGrid[id];
-          if (!fire) return;
-          row.fire_type = fire.fire_type;
-          row.fire_type_confidence = fire.fire_type_confidence;
-          row.fire_type_reason = fire.fire_type_reason;
-          row.coordinate_source = fire.coordinate_source;
-          row.display_latitude = fire.display_latitude;
-          row.display_longitude = fire.display_longitude;
-          row.display_site_name = fire.display_site_name;
-          row.display_site_type = fire.display_site_type;
-        });
-      } catch (error) { console.warn("Fire-type CSV unavailable.", error); }
+      gridData = await fetchJson('data/processed/grid_data.json');
+      dailyData = await fetchJson('data/processed/daily_data.json');
+      fireSiteData = await fetchJson('data/processed/fire_sites.json');
+      riskZoneData = await fetchJson('data/processed/risk_zones.json');
+      nrtData = await fetchJson('data/processed/nrt_data.json');
+      alertsData = await fetchJson('data/processed/alerts_data.json');
 
-      try {
-        fireSiteData = await loadCSVWithFallback([
-          "../data/processed/verified_fire_sites.csv",
-          "data/processed/verified_fire_sites.csv",
-        ]);
-      } catch (error) { console.warn("verified_fire_sites.csv unavailable.", error); fireSiteData = []; }
+      // Load forecast data
+      if (!window._FC_DATA) {
+        try {
+          window._FC_DATA = await fetchJson('data/processed/fire_forecast.json');
+        } catch (e) { window._FC_DATA = {}; }
+      }
 
-      try {
-        riskZoneData = await loadCSVWithFallback([
-          "../data/processed/risk_zones.csv",
-          "data/processed/risk_zones.csv",
-        ]);
-      } catch (error) { console.warn("risk_zones.csv unavailable.", error); riskZoneData = []; }
-
-      try {
-        nrtData = await loadCSVWithFallback([
-          "../data/processed/nrt_detections.csv",
-          "data/processed/nrt_detections.csv",
-        ]);
-      } catch (error) { console.warn("nrt_detections.csv unavailable.", error); nrtData = []; }
-
+      console.log('JSON data loaded:', gridData.length, 'grids,', dailyData.length, 'days,', nrtData.length, 'NRT');
     } catch (error) {
-      const element = document.getElementById("dataReadout");
-      if (element) element.textContent = "Failed to load dashboard data.";
+      const element = document.getElementById('dataReadout');
+      if (element) element.textContent = 'Failed to load dashboard data.';
       console.error(error);
       return;
     }
   }
+
+  // Populate credits with real counts
+  var creditsGrid = document.getElementById('creditsGridCount');
+  var creditsSite = document.getElementById('creditsSiteCount');
+  var creditsZone = document.getElementById('creditsZoneCount');
+  if (creditsGrid) creditsGrid.textContent = gridData.length.toLocaleString('en-IN');
+  if (creditsSite) creditsSite.textContent = fireSiteData.length.toLocaleString('en-IN');
+  if (creditsZone) creditsZone.textContent = riskZoneData.length.toLocaleString('en-IN');
 
   // ==========================================================
   // NORMALIZE DATA (original)

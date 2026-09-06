@@ -621,10 +621,6 @@ async function init() {
     }
   }
 
-    }
-  }
-
-
   // Populate credits with real counts
   var creditsGrid = document.getElementById('creditsGridCount');
   var creditsSite = document.getElementById('creditsSiteCount');
