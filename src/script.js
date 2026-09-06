@@ -444,7 +444,7 @@ function showSatelliteEvidence(lat, lon, label) {
       if (loadingEl) loadingEl.style.display = 'none';
       if (timestampEl) timestampEl.textContent = '\u26a0\ufe0f GIBS unavailable \u00b7 Esri reference imagery (not real-time)';
       satEvidenceMap = L.map(mapEl, { center: [lat,lon], zoom: 13, zoomControl: true, attributionControl: true, dragging: true, scrollWheelZoom: true });
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri (fallback)', maxZoom: 19 }).addTo(satEvidenceMap);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri (fallback)', maxNativeZoom: 19, maxZoom: 22 }).addTo(satEvidenceMap);
       addEvidenceMarkers(lat, lon);
       return;
     }
@@ -942,16 +942,17 @@ const TILE_URLS = {
 };
 
 function initMap() {
-  map = L.map("map", { preferCanvas: true }).setView([28.5, 78.5], 7);
+  map = L.map("map", { preferCanvas: true, maxZoom: 22 }).setView([28.5, 78.5], 7);
 
   baseTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
-    maxZoom: 19,
+    maxNativeZoom: 19,
+    maxZoom: 22,
   }).addTo(map);
 
   satelliteLayer = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics", maxZoom: 19 }
+    { attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics", maxNativeZoom: 19, maxZoom: 22 }
   );
 
   clusterLayer = L.markerClusterGroup({
@@ -978,7 +979,8 @@ function initMap() {
       } else {
         baseTileLayer = L.tileLayer(TILE_URLS[key] || TILE_URLS.dark, {
           attribution: "&copy; OpenStreetMap contributors",
-          maxZoom: 19,
+          maxNativeZoom: 19,
+          maxZoom: 22,
         });
       }
       baseTileLayer.addTo(map);
