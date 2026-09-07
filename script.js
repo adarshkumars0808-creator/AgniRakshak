@@ -205,9 +205,10 @@ function initTabs() {
       if (btn.dataset.tab === "history") {
         setTimeout(renderHistoryTab, 100);
       }
-      // Render alerts when alerts tab shown
+      // Render alerts when alerts tab shown; viewing marks them read
       if (btn.dataset.tab === "alerts") {
         setTimeout(renderAlertsTab, 100);
+        markAlertsSeen();
       }
       // Render forecast when forecast tab shown
       if (btn.dataset.tab === "forecast") {
@@ -2546,8 +2547,52 @@ function updateNrtReadout() {
 }
 
 // ============================================================
-// ALERT BADGE IN NAV
+// ALERT BADGE IN NAV (unread-only)
+// Shows the badge only for alerts the user has NOT viewed yet.
+// Viewing the Alerts tab marks the current alert set as read; a new
+// alert from the pipeline changes the fingerprint and re-triggers it.
 // ============================================================
+
+// Fingerprint of the current engine alerts (from alerts_data.json).
+// Stable across reloads; changes when a new alert is appended.
+function getAlertsFingerprint() {
+  if (!alertsData || !alertsData.length) return "";
+  return alertsData
+    .map(a =>
+      String(
+        a.alert_id ||
+        (a.grid_id || "") + "|" + (a.timestamp || a.description || "")
+      )
+    )
+    .sort()
+    .join(",");
+}
+
+// localStorage can throw (private mode, file://) — fall back to an
+// in-memory value so the badge still clears for the session.
+const alertSeenState = { fingerprint: null };
+
+function loadSeenFingerprint() {
+  try {
+    return localStorage.getItem("thermoscope_alerts_seen");
+  } catch (e) {
+    return alertSeenState.fingerprint;
+  }
+}
+
+function saveSeenFingerprint(fp) {
+  alertSeenState.fingerprint = fp;
+  try {
+    localStorage.setItem("thermoscope_alerts_seen", fp);
+  } catch (e) { /* non-persistent fallback already recorded */ }
+}
+
+// Called when the user opens the Alerts tab: current alerts = read.
+function markAlertsSeen() {
+  saveSeenFingerprint(getAlertsFingerprint());
+  const badge = document.getElementById("alertBadge");
+  if (badge) badge.style.display = "none";
+}
 
 function updateAlertBadge() {
   const badge = document.getElementById("alertBadge");
@@ -2555,7 +2600,9 @@ function updateAlertBadge() {
   if (!badge || !alertsTab) return;
 
   const count = alertsData.length;
-  if (count > 0) {
+  const unseen =
+    count > 0 && loadSeenFingerprint() !== getAlertsFingerprint();
+  if (unseen) {
     badge.textContent = count > 99 ? "99+" : count;
     badge.style.display = "inline-flex";
   } else {
@@ -4192,10 +4239,47 @@ function fcRenderAlerts(fd) {
 }
 
 // ============================================================
+// MAP FULLSCREEN TOGGLE (button at the map's bottom-left)
+// ============================================================
+
+function initMapFullscreen() {
+  const btn = document.getElementById("mapFullscreen");
+  const wrapper = document.getElementById("mapWrapper");
+  if (!btn || !wrapper) return;
+
+  const isFs = () => wrapper.classList.contains("fullscreen");
+  const setFs = (on) => {
+    wrapper.classList.toggle("fullscreen", on);
+    document.documentElement.classList.toggle("map-fs", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.title = on ? "Exit fullscreen (F)" : "Expand map to fullscreen (F)";
+    // Leaflet must re-measure after the resize animation/settle
+    setTimeout(() => { if (typeof map !== "undefined" && map) map.invalidateSize(); }, 220);
+  };
+
+  btn.addEventListener("click", () => setFs(!isFs()));
+
+  // Leaving the OVERVIEW tab exits fullscreen (the wrapper would otherwise hide)
+  document.querySelectorAll(".nav-tab").forEach((t) => {
+    t.addEventListener("click", () => {
+      if (t.dataset.tab !== "overview" && isFs()) setFs(false);
+    });
+  });
+
+  // Keyboard: F toggles fullscreen, Escape exits
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT")) return;
+    if (e.key === "f" || e.key === "F") setFs(!isFs());
+    if (e.key === "Escape" && isFs()) setFs(false);
+  });
+}
+
+// ============================================================
 // START (original)
 // ============================================================
 
 init();
 initChatbot();
+initMapFullscreen();
 // Render forecast on load (after a small delay for DOM readiness)
 setTimeout(renderForecastTab, 500);
