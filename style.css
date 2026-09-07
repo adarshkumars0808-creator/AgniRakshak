@@ -265,7 +265,7 @@ html {
 }
 .nav-last-updated {
   font-size: 10px;
-  color: var(--text-dim);
+  color: #ff6b5e; /* same accent as the live-detections count, readable on dark + light */
   white-space: nowrap;
   display: flex;
   align-items: center;
