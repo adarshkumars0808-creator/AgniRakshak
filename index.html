@@ -232,8 +232,11 @@
     <button class="nav-tab" data-tab="about">ABOUT</button>
   </div>
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="nav-status" id="nrtReadout">
-      <span class="status-dot-live"></span> LIVE &middot; System Online
+    <div class="nav-status-wrap">
+      <div class="nav-status" id="nrtReadout">
+        <span class="status-dot-live"></span> LIVE &middot; System Online
+      </div>
+      <div class="nav-last-updated" id="navLastUpdated" title="Last NRT data update">—</div>
     </div>
     <div class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">🌙</div>
   </div>

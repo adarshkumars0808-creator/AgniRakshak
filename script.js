@@ -606,6 +606,14 @@ async function init() {
       nrtData = await fetchJson('data/processed/nrt_data.json');
       alertsData = await fetchJson('data/processed/alerts_data.json');
 
+      // Load metadata (nrt_timestamp etc.)
+      try {
+        window._METADATA = await fetchJson('data/processed/metadata.json');
+      } catch (e) { window._METADATA = {}; }
+      if (!window._METADATA || typeof window._METADATA !== "object" || Array.isArray(window._METADATA)) {
+        window._METADATA = {};
+      }
+
       // Load forecast data
       if (!window._FC_DATA) {
         try {
@@ -2543,6 +2551,32 @@ function updateNrtReadout() {
   } else {
     const ts = window.THERMOSCOPE_DATA?.nrtTimestamp || "";
     el.innerHTML = `<span style="color:#ff6b5e;">● ${count.toLocaleString("en-IN")} live detections</span>${ts ? ` · fetched ${ts}` : ""}`;
+  }
+
+  // Last-updated line (clock icon) from metadata's nrt_timestamp.
+  // The pipeline writes this as UTC without an offset marker, so treat
+  // it as UTC and render in the viewer's local time.
+  const lastUpd = document.getElementById("navLastUpdated");
+  if (lastUpd) {
+    const nrtTs =
+      window._METADATA?.nrt_timestamp ||
+      window.THERMOSCOPE_DATA?.nrtTimestamp ||
+      "";
+    if (nrtTs) {
+      const raw = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(String(nrtTs).trim())
+        ? String(nrtTs).trim()
+        : String(nrtTs).trim() + "Z";
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        const dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+        const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+        lastUpd.textContent = `Updated: ${dateStr}, ${timeStr}`;
+        lastUpd.title = `Last NRT data update: ${d.toLocaleString("en-IN")}`;
+      }
+    } else {
+      lastUpd.textContent = "";
+      lastUpd.title = "Last NRT data update";
+    }
   }
 }
 

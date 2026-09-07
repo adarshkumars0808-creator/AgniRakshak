@@ -256,6 +256,28 @@ html {
   font-weight: 600;
 }
 
+/* Stacked live-status + last-updated line in the top nav */
+.nav-status-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.nav-last-updated {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.2px;
+}
+.nav-last-updated::before {
+  content: "\23F0";
+  font-size: 10px;
+  line-height: 1;
+}
+
 .status-dot-live {
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--success-dot);
