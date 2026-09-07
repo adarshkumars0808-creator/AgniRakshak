@@ -1,6 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
-firms_clean_mearged.csv filter=lfs diff=lfs merge=lfs -text
 data/processed/firms_clean_merged.csv filter=lfs diff=lfs merge=lfs -text
 data/processed/thermoscope_fire_risk_map.html filter=lfs diff=lfs merge=lfs -text
 data/processed/thermoscope_industrial_fire_map.html filter=lfs diff=lfs merge=lfs -text

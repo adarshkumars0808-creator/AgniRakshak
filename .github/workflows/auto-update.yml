@@ -1,9 +1,20 @@
 name: Auto Update FIRMS Data
 
+# IMPORTANT: scheduled workflows only run on the DEFAULT branch (main).
+# This file must exist on `main` for the cron to fire. `workflow_dispatch`
+# can be triggered manually from any branch.
+
 on:
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: firms-auto-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   update:
@@ -14,6 +25,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - run: pip install pandas numpy scikit-learn requests geopandas shapely python-dotenv
 
@@ -25,10 +37,22 @@ jobs:
           python src/fetch_nrt.py
           python src/build_json.py
 
-      - name: Commit and push updated JSON
+      - name: Commit and push updated data
         run: |
           git config user.name "AgniRakshak Bot"
           git config user.email "bot@agnirakshak.dev"
-          git add data/processed/*.json
-          git diff --staged --quiet || git commit -m "Auto-update %Y-%m-%dT%H:%M:%SZ"
+          # JSONs served by the dashboard + the small CSVs the pipeline appends to.
+          # The 291MB Git LFS archive (firms_clean_merged.csv) is intentionally
+          # NOT touched here — it lives only on local machines for one-time builds.
+          git add \
+            data/processed/*.json \
+            data/processed/recent_detections.csv \
+            data/processed/update_anchor.txt \
+            data/processed/daily_activity.csv \
+            data/processed/nrt_detections.csv \
+            data/processed/nrt_latest_timestamp.txt \
+            data/processed/alerts_log.csv \
+            data/processed/grid_features.csv \
+            data/processed/risk_predictions.csv
+          git diff --cached --quiet || git commit -m "Auto-update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push

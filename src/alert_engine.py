@@ -128,6 +128,8 @@ def detect_critical_new_zones(
             nrt_count=("frp", "size"),
             nrt_max_frp=("frp", "max"),
             nrt_avg_frp=("frp", "mean"),
+            latitude=("latitude", "mean"),
+            longitude=("longitude", "mean"),
             latest_acq=("acq_date", "max"),
             sensors=("sensor", lambda x: ", ".join(
                 sorted(set(x.dropna()))
@@ -173,6 +175,16 @@ def detect_critical_new_zones(
 
     now = datetime.now(timezone.utc)
 
+    # Grids with no entry in the historical risk model (brand-new grids)
+    # are treated as LOW risk so they can still trigger alerts.
+    # NOTE: only latitude/longitude collide between the two frames, so
+    # the historical columns (risk_score, risk_level, avg_frp, ...) keep
+    # their plain names — no _hist suffix.
+    merged["risk_score"] = merged["risk_score"].fillna(0)
+    merged["risk_level"] = merged["risk_level"].fillna("LOW")
+    if "avg_frp" in merged.columns:
+        merged["avg_frp"] = merged["avg_frp"].fillna(0)
+
     for _, row in merged.iterrows():
         grid_id = row["grid_id"]
         nrt_frp = row.get("nrt_max_frp", 0)
@@ -205,17 +217,19 @@ def detect_critical_new_zones(
         # -----------------------------------------------
         # RULE 2: Escalating activity
         # Current NRT FRP significantly exceeds
-        # historical average
+        # historical average (only when a historical
+        # baseline exists)
         # -----------------------------------------------
         elif (
             nrt_frp >= FRP_HIGH_THRESHOLD
+            and row.get("avg_frp", 0) > 0
             and row.get("nrt_avg_frp", 0)
-            > row.get("avg_frp_hist", 1)
+            > row.get("avg_frp", 1)
             * ESCALATION_MULTIPLIER
         ):
             alert_type = "ESCALATING_ACTIVITY"
             severity = "high"
-            avg_hist = row.get("avg_frp_hist", 1)
+            avg_hist = row.get("avg_frp", 0)
             description = (
                 f"Grid {grid_id}: NRT FRP "
                 f"({nrt_frp:.0f} MW) exceeds "
@@ -311,8 +325,8 @@ def deduplicate_alerts(new_alerts, existing_df):
     recent = existing_df.copy()
     if "timestamp" in recent.columns:
         recent["timestamp"] = pd.to_datetime(
-            recent["timestamp"], errors="coerce"
-        )
+            recent["timestamp"], errors="coerce", utc=True
+        ).dt.tz_localize(None)
         recent = recent[
             recent["timestamp"] >= recent_cutoff
         ]
@@ -365,8 +379,8 @@ def save_alerts(new_alerts, existing_df):
     # Keep last 30 days only
     if "timestamp" in combined.columns:
         combined["timestamp"] = pd.to_datetime(
-            combined["timestamp"], errors="coerce"
-        )
+            combined["timestamp"], errors="coerce", utc=True
+        ).dt.tz_localize(None)
         cutoff = pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(
             days=30
         )

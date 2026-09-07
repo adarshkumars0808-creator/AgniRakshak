@@ -1,1 +1,1 @@
-[]
+[{"alert_id": "29.45_76.85_PERSISTENT_HIGH_RISK_20260907_06", "timestamp": "2026-09-07 06:10", "grid_id": "29.45_76.85", "latitude": 29.475105, "longitude": 76.85598375, "alert_type": "PERSISTENT_HIGH_RISK", "severity": "critical", "description": "Grid 29.45_76.85: CRITICAL risk (score 92) with 8 NRT detections.", "nrt_detections": 8, "nrt_max_frp": 5.28, "historical_risk_score": 91.679367903, "historical_risk_level": "CRITICAL", "sensors": "NOAA20, NOAA21, SNPP", "fire_type": "INDUSTRIAL_PERSISTENT", "status": "ACTIVE"}]

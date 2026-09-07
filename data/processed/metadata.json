@@ -1,11 +1,14 @@
 {
-  "generated_at": "2026-09-06T15:51:34.193640+00:00",
+  "generated_at": "2026-09-07T06:12:29.195040+00:00",
   "historical_grid_count": 26891,
-  "recent_grid_count": 1210,
-  "nrt_detections_count": 2,
-  "nrt_timestamp": "2026-09-06T13:44:13.185745",
-  "active_alert_count": 0,
+  "recent_grid_count": 2237,
+  "nrt_detections_count": 30,
+  "nrt_timestamp": "2026-09-07T06:12:28.957103",
+  "active_alert_count": 1,
   "fire_type_counts": {
-    "UNCLASSIFIED": 26891
+    "INDUSTRIAL_PERSISTENT": 7247,
+    "UNCLASSIFIED": 14426,
+    "AGRICULTURAL_BURNING": 3672,
+    "FOREST_WILDFIRE": 1546
   }
 }

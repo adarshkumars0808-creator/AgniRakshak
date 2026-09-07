@@ -46,6 +46,29 @@ def build():
         risk_df = pd.read_csv(risk_file, low_memory=False)
         risk_df["grid_id"] = risk_df["grid_id"].astype(str).str.strip()
         risk_df["risk_level"] = risk_df["risk_level"].fillna("LOW").astype(str).str.strip().str.upper()
+
+        # Merge fire-type classification + display coordinates from
+        # fire_type_predictions.csv (produced by classify_fire_type.py)
+        # BEFORE any fire_type column is created, so the merge does not
+        # collide (which would produce fire_type_x/fire_type_y).
+        # Without this, every grid would come out as UNCLASSIFIED.
+        ft_file = DATA_DIR / "fire_type_predictions.csv"
+        FT_MERGE_COLS = [
+            "fire_type", "fire_type_confidence", "fire_type_reason",
+            "display_latitude", "display_longitude", "display_site_name",
+            "display_site_type", "coordinate_source", "display_coordinate_distance_km",
+        ]
+        if ft_file.exists():
+            try:
+                ft_df = pd.read_csv(ft_file, usecols=["grid_id"] + FT_MERGE_COLS, low_memory=False)
+                ft_df["grid_id"] = ft_df["grid_id"].astype(str).str.strip()
+                ft_df = ft_df.drop_duplicates(subset=["grid_id"], keep="last")
+                matched = int(ft_df["fire_type"].notna().sum())
+                risk_df = risk_df.merge(ft_df, on="grid_id", how="left")
+                print(f"  Merged fire-type data for {matched:,} grids")
+            except Exception as exc:
+                print(f"  [WARN] Could not merge fire_type_predictions.csv: {exc}")
+
         if "fire_type" in risk_df.columns:
             risk_df["fire_type"] = risk_df["fire_type"].apply(normalize_fire_type)
         else:
@@ -57,6 +80,7 @@ def build():
             if c in risk_df.columns:
                 risk_df[c] = pd.to_numeric(risk_df[c], errors="coerce")
         risk_df = risk_df.dropna(subset=["grid_id", "latitude", "longitude"]).drop_duplicates(subset=["grid_id"], keep="last")
+
         for c in ["coordinate_source", "display_site_name", "display_site_type"]:
             if c in risk_df.columns:
                 risk_df[c] = risk_df[c].fillna("").astype(str)

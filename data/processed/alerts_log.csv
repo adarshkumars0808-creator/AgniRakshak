@@ -1,0 +1,2 @@
+alert_id,timestamp,grid_id,latitude,longitude,alert_type,severity,description,nrt_detections,nrt_max_frp,historical_risk_score,historical_risk_level,sensors,fire_type,status
+29.45_76.85_PERSISTENT_HIGH_RISK_20260907_06,2026-09-07 06:10:35.184580,29.45_76.85,29.475105,76.85598375000001,PERSISTENT_HIGH_RISK,critical,Grid 29.45_76.85: CRITICAL risk (score 92) with 8 NRT detections.,8,5.28,91.6793679030357,CRITICAL,"NOAA20, NOAA21, SNPP",INDUSTRIAL_PERSISTENT,ACTIVE

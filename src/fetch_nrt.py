@@ -174,6 +174,8 @@ def standardize_nrt(df):
             "N": "SNPP",
             "1": "NOAA20",
             "2": "NOAA21",
+            "N20": "NOAA20",
+            "N21": "NOAA21",
             "SNPP": "SNPP",
             "NOAA-20": "NOAA20",
             "NOAA-21": "NOAA21",
@@ -186,8 +188,21 @@ def standardize_nrt(df):
             .fillna("UNKNOWN")
         )
 
-    # Parse acquisition date
-    if "acq_date" in df.columns:
+    # Parse acquisition datetime from acq_date (YYYY-MM-DD) +
+    # acq_time (HHMM, UTC). Without the time component every
+    # detection looks like midnight UTC and gets cleaned out of
+    # the 24h window within a day.
+    if "acq_date" in df.columns and "acq_time" in df.columns:
+        dt = pd.to_datetime(df["acq_date"], errors="coerce")
+        t = pd.to_numeric(df["acq_time"], errors="coerce")
+        hours = t // 100
+        minutes = t % 100
+        df["acq_date"] = (
+            dt
+            + pd.to_timedelta(hours.fillna(0), unit="h")
+            + pd.to_timedelta(minutes.fillna(0), unit="m")
+        )
+    elif "acq_date" in df.columns:
         df["acq_date"] = pd.to_datetime(
             df["acq_date"], errors="coerce"
         )
