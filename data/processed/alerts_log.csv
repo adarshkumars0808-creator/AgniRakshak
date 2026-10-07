@@ -1,1 +1,2 @@
 alert_id,timestamp,grid_id,latitude,longitude,alert_type,severity,description,nrt_detections,nrt_max_frp,historical_risk_score,historical_risk_level,sensors,fire_type,status
+24.45_77.10_ELEVATED_ACTIVITY_20261007_22,2026-10-07 22:29:49.037708,24.45_77.10,24.481646666666666,77.14672333333333,ELEVATED_ACTIVITY,medium,"Grid 24.45_77.10: Elevated NRT activity (FRP 21 MW, 3 detections).",3,21.43,75.79593966276703,CRITICAL,"NOAA20, SNPP",INDUSTRIAL_PERSISTENT,ACTIVE

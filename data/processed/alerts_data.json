@@ -1,1 +1,1 @@
-[]
+[{"alert_id": "24.45_77.10_ELEVATED_ACTIVITY_20261007_22", "timestamp": "2026-10-07 22:29", "grid_id": "24.45_77.10", "latitude": 24.4816466667, "longitude": 77.1467233333, "alert_type": "ELEVATED_ACTIVITY", "severity": "medium", "description": "Grid 24.45_77.10: Elevated NRT activity (FRP 21 MW, 3 detections).", "nrt_detections": 3, "nrt_max_frp": 21.43, "historical_risk_score": 75.7959396628, "historical_risk_level": "CRITICAL", "sensors": "NOAA20, SNPP", "fire_type": "INDUSTRIAL_PERSISTENT", "status": "ACTIVE"}]
