@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-23T16:12:54.852930+00:00",
+  "generated_at": "2026-10-23T20:51:02.595738+00:00",
   "historical_grid_count": 26891,
   "recent_grid_count": 2300,
   "nrt_detections_count": 2159,
-  "nrt_timestamp": "2026-10-23T16:12:54.470845",
+  "nrt_timestamp": "2026-10-23T20:51:02.257237",
   "active_alert_count": 1,
   "fire_type_counts": {
     "INDUSTRIAL_PERSISTENT": 7247,
